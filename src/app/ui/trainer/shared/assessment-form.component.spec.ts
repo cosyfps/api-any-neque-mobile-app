@@ -50,6 +50,34 @@ describe('AssessmentFormComponent', () => {
 
       expect(emitido).toMatchObject({ weightKg: 61.4, heightCm: 165 });
     });
+
+    // QA-09: ningun numero validaba rango y el backend respondia con un 400.
+    it.each([
+      ['weightKg', -5, 'Entre 20 y 300 kg.'],
+      ['weightKg', 999, 'Entre 20 y 300 kg.'],
+      ['heightCm', 0, 'Entre 100 y 250 cm.'],
+      ['bodyFatPct', 0.5, 'Entre 2 y 70 %.'],
+      ['muscleMassKg', 500, 'Entre 1 y 150 kg.'],
+      ['waistCm', 999, 'Entre 10 y 250 cm.'],
+    ] as const)('rechaza %s=%p con su rango', (campo, valor, mensaje) => {
+      form.form.patchValue({ weightKg: 61.4, [campo]: valor });
+
+      form.onSubmit();
+
+      expect(emitido).toBeNull();
+      expect(form.errorOf(campo)).toBe(mensaje);
+      // El aviso de obligatorios no aplica: peso y estatura estan.
+      expect(form.requiredError()).toBe(false);
+    });
+
+    it('el error de rango desaparece al corregir el valor', () => {
+      form.form.controls.weightKg.setValue(-5);
+      form.onSubmit();
+
+      form.form.controls.weightKg.setValue(60);
+
+      expect(form.errorOf('weightKg')).toBeNull();
+    });
   });
 
   describe('reset()', () => {

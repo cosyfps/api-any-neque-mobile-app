@@ -24,6 +24,8 @@ import {
 } from '@app/domain/routines/model/routine.model';
 import { Weekday } from '@app/domain/shared/model/date';
 
+import { clampNumber, notBlank } from '@shared/validators/field-rules';
+
 /** Etiquetas de los dias ISO, en el orden en que se muestran. */
 const DIAS: readonly { value: Weekday; label: string }[] = [
   { value: 1, label: 'Lunes' },
@@ -58,6 +60,24 @@ const SEGUNDOS_POR_DEFECTO = 60;
 /** Tope de una serie por tiempo: dos horas. */
 const SEGUNDOS_MAXIMOS = 7200;
 
+/** Minutos estimados de un dia: los mismos limites que muestra el input. */
+const MINUTOS_MINIMOS = 10;
+const MINUTOS_MAXIMOS = 180;
+
+/**
+ * Rango de cada dato de la prescripcion, igual al `min`/`max` de su input.
+ * Series, reps y descanso son enteros; los kg admiten decimales.
+ */
+const RANGOS: Record<
+  'sets' | 'reps' | 'weightKg' | 'restSeconds',
+  { min: number; max: number; integer: boolean }
+> = {
+  sets: { min: 1, max: 20, integer: true },
+  reps: { min: 1, max: 100, integer: true },
+  weightKg: { min: 0, max: 1000, integer: false },
+  restSeconds: { min: 0, max: 600, integer: true },
+};
+
 /**
  * Constructor de rutinas.
  *
@@ -77,6 +97,7 @@ const SEGUNDOS_MAXIMOS = 7200;
             [attr.id]="id('nombre')"
             formControlName="name"
             enterkeyhint="next"
+            maxlength="80"
             placeholder="Hipertrofia — Bloque 1"
           />
         </div>
@@ -89,6 +110,7 @@ const SEGUNDOS_MAXIMOS = 7200;
             [attr.id]="id('objetivo')"
             formControlName="goal"
             enterkeyhint="next"
+            maxlength="120"
             placeholder="Ganar masa muscular"
           />
         </div>
@@ -134,13 +156,13 @@ const SEGUNDOS_MAXIMOS = 7200;
                   <div class="field">
                     <label class="nq-field-label" [attr.for]="id('dia-' + d)">Día</label>
                     <div class="nq-field-input">
-                      <select
-                        [attr.id]="id('dia-' + d)"
-                        [value]="day.weekday"
-                        (change)="setWeekday(d, $event)"
-                      >
+                      <!-- [selected] por opcion, como en Carga: con [value] en el
+                           select, al editar se veia el primer dia y no el guardado. -->
+                      <select [attr.id]="id('dia-' + d)" (change)="setWeekday(d, $event)">
                         @for (opcion of dias; track opcion.value) {
-                          <option [value]="opcion.value">{{ opcion.label }}</option>
+                          <option [value]="opcion.value" [selected]="opcion.value === day.weekday">
+                            {{ opcion.label }}
+                          </option>
                         }
                       </select>
                     </div>
@@ -149,13 +171,11 @@ const SEGUNDOS_MAXIMOS = 7200;
                   <div class="field">
                     <label class="nq-field-label" [attr.for]="id('foco-' + d)">Foco</label>
                     <div class="nq-field-input">
-                      <select
-                        [attr.id]="id('foco-' + d)"
-                        [value]="day.focus"
-                        (change)="setFocus(d, $event)"
-                      >
+                      <select [attr.id]="id('foco-' + d)" (change)="setFocus(d, $event)">
                         @for (grupo of grupos; track grupo.value) {
-                          <option [value]="grupo.value">{{ grupo.label }}</option>
+                          <option [value]="grupo.value" [selected]="grupo.value === day.focus">
+                            {{ grupo.label }}
+                          </option>
                         }
                       </select>
                     </div>
@@ -164,11 +184,12 @@ const SEGUNDOS_MAXIMOS = 7200;
 
                 <div class="row-2">
                   <div class="field">
-                    <label class="nq-field-label" [attr.for]="id('titulo-' + d)">Título</label>
+                    <label class="nq-field-label" [attr.for]="id('titulo-' + d)">Título *</label>
                     <div class="nq-field-input">
                       <input
                         [attr.id]="id('titulo-' + d)"
                         [value]="day.title"
+                        maxlength="120"
                         placeholder="Tren inferior"
                         (input)="setTitle(d, $event)"
                       />
@@ -185,7 +206,7 @@ const SEGUNDOS_MAXIMOS = 7200;
                         min="10"
                         max="180"
                         [value]="day.estimatedMinutes"
-                        (input)="setMinutes(d, $event)"
+                        (change)="setMinutes(d, $event)"
                       />
                     </div>
                   </div>
@@ -413,8 +434,8 @@ export class RoutineBuilderComponent {
   readonly openDay = signal<number | null>(null);
 
   readonly form = inject(FormBuilder).nonNullable.group({
-    name: ['', [Validators.required, Validators.maxLength(80)]],
-    goal: ['', [Validators.required, Validators.maxLength(120)]],
+    name: ['', [notBlank, Validators.maxLength(80)]],
+    goal: ['', [notBlank, Validators.maxLength(120)]],
   });
 
   readonly validationError = computed(() => {
@@ -433,6 +454,10 @@ export class RoutineBuilderComponent {
     }
     if (this.hayDiasRepetidos()) {
       return 'Hay dos días de rutina en el mismo día de la semana.';
+    }
+    // El backend exige titulo: sin el, el alumno no sabe que dia le toca.
+    if (this.days().some(day => day.title.trim() === '')) {
+      return 'Cada día necesita un título.';
     }
     return null;
   });
@@ -525,11 +550,17 @@ export class RoutineBuilderComponent {
     this.patchDay(index, { title: (event.target as HTMLInputElement).value });
   }
 
+  /**
+   * Se aplica en `change` y no en cada tecla: con el minimo en 10, escribir
+   * "45" pasaba por "4" y lo subia a 10 a mitad de camino.
+   */
   setMinutes(index: number, event: Event): void {
-    const value = Number((event.target as HTMLInputElement).value);
-    this.patchDay(index, {
-      estimatedMinutes: Number.isFinite(value) && value > 0 ? value : MINUTOS_POR_DEFECTO,
-    });
+    const input = event.target as HTMLInputElement;
+    const raw = input.value.trim();
+    const value = raw === '' ? null : clampNumber(Number(raw), MINUTOS_MINIMOS, MINUTOS_MAXIMOS);
+    const minutos = value ?? MINUTOS_POR_DEFECTO;
+    input.value = String(minutos);
+    this.patchDay(index, { estimatedMinutes: minutos });
   }
 
   /** Agrega el ejercicio elegido y devuelve el selector a su opcion vacia. */
@@ -582,11 +613,21 @@ export class RoutineBuilderComponent {
     campo: 'sets' | 'reps' | 'weightKg' | 'restSeconds',
     event: Event,
   ): void {
-    const raw = (event.target as HTMLInputElement).value.trim().replace(',', '.');
+    const input = event.target as HTMLInputElement;
+    const raw = input.value.trim().replace(',', '.');
     const parsed = Number(raw);
     // Solo la carga admite "sin dato": series, reps y descanso siempre valen.
     // Un negativo no es un dato: se ignora igual que un texto.
-    const value = raw === '' || !Number.isFinite(parsed) || parsed < 0 ? null : parsed;
+    const rango = RANGOS[campo];
+    const value =
+      raw === '' || !Number.isFinite(parsed) || parsed < 0
+        ? null
+        : clampNumber(parsed, rango.min, rango.max, rango.integer);
+    // Ajustado al rango, el input muestra el limite: si el modelo ya tenia ese
+    // valor, Angular no reescribe el campo por su cuenta.
+    if (value !== null && value !== parsed) {
+      input.value = campo === 'weightKg' ? String(value).replace('.', ',') : String(value);
+    }
 
     const index = this.days().indexOf(day);
     this.patchDay(index, {

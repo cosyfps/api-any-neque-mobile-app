@@ -1,5 +1,11 @@
-import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component, NgZone, inject } from '@angular/core';
+import { Router, RouterOutlet } from '@angular/router';
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+
+import { APP_SCHEME, deepLinkPath } from '@app/ui/shared/navigation/deep-link';
+
+import { environment } from '@env/environment';
 
 /**
  * Shell de la app.
@@ -12,6 +18,9 @@ import { RouterOutlet } from '@angular/router';
  *
  * Tampoco hay `ion-app`: de Ionic solo se usaba el contenedor con scroll, y
  * cargar `@ionic/core` entero para eso costaba 158 kB del bundle inicial.
+ *
+ * En la app nativa escucha los enlaces que la abren (`neque://i/<token>`
+ * desde la pantalla "solo app" del navegador) y navega a su ruta.
  */
 @Component({
   selector: 'app-root',
@@ -20,4 +29,22 @@ import { RouterOutlet } from '@angular/router';
   template: ` <router-outlet /> `,
   styleUrl: './app.component.scss',
 })
-export class AppComponent {}
+export class AppComponent {
+  private readonly router = inject(Router);
+  private readonly zone = inject(NgZone);
+
+  constructor() {
+    if (Capacitor.isNativePlatform()) {
+      void App.addListener('appUrlOpen', ({ url }) => this.openDeepLink(url));
+    }
+  }
+
+  /** Navega a la ruta del enlace; uno ajeno a Ñeque se ignora. */
+  openDeepLink(url: string): void {
+    const path = deepLinkPath(url, APP_SCHEME, new URL(environment.publicAppUrl).host);
+    if (path !== null) {
+      // El evento llega desde Capacitor, fuera de la zona de Angular.
+      this.zone.run(() => void this.router.navigateByUrl(path));
+    }
+  }
+}

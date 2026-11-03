@@ -534,6 +534,58 @@ describe('adapters HTTP', () => {
       expect(storage.value).toBeNull();
       expect(expired).toHaveBeenCalled();
     });
+
+    // QA-14: un refresh que falla por red no es un refresh rechazado.
+    it('si el refresh falla por red, conserva la sesion', async () => {
+      const expired = fn<() => void>();
+      setSessionExpiredHandler(expired);
+      storage.value = session('viejo');
+      const result = firstValueFrom(TestBed.inject(TrainersHttpAdapter).getById('t1'));
+      http
+        .expectOne(`${BASE}/trainers/t1`)
+        .flush(null, { status: 401, statusText: 'Unauthorized' });
+      http.expectOne(`${BASE}/auth/refresh`).error(new ProgressEvent('error'), { status: 0 });
+
+      await expect(result).rejects.toMatchObject({ code: 'network' });
+      expect(storage.value?.token).toBe('viejo');
+      expect(expired).not.toHaveBeenCalled();
+    });
+
+    it('un error del reintento no cierra la sesion', async () => {
+      const expired = fn<() => void>();
+      setSessionExpiredHandler(expired);
+      storage.value = session('viejo');
+      const result = firstValueFrom(TestBed.inject(TrainersHttpAdapter).getById('t1'));
+      http
+        .expectOne(`${BASE}/trainers/t1`)
+        .flush(null, { status: 401, statusText: 'Unauthorized' });
+      http.expectOne(`${BASE}/auth/refresh`).flush(session('nuevo', 'r2'));
+      http
+        .expectOne(`${BASE}/trainers/t1`)
+        .flush({ error: { code: 'unknown' } }, { status: 500, statusText: 'Error' });
+
+      await expect(result).rejects.toMatchObject({ code: 'unknown' });
+      expect(storage.value?.token).toBe('nuevo');
+      expect(expired).not.toHaveBeenCalled();
+    });
+
+    it('un 401 con el token recien renovado cierra la sesion', async () => {
+      const expired = fn<() => void>();
+      setSessionExpiredHandler(expired);
+      storage.value = session('viejo');
+      const result = firstValueFrom(TestBed.inject(TrainersHttpAdapter).getById('t1'));
+      http
+        .expectOne(`${BASE}/trainers/t1`)
+        .flush(null, { status: 401, statusText: 'Unauthorized' });
+      http.expectOne(`${BASE}/auth/refresh`).flush(session('nuevo', 'r2'));
+      http
+        .expectOne(`${BASE}/trainers/t1`)
+        .flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      await expect(result).rejects.toMatchObject({ code: 'unauthorized' });
+      expect(storage.value).toBeNull();
+      expect(expired).toHaveBeenCalled();
+    });
   });
 });
 
@@ -556,6 +608,40 @@ describe('utilidades HTTP', () => {
       'network',
     );
     expect(toDomainError('x').code).toBe('unknown');
+  });
+
+  // QA-15: respuestas sin `code` (proxy, CDN, plataforma caida).
+  it.each([
+    [502, 'network'],
+    [503, 'network'],
+    [504, 'network'],
+    [400, 'validation'],
+    [403, 'forbidden'],
+    [404, 'not_found'],
+    [429, 'too_many_attempts'],
+    [500, 'network'],
+    [418, 'unknown'],
+  ] as const)('sin codigo del BFF, un %p es %p', (status, code) => {
+    const error = toDomainError(new HttpErrorResponse({ status, error: '<html>' }));
+
+    expect(error.code).toBe(code);
+  });
+
+  it('un 503 sin codigo dice que el servicio no esta disponible', () => {
+    expect(toDomainError(new HttpErrorResponse({ status: 503 })).message).toContain(
+      'no está disponible',
+    );
+  });
+
+  it('el codigo del BFF manda sobre el estado HTTP', () => {
+    const error = toDomainError(
+      new HttpErrorResponse({
+        status: 503,
+        error: { error: { code: 'network', message: 'Base caída' } },
+      }),
+    );
+
+    expect(error).toMatchObject({ code: 'network', message: 'Base caída' });
   });
 
   it('convierte un data URL en Blob con su tipo', () => {

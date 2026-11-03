@@ -1,4 +1,5 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import {
@@ -7,10 +8,16 @@ import {
   MuscleGroup,
 } from '@app/domain/routines/model/exercise.model';
 
+import { notBlank } from '@shared/validators/field-rules';
+
 const GRUPOS = Object.entries(MUSCLE_GROUP_LABEL).map(([value, label]) => ({
   value: value as MuscleGroup,
   label,
 }));
+
+/** Limites del backend para las instrucciones. */
+const MAX_PASOS = 20;
+const MAX_LARGO_PASO = 500;
 
 /**
  * Alta de un ejercicio propio.
@@ -31,11 +38,16 @@ const GRUPOS = Object.entries(MUSCLE_GROUP_LABEL).map(([value, label]) => ({
             [attr.id]="id('nombre')"
             formControlName="name"
             enterkeyhint="next"
+            maxlength="80"
             placeholder="Sentadilla búlgara"
+            [attr.aria-invalid]="nameError()"
+            [attr.aria-describedby]="nameError() ? id('nombre') + '-error' : null"
           />
         </div>
         @if (nameError()) {
-          <span class="nq-field-error">Ponle un nombre para poder encontrarlo.</span>
+          <span class="nq-field-error" [attr.id]="id('nombre') + '-error'">
+            Ponle un nombre para poder encontrarlo.
+          </span>
         }
       </div>
 
@@ -57,6 +69,7 @@ const GRUPOS = Object.entries(MUSCLE_GROUP_LABEL).map(([value, label]) => ({
             [attr.id]="id('equipo')"
             formControlName="equipment"
             enterkeyhint="next"
+            maxlength="120"
             placeholder="Mancuernas"
           />
         </div>
@@ -72,8 +85,15 @@ const GRUPOS = Object.entries(MUSCLE_GROUP_LABEL).map(([value, label]) => ({
             formControlName="instructions"
             rows="4"
             placeholder="Apoya el pie trasero en el banco&#10;Baja hasta 90 grados"
+            [attr.aria-invalid]="instructionsError() !== null"
+            [attr.aria-describedby]="instructionsError() ? id('instrucciones') + '-error' : null"
           ></textarea>
         </div>
+        @if (instructionsError(); as error) {
+          <span class="nq-field-error" [attr.id]="id('instrucciones') + '-error'">
+            {{ error }}
+          </span>
+        }
       </div>
 
       @if (errorMessage(); as error) {
@@ -104,13 +124,34 @@ export class ExerciseFormComponent {
   readonly grupos = GRUPOS;
 
   readonly form = inject(FormBuilder).nonNullable.group({
-    name: ['', [Validators.required, Validators.maxLength(80)]],
+    name: ['', [notBlank, Validators.maxLength(80)]],
     muscleGroup: ['fullbody' as MuscleGroup, Validators.required],
-    equipment: [''],
+    equipment: ['', Validators.maxLength(120)],
     instructions: [''],
   });
 
-  readonly nameError = computed(() => this.intentado() && this.form.controls.name.invalid);
+  private readonly valores = toSignal(this.form.valueChanges, {
+    initialValue: this.form.getRawValue(),
+  });
+
+  readonly nameError = computed(() => {
+    this.valores();
+    return this.intentado() && this.form.controls.name.invalid;
+  });
+
+  /** El backend guarda hasta 20 pasos de 500 caracteres cada uno. */
+  readonly instructionsError = computed(() => {
+    if (!this.intentado()) {
+      return null;
+    }
+    const pasos = this.pasos(this.valores().instructions ?? '');
+    if (pasos.length > MAX_PASOS) {
+      return `Hasta ${MAX_PASOS} pasos; ahora hay ${pasos.length}.`;
+    }
+    return pasos.some(paso => paso.length > MAX_LARGO_PASO)
+      ? `Cada paso puede tener hasta ${MAX_LARGO_PASO} caracteres.`
+      : null;
+  });
 
   private readonly intentado = signal(false);
   private readonly uid = `ex-${Math.random().toString(36).slice(2, 8)}`;
@@ -126,7 +167,7 @@ export class ExerciseFormComponent {
 
   onSubmit(): void {
     this.intentado.set(true);
-    if (this.form.invalid) {
+    if (this.form.invalid || this.instructionsError() !== null || this.busy()) {
       return;
     }
 
@@ -137,10 +178,14 @@ export class ExerciseFormComponent {
       equipment: raw.equipment.trim() === '' ? null : raw.equipment.trim(),
       thumbnailUrl: null,
       // Una linea por paso: es como los renderiza la ficha del ejercicio.
-      instructions: raw.instructions
-        .split('\n')
-        .map(linea => linea.trim())
-        .filter(linea => linea !== ''),
+      instructions: this.pasos(raw.instructions),
     });
+  }
+
+  private pasos(texto: string): string[] {
+    return texto
+      .split('\n')
+      .map(linea => linea.trim())
+      .filter(linea => linea !== '');
   }
 }

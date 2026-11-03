@@ -39,3 +39,27 @@ export const routes: Routes = [
     loadComponent: () => import('./ui/shared/pages/not-found.page').then(m => m.NotFoundPage),
   },
 ];
+
+const mobileOnly = (): Promise<
+  typeof import('./ui/shared/pages/mobile-only.page').MobileOnlyPage
+> => import('./ui/shared/pages/mobile-only.page').then(m => m.MobileOnlyPage);
+
+/**
+ * Rutas del navegador en produccion: todas llevan a la pantalla "solo app".
+ * Las de invitacion conservan el token para ofrecer abrirla en la app.
+ */
+export const MOBILE_ONLY_ROUTES: Routes = [
+  { path: 'i/:token', loadComponent: mobileOnly },
+  { path: 'invite/:token', loadComponent: mobileOnly },
+  { path: '**', loadComponent: mobileOnly },
+];
+
+/**
+ * Ñeque se usa solo desde la app instalada. La build web de produccion no
+ * monta ninguna ruta de la app, salvo que el switch `NEQUE_WEB_ACCESS` la
+ * abra a este navegador (`webAccess`, ver `web-access.ts`). `ng serve`
+ * (desarrollo y QA local) y la app nativa usan las rutas completas.
+ */
+export function routesFor(production: boolean, native: boolean, webAccess = false): Routes {
+  return production && !native && !webAccess ? MOBILE_ONLY_ROUTES : routes;
+}

@@ -80,6 +80,11 @@
     box-shadow: 0 0 0 3px rgba(var(--nq-primary-strong-rgb), 0.18);
   }
 
+  // Campo con error de validacion: el mismo rojo que `.has-error` del mixin.
+  &.error {
+    border-color: var(--nq-danger);
+  }
+
   input {
     flex: 1;
     // `stretch` y no el `center` del contenedor: el input mide 21px de alto
@@ -623,6 +628,8 @@
 }
 
 .nq-state-title {
+  // Tambien se usa en encabezados (`h1` del 404): sin margen propio.
+  margin: 0;
   font-size: 16px;
   font-weight: 700;
   color: var(--nq-text);

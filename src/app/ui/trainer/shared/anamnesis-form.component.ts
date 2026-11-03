@@ -1,8 +1,11 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { Weekday } from '@app/domain/shared/model/date';
 import { Anamnesis, AnamnesisInput } from '@app/domain/students/model/anamnesis.model';
+
+import { PHONE_PATTERN, notBlank } from '@shared/validators/field-rules';
 
 /** Etiquetas de los dias ISO, en el orden en que se muestran. */
 const DIAS: readonly { value: Weekday; label: string }[] = [
@@ -43,6 +46,7 @@ const CLINICOS = [
             [attr.id]="id('objetivo')"
             formControlName="declaredGoal"
             enterkeyhint="next"
+            maxlength="200"
             placeholder="Lo que el alumno quiere lograr"
             [attr.aria-describedby]="goalError() ? id('objetivo') + '-error' : null"
           />
@@ -77,7 +81,11 @@ const CLINICOS = [
         <div class="field">
           <label class="nq-field-label" [attr.for]="id(campo.control)">{{ campo.label }}</label>
           <div class="nq-field-input">
-            <input [attr.id]="id(campo.control)" [formControlName]="campo.control" />
+            <input
+              [attr.id]="id(campo.control)"
+              [formControlName]="campo.control"
+              maxlength="2000"
+            />
           </div>
         </div>
       }
@@ -85,7 +93,7 @@ const CLINICOS = [
       <div class="field">
         <label class="nq-field-label" [attr.for]="id('actividad')">Actividad previa</label>
         <div class="nq-field-input">
-          <input [attr.id]="id('actividad')" formControlName="previousActivity" />
+          <input [attr.id]="id('actividad')" formControlName="previousActivity" maxlength="2000" />
         </div>
       </div>
 
@@ -96,6 +104,7 @@ const CLINICOS = [
             <input
               [attr.id]="id('contacto-nombre')"
               formControlName="contactName"
+              maxlength="120"
               placeholder="Nombre"
               aria-label="Nombre del contacto de urgencia"
             />
@@ -109,8 +118,10 @@ const CLINICOS = [
                 formControlName="contactPhone"
                 type="tel"
                 inputmode="tel"
+                maxlength="16"
                 placeholder="Teléfono"
                 aria-label="Teléfono del contacto de urgencia"
+                [attr.aria-invalid]="contactPhoneError()"
               />
             </div>
           </div>
@@ -119,6 +130,7 @@ const CLINICOS = [
               <input
                 [attr.id]="id('contacto-parentesco')"
                 formControlName="contactRelation"
+                maxlength="60"
                 placeholder="Parentesco"
                 aria-label="Parentesco del contacto de urgencia"
               />
@@ -128,6 +140,10 @@ const CLINICOS = [
         @if (contactError()) {
           <span class="nq-field-error">
             Para marcar a alguien hacen falta su nombre y su teléfono.
+          </span>
+        } @else if (contactPhoneError()) {
+          <span class="nq-field-error">
+            Revisa el teléfono del contacto: solo números y espacios, entre 8 y 16.
           </span>
         }
       </fieldset>
@@ -160,7 +176,7 @@ export class AnamnesisFormComponent {
   readonly clinicos = CLINICOS;
 
   readonly form = inject(FormBuilder).nonNullable.group({
-    declaredGoal: ['', [Validators.required, Validators.maxLength(200)]],
+    declaredGoal: ['', [notBlank, Validators.maxLength(200)]],
     medicalHistory: [''],
     previousInjuries: [''],
     surgeries: [''],
@@ -168,13 +184,19 @@ export class AnamnesisFormComponent {
     allergies: [''],
     previousActivity: [''],
     contactName: [''],
-    contactPhone: [''],
+    contactPhone: ['', Validators.pattern(PHONE_PATTERN)],
     contactRelation: [''],
   });
 
   readonly selectedDays = signal<readonly Weekday[]>([]);
 
+  /** Valores como senal: sin esto los errores quedaban fijos hasta reintentar. */
+  private readonly valores = toSignal(this.form.valueChanges, {
+    initialValue: this.form.getRawValue(),
+  });
+
   readonly goalError = computed(() => {
+    this.valores();
     if (!this.intentado() || this.form.controls.declaredGoal.valid) {
       return null;
     }
@@ -188,9 +210,14 @@ export class AnamnesisFormComponent {
     if (!this.intentado()) {
       return false;
     }
-    const { contactName, contactPhone } = this.form.getRawValue();
+    const { contactName = '', contactPhone = '' } = this.valores();
     const parcial = contactName.trim() !== '' || contactPhone.trim() !== '';
     return parcial && (contactName.trim() === '' || contactPhone.trim() === '');
+  });
+
+  readonly contactPhoneError = computed(() => {
+    this.valores();
+    return this.intentado() && this.form.controls.contactPhone.invalid;
   });
 
   private readonly intentado = signal(false);
@@ -233,7 +260,7 @@ export class AnamnesisFormComponent {
 
   onSubmit(): void {
     this.intentado.set(true);
-    if (this.form.controls.declaredGoal.invalid || this.daysError() || this.contactError()) {
+    if (this.form.invalid || this.daysError() || this.contactError() || this.busy()) {
       return;
     }
 

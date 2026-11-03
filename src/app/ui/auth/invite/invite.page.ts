@@ -28,11 +28,16 @@ import { PageStateComponent } from '@shared/components/page-state.component';
             <nq-page-state type="loading" />
           }
           @case ('error') {
+            <!-- Solo un enlace rechazado es "no valido": con la red o el
+                 servicio caidos el enlace puede estar bien y se reintenta. -->
             <nq-page-state
               type="error"
-              title="Invitación no válida"
+              [title]="
+                facade.linkRejected() ? 'Invitación no válida' : 'No pudimos cargar la invitación'
+              "
               [message]="facade.errorMessage() ?? ''"
-              [showRetry]="false"
+              [showRetry]="!facade.linkRejected()"
+              [retry]="retryLoad"
             />
             <button class="nq-btn nq-btn-secondary go-login" type="button" (click)="goToLogin()">
               Ir a ingresar
@@ -188,6 +193,8 @@ export class InvitePage {
 
     this.facade.load(this.route.snapshot.paramMap.get('token') ?? '');
   }
+
+  readonly retryLoad = (): void => this.facade.reload();
 
   togglePassword(): void {
     this.showPassword.update(value => !value);

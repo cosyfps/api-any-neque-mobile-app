@@ -20,9 +20,7 @@ import {
 import { PageStateComponent } from '@shared/components/page-state.component';
 import { ProfileHeroComponent } from '@shared/components/profile-hero.component';
 import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
-
-/** Telefono opcional: digitos y espacios, con + inicial, 8 a 16 caracteres. */
-const TELEFONO = /^\+?[0-9 ]{8,16}$/;
+import { PHONE_PATTERN } from '@shared/validators/field-rules';
 
 @Component({
   selector: 'app-trainer-profile',
@@ -175,7 +173,7 @@ const TELEFONO = /^\+?[0-9 ]{8,16}$/;
         <form class="edit-form" [formGroup]="form" (ngSubmit)="saveEdit()" novalidate>
           <div class="row-2">
             <div class="field">
-              <label class="nq-field-label" for="tp-nombre">Nombre</label>
+              <label class="nq-field-label" for="tp-nombre">Nombre *</label>
               <div class="nq-field-input">
                 <input
                   id="tp-nombre"
@@ -187,7 +185,7 @@ const TELEFONO = /^\+?[0-9 ]{8,16}$/;
               </div>
             </div>
             <div class="field">
-              <label class="nq-field-label" for="tp-apellido">Apellido</label>
+              <label class="nq-field-label" for="tp-apellido">Apellido *</label>
               <div class="nq-field-input">
                 <input
                   id="tp-apellido"
@@ -346,7 +344,7 @@ export class TrainerProfilePage {
   readonly form = inject(FormBuilder).nonNullable.group({
     firstName: ['', [Validators.required, Validators.maxLength(40)]],
     lastName: ['', [Validators.required, Validators.maxLength(40)]],
-    phone: ['', [Validators.pattern(TELEFONO)]],
+    phone: ['', [Validators.pattern(PHONE_PATTERN)]],
     specialty: ['', [Validators.maxLength(60)]],
     certifications: ['', [Validators.maxLength(200)]],
     bio: ['', [Validators.maxLength(280)]],

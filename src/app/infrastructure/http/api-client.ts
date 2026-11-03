@@ -39,6 +39,19 @@ const CODES: readonly DomainErrorCode[] = [
   'unknown',
 ];
 
+/** Codigo por estado HTTP cuando la respuesta no trae uno propio. */
+const STATUS_FALLBACK: Readonly<Record<number, DomainErrorCode>> = {
+  400: 'validation',
+  401: 'unauthorized',
+  403: 'forbidden',
+  404: 'not_found',
+  409: 'conflict',
+  429: 'too_many_attempts',
+};
+
+const SERVICE_UNAVAILABLE =
+  'El servicio no está disponible en este momento. Intenta de nuevo en unos minutos.';
+
 interface ErrorBody {
   readonly error?: { readonly code?: string; readonly message?: string };
 }
@@ -54,10 +67,20 @@ export function toDomainError(cause: unknown): DomainError {
     }
     const body = cause.error as ErrorBody | null;
     const code = CODES.find(item => item === body?.error?.code);
-    return domainError(
-      code ?? (cause.status === 401 ? 'unauthorized' : 'unknown'),
-      body?.error?.message,
-    );
+    if (code !== undefined) {
+      return domainError(code, body?.error?.message);
+    }
+    // Un sobre `{ error }` con un codigo que este cliente no conoce sigue
+    // siendo del BFF.
+    if (typeof body === 'object' && body?.error !== undefined) {
+      return domainError(cause.status === 401 ? 'unauthorized' : 'unknown', body.error.message);
+    }
+    // Sin sobre, la respuesta no viene del BFF, que siempre lo manda: es un
+    // proxy, el CDN o la funcion caida. Se interpreta por el estado HTTP.
+    if (cause.status >= 500) {
+      return domainError('network', SERVICE_UNAVAILABLE);
+    }
+    return domainError(STATUS_FALLBACK[cause.status] ?? 'unknown');
   }
   if (cause instanceof Error && cause.name === 'TimeoutError') {
     return domainError('network');

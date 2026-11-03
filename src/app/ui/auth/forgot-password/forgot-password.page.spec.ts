@@ -207,6 +207,34 @@ describe('ForgotPasswordPage', () => {
       expect(page.step()).toBe('email');
       expect(page.requestError()).toBe('No encontramos lo que buscabas.');
     });
+
+    // QA-20
+    it('borra el error del backend al corregir el correo', () => {
+      requestPasswordReset.mockReturnValue(throwError(() => domainError('network')));
+      page.emailForm.controls.email.setValue('kelvin@duocuc.cl');
+      page.onSendCode();
+
+      page.emailForm.controls.email.setValue('kelvin@duoc.cl');
+
+      expect(page.requestError()).toBeNull();
+    });
+
+    // QA-16: el login tolera el espacio final del teclado de iOS; aqui no.
+    it('acepta el espacio final y envia el correo recortado y en minuscula', () => {
+      page.emailForm.controls.email.setValue('Kelvin@DuocUC.cl ');
+
+      page.onSendCode();
+
+      expect(requestPasswordReset).toHaveBeenCalledWith('kelvin@duocuc.cl');
+    });
+
+    it('recorta el correo al salir del campo', () => {
+      page.emailForm.controls.email.setValue('  kelvin@duocuc.cl ');
+
+      page.markEmailTouched();
+
+      expect(page.emailForm.controls.email.value).toBe('kelvin@duocuc.cl');
+    });
   });
 
   describe('entrada del OTP', () => {
@@ -431,12 +459,26 @@ describe('ForgotPasswordPage', () => {
       expect(router.navigate).not.toHaveBeenCalled();
     });
 
-    it('vuelve al paso del codigo sin perder el ticket', () => {
+    // QA-17: el codigo ya se uso; volver con el puesto dejaba la pantalla
+    // sin salida (codigo inservible y reenvio detenido).
+    it('vuelve al paso del codigo limpio y con el reenvio disponible', () => {
       reachPasswordStep();
 
       page.backToOtp();
 
       expect(page.step()).toBe('otp');
+      expect(page.otpValues()).toEqual(['', '', '', '', '', '']);
+      expect(page.canResend()).toBe(true);
+    });
+
+    it('tras volver ya no guarda con el ticket consumido', () => {
+      reachPasswordStep();
+      page.backToOtp();
+      fillPassword('Abcdefg1!');
+
+      page.onSetPassword();
+
+      expect(resetPassword).not.toHaveBeenCalled();
     });
 
     it('alterna la visibilidad de la contrasena', () => {

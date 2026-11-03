@@ -188,6 +188,30 @@ describe('StudentProgressPage', () => {
       expect(page.uploading()).toBe(false);
     });
 
+    // QA-35: con image/* un GIF pasaba el selector y el BFF lo rechazaba.
+    it('rechaza un formato que el backend no acepta, sin subir', () => {
+      const input = document.createElement('input');
+      const gif = new File(['gif'], 'foto.gif', { type: 'image/gif' });
+      Object.defineProperty(input, 'files', { value: [gif], configurable: true });
+
+      page.onFile({ target: input } as unknown as Event);
+
+      expect(page.uploadError()).toBe('Elige una foto JPG, PNG, WebP o HEIC.');
+      expect(page.uploading()).toBe(false);
+      expect(addPhoto).not.toHaveBeenCalled();
+    });
+
+    it('rechaza una foto de mas de 8 MB', () => {
+      const input = inputConArchivo();
+      const archivo = input.files?.[0] as File;
+      Object.defineProperty(archivo, 'size', { value: 9 * 1024 * 1024 });
+
+      page.onFile({ target: input } as unknown as Event);
+
+      expect(page.uploadError()).toContain('8 MB');
+      expect(addPhoto).not.toHaveBeenCalled();
+    });
+
     it('marca que esta subiendo mientras lee el archivo', () => {
       page.onFile({ target: inputConArchivo() } as unknown as Event);
 

@@ -1,0 +1,23 @@
+:host {
+  display: block;
+}
+
+.wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 0 var(--nq-page-px);
+}
+
+.open-btn {
+  width: auto;
+  margin-top: 8px;
+  padding-inline: 24px;
+  text-decoration: none;
+}
+
+.hint {
+  margin-top: 8px;
+  font-size: 13px;
+}

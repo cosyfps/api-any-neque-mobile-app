@@ -63,6 +63,36 @@ describe('AnamnesisFormComponent', () => {
       expect(emitido).toBeNull();
     });
 
+    // QA-10: "   " pasaba `required` y el backend lo rechazaba.
+    it('un objetivo con solo espacios no cuenta', () => {
+      llenarMinimo();
+      form.form.controls.declaredGoal.setValue('   ');
+
+      form.onSubmit();
+
+      expect(form.goalError()).toContain('Sin objetivo');
+      expect(emitido).toBeNull();
+    });
+
+    it('el error del objetivo desaparece al escribirlo', () => {
+      form.toggleDay(2);
+      form.onSubmit();
+
+      form.form.controls.declaredGoal.setValue('Bajar grasa');
+
+      expect(form.goalError()).toBeNull();
+    });
+
+    it('rechaza un telefono de contacto con letras', () => {
+      llenarMinimo();
+      form.form.patchValue({ contactName: 'Ana', contactPhone: 'llamar a casa' });
+
+      form.onSubmit();
+
+      expect(form.contactPhoneError()).toBe(true);
+      expect(emitido).toBeNull();
+    });
+
     it('exige al menos un dia disponible', () => {
       form.form.controls.declaredGoal.setValue('Bajar grasa');
 

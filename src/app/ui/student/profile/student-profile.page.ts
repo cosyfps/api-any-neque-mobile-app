@@ -23,11 +23,9 @@ import {
 import { PageStateComponent } from '@shared/components/page-state.component';
 import { ProfileHeroComponent } from '@shared/components/profile-hero.component';
 import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
+import { PHONE_PATTERN } from '@shared/validators/field-rules';
 
 const DATE_FORMAT = new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'numeric' });
-
-/** Telefono opcional: digitos y espacios, con + inicial, 8 a 16 caracteres. */
-const TELEFONO = /^\+?[0-9 ]{8,16}$/;
 
 @Component({
   selector: 'app-student-profile',
@@ -183,7 +181,7 @@ const TELEFONO = /^\+?[0-9 ]{8,16}$/;
 
         <form class="edit-form" [formGroup]="form" (ngSubmit)="saveEdit()" novalidate>
           <div class="field">
-            <label class="nq-field-label" for="sp-nombre">Nombre</label>
+            <label class="nq-field-label" for="sp-nombre">Nombre *</label>
             <div class="nq-field-input">
               <input
                 id="sp-nombre"
@@ -195,7 +193,7 @@ const TELEFONO = /^\+?[0-9 ]{8,16}$/;
             </div>
           </div>
           <div class="field">
-            <label class="nq-field-label" for="sp-apellido">Apellido</label>
+            <label class="nq-field-label" for="sp-apellido">Apellido *</label>
             <div class="nq-field-input">
               <input
                 id="sp-apellido"
@@ -316,7 +314,7 @@ export class StudentProfilePage {
   readonly form = inject(FormBuilder).nonNullable.group({
     firstName: ['', [Validators.required, Validators.maxLength(40)]],
     lastName: ['', [Validators.required, Validators.maxLength(40)]],
-    phone: ['', [Validators.pattern(TELEFONO)]],
+    phone: ['', [Validators.pattern(PHONE_PATTERN)]],
   });
 
   readonly streakTitle = computed(() => {

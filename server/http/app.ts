@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import { z } from 'zod';
 
 import type { Weekday } from '@app/domain/shared/model/date';
+import { isPasswordValid } from '@app/ui/shared/validators/password-rules';
 
 import * as auth from '../application/auth';
 import * as engagement from '../application/engagement';
@@ -20,7 +21,13 @@ import { AppEnv, idParam, parseBody, requireAuth, requireRole } from './context'
 const text = (max = 2000) => z.string().trim().max(max);
 const optionalText = (max = 2000) => text(max).nullable();
 const email = z.string().trim().email().max(254);
-const password = z.string().min(8).max(128);
+// Contrasena nueva (invitacion, recuperacion, cambio): las mismas cuatro
+// reglas que aplica el cliente, para que nadie las salte llamando a la API.
+const password = z
+  .string()
+  .min(8)
+  .max(128)
+  .refine(isPasswordValid, 'La contraseña no cumple las reglas.');
 const isoDate = z.string().datetime({ offset: true }).or(z.string().date());
 const weekday = z
   .number()
@@ -508,10 +515,17 @@ export function createApp(): Hono<AppEnv> {
   app.post('/schedule/:id/cancel', async c => {
     const body = await parseBody(
       c,
-      z.object({
-        reason: z.enum(['illness', 'travel', 'injury', 'rescheduled', 'other']),
-        note: optionalText(500),
-      }),
+      z
+        .object({
+          reason: z.enum(['illness', 'travel', 'injury', 'rescheduled', 'other']),
+          note: optionalText(500),
+        })
+        // La base exige nota con "otro" (check de scheduled_sessions): sin
+        // esto la peticion llegaba a Postgres y volvia como error generico.
+        .refine(body => body.reason !== 'other' || (body.note ?? '') !== '', {
+          message: 'Con el motivo «Otro» hace falta una nota.',
+          path: ['note'],
+        }),
     );
     return c.json(
       await engagement.cancelAppointment(c.get('actor'), idParam(c, 'id'), body.reason, body.note),

@@ -92,12 +92,29 @@ function refreshAndRetry(
     );
   }
   return refreshing.pipe(
+    // Solo un refresh rechazado cierra la sesion. Un corte de red o un 5xx
+    // del refresh, o cualquier error del reintento, se propagan tal cual:
+    // antes deslogueaban al usuario por perder la conexion un momento.
+    catchError((error: unknown) =>
+      refreshRejected(error) ? expire(storage, req) : throwError(() => error),
+    ),
     switchMap(renewed => {
       storage.write(renewed);
-      return next(withToken(req, renewed.token));
+      return next(withToken(req, renewed.token)).pipe(
+        // Un 401 con el token recien renovado si es una sesion invalida.
+        catchError((error: unknown) =>
+          error instanceof HttpErrorResponse && error.status === 401
+            ? expire(storage, req)
+            : throwError(() => error),
+        ),
+      );
     }),
-    catchError(() => expire(storage, req)),
   );
+}
+
+/** El BFF rechazo el refresh token: vencido, revocado o mal formado. */
+function refreshRejected(error: unknown): boolean {
+  return error instanceof HttpErrorResponse && (error.status === 400 || error.status === 401);
 }
 
 function expire(storage: SessionStoragePort, req: HttpRequest<unknown>) {

@@ -49,6 +49,7 @@ const OTP_LENGTH = 6;
           class="step"
           [class.active]="step() === 'email'"
           [class.exit-left]="step() !== 'email'"
+          [attr.inert]="step() === 'email' ? null : ''"
         >
           <div class="step-inner">
             <button class="nav-back" (click)="goBack()" aria-label="Volver">
@@ -117,8 +118,12 @@ const OTP_LENGTH = 6;
                     formControlName="email"
                     placeholder="tu.correo&#64;ejemplo.com"
                     autocomplete="email"
+                    autocapitalize="none"
+                    spellcheck="false"
                     inputmode="email"
                     enterkeyhint="send"
+                    maxlength="254"
+                    [attr.aria-invalid]="emailError() !== null"
                     [attr.aria-describedby]="
                       emailTouched() && emailError() ? 'fp-email-error' : null
                     "
@@ -163,6 +168,7 @@ const OTP_LENGTH = 6;
           class="step"
           [class.active]="step() === 'otp'"
           [class.exit-left]="step() === 'password'"
+          [attr.inert]="step() === 'otp' ? null : ''"
         >
           <div class="step-inner">
             <button class="nav-back" (click)="backToEmail()" aria-label="Volver">
@@ -207,6 +213,7 @@ const OTP_LENGTH = 6;
                   type="text"
                   inputmode="numeric"
                   maxlength="1"
+                  [attr.autocomplete]="$first ? 'one-time-code' : 'off'"
                   [attr.aria-label]="'Dígito ' + ($index + 1)"
                   [value]="otpValues()[$index]"
                   (input)="onOtpInput($index, $event)"
@@ -251,7 +258,11 @@ const OTP_LENGTH = 6;
 
         <!-- Step 3: New password. Verificar el codigo no abre sesion: recien
              aqui, con la contrasena cambiada, el backend devuelve una. -->
-        <div class="step" [class.active]="step() === 'password'">
+        <div
+          class="step"
+          [class.active]="step() === 'password'"
+          [attr.inert]="step() === 'password' ? null : ''"
+        >
           <div class="step-inner">
             <button class="nav-back" (click)="backToOtp()" aria-label="Volver">
               <svg lucideArrowLeft [size]="22" [strokeWidth]="1.8"></svg>
@@ -301,7 +312,10 @@ const OTP_LENGTH = 6;
                     formControlName="password"
                     [type]="showPassword() ? 'text' : 'password'"
                     autocomplete="new-password"
+                    autocapitalize="none"
+                    spellcheck="false"
                     enterkeyhint="next"
+                    maxlength="128"
                     placeholder="Tu contraseña nueva"
                     aria-describedby="fp-pwd-rules"
                   />
@@ -341,7 +355,10 @@ const OTP_LENGTH = 6;
                     formControlName="confirm"
                     [type]="showPassword() ? 'text' : 'password'"
                     autocomplete="new-password"
+                    autocapitalize="none"
+                    spellcheck="false"
                     enterkeyhint="done"
+                    maxlength="128"
                     placeholder="Confírmala"
                     [attr.aria-describedby]="confirmError() ? 'fp-confirm-error' : null"
                     (blur)="markConfirmTouched()"
@@ -407,7 +424,9 @@ export class ForgotPasswordPage implements AfterViewInit {
       '',
       [
         Validators.required,
-        Validators.pattern(/^[a-zA-Z0-9._+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/),
+        // Igual que el login: tolera el espacio final que agrega el teclado
+        // de iOS; el correo se envia recortado.
+        Validators.pattern(/^\s*[a-zA-Z0-9._+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}\s*$/),
       ],
     ],
   });
@@ -469,7 +488,11 @@ export class ForgotPasswordPage implements AfterViewInit {
   constructor() {
     this.emailForm.controls.email.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(v => this._email.set(v));
+      .subscribe(v => {
+        this._email.set(v);
+        // Un error del envio anterior ya no aplica al correo corregido.
+        this.requestError.set(null);
+      });
 
     this.passwordForm.controls.password.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -499,6 +522,14 @@ export class ForgotPasswordPage implements AfterViewInit {
 
   markEmailTouched(): void {
     this.emailTouched.set(true);
+    const ctrl = this.emailForm.controls.email;
+    const trimmed = ctrl.value.trim();
+    if (trimmed !== ctrl.value) ctrl.setValue(trimmed);
+  }
+
+  /** El correo como lo guarda el backend: sin espacios y en minuscula. */
+  private normalizedEmail(): string {
+    return this.emailForm.controls.email.value.trim().toLowerCase();
   }
 
   goBack(): void {
@@ -513,7 +544,7 @@ export class ForgotPasswordPage implements AfterViewInit {
     this.requestError.set(null);
 
     this.auth
-      .requestPasswordReset(this.emailForm.controls.email.value)
+      .requestPasswordReset(this.normalizedEmail())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
@@ -536,9 +567,18 @@ export class ForgotPasswordPage implements AfterViewInit {
     this.clearResendTimer();
   }
 
+  /**
+   * El codigo ya se consumio al verificarlo: volver con el puesto dejaba un
+   * codigo inservible y el contador de reenvio detenido. Se limpia y se
+   * habilita pedir uno nuevo.
+   */
   backToOtp(): void {
     this.step.set('otp');
     this.requestError.set(null);
+    this.otpValues.set(Array(this.otpLength).fill(''));
+    this._ticket.set(null);
+    this.clearResendTimer();
+    this.canResend.set(true);
   }
 
   togglePassword(): void {
@@ -605,7 +645,7 @@ export class ForgotPasswordPage implements AfterViewInit {
     this.requestError.set(null);
 
     this.auth
-      .verifyOtp(this.emailForm.controls.email.value, this.otpValues().join(''))
+      .verifyOtp(this.normalizedEmail(), this.otpValues().join(''))
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: ticket => {
@@ -654,7 +694,7 @@ export class ForgotPasswordPage implements AfterViewInit {
     this.startResendTimer();
 
     this.auth
-      .requestPasswordReset(this.emailForm.controls.email.value)
+      .requestPasswordReset(this.normalizedEmail())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         error: (cause: unknown) => this.requestError.set(toDomainError(cause).message),

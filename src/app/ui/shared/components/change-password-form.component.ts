@@ -48,10 +48,11 @@ export interface PasswordChange {
             enterkeyhint="next"
             maxlength="128"
             [attr.aria-invalid]="currentError() !== null"
+            [attr.aria-describedby]="currentError() ? uid + '-actual-error' : null"
           />
         </div>
         @if (currentError(); as error) {
-          <span class="nq-field-error" role="alert">{{ error }}</span>
+          <span class="nq-field-error" role="alert" [id]="uid + '-actual-error'">{{ error }}</span>
         }
       </div>
 
@@ -68,7 +69,9 @@ export interface PasswordChange {
             spellcheck="false"
             enterkeyhint="next"
             maxlength="128"
-            [attr.aria-describedby]="uid + '-reglas'"
+            [attr.aria-describedby]="
+              newError() ? uid + '-reglas ' + uid + '-nueva-error' : uid + '-reglas'
+            "
             [attr.aria-invalid]="newError() !== null"
           />
         </div>
@@ -85,7 +88,7 @@ export interface PasswordChange {
           }
         </ul>
         @if (newError(); as error) {
-          <span class="nq-field-error" role="alert">{{ error }}</span>
+          <span class="nq-field-error" role="alert" [id]="uid + '-nueva-error'">{{ error }}</span>
         }
       </div>
 
@@ -103,10 +106,11 @@ export interface PasswordChange {
             enterkeyhint="done"
             maxlength="128"
             [attr.aria-invalid]="confirmError() !== null"
+            [attr.aria-describedby]="confirmError() ? uid + '-repite-error' : null"
           />
         </div>
         @if (confirmError(); as error) {
-          <span class="nq-field-error" role="alert">{{ error }}</span>
+          <span class="nq-field-error" role="alert" [id]="uid + '-repite-error'">{{ error }}</span>
         }
       </div>
 

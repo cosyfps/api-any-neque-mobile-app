@@ -16,7 +16,7 @@ import { homeRouteForRole } from '@app/domain/auth/model/auth-user.model';
           <div class="nq-state-icon">
             <svg lucideCompass [size]="24" [strokeWidth]="1.5"></svg>
           </div>
-          <span class="nq-state-title">Esta página no existe</span>
+          <h1 class="nq-state-title">Esta página no existe</h1>
           <span class="nq-state-desc">
             El enlace que seguiste no lleva a ninguna parte dentro de Ñeque.
           </span>

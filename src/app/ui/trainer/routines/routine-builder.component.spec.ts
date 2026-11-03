@@ -152,6 +152,67 @@ describe('RoutineBuilderComponent', () => {
     it('no muestra errores antes del primer intento', () => {
       expect(builder.validationError()).toBeNull();
     });
+
+    // QA-01: el backend rechazaba el dia sin titulo con un 400 tecnico.
+    it.each(['', '   '])('exige titulo en cada dia (%p)', titulo => {
+      llenarCabecera();
+      builder.addDay();
+      builder.setTitle(0, seleccionar(titulo));
+      builder.addExercise(dia(0), seleccionar('ex-001'));
+
+      builder.onSubmit();
+
+      expect(builder.validationError()).toBe('Cada día necesita un título.');
+      expect(emitido).toBeNull();
+    });
+
+    // QA-12
+    it('un nombre con solo espacios no completa la cabecera', () => {
+      builder.form.patchValue({ name: '   ', goal: 'Ganar masa' });
+
+      builder.onSubmit();
+
+      expect(builder.validationError()).toContain('Completa nombre');
+    });
+  });
+
+  // QA-02 / QA-03: los `min`/`max` del input no se aplicaban y el backend
+  // devolvia 400 con series en 0, decimales o valores enormes.
+  describe('rangos de la prescripcion', () => {
+    beforeEach(() => {
+      builder.addDay();
+      builder.addExercise(dia(0), seleccionar('ex-001'));
+    });
+
+    it.each([
+      ['sets', '0', 1],
+      ['sets', '2.6', 3],
+      ['sets', '999', 20],
+      ['reps', '0', 1],
+      ['reps', '5000', 100],
+      ['restSeconds', '99999', 600],
+      ['weightKg', '5000', 1000],
+    ] as const)('acota %s=%s a %p', (campo, escrito, esperado) => {
+      const evento = seleccionar(escrito);
+
+      builder.setPrescription(dia(0), 0, campo, evento);
+
+      expect(dia(0).exercises[0]?.[campo]).toBe(esperado);
+      expect((evento.target as HTMLInputElement).value).toBe(String(esperado));
+    });
+
+    it.each([
+      ['5', 10],
+      ['45.4', 45],
+      ['1000', 180],
+    ])('acota los minutos %p a %p', (escrito, esperado) => {
+      const evento = seleccionar(escrito);
+
+      builder.setMinutes(0, evento);
+
+      expect(dia(0).estimatedMinutes).toBe(esperado);
+      expect((evento.target as HTMLInputElement).value).toBe(String(esperado));
+    });
   });
 
   describe('dias', () => {
@@ -385,10 +446,12 @@ describe('RoutineBuilderComponent', () => {
     it('emite la plantilla sin alumnos ni fechas', () => {
       llenarCabecera();
       builder.addDay();
+      builder.setTitle(0, seleccionar('Tren inferior'));
       builder.addExercise(dia(0), seleccionar('ex-001'));
 
       builder.onSubmit();
 
+      expect(emitido).not.toBeNull();
       expect(emitido).not.toHaveProperty('studentId');
       expect(emitido).not.toHaveProperty('startDate');
       expect(emitido).not.toHaveProperty('assignments');
@@ -398,6 +461,7 @@ describe('RoutineBuilderComponent', () => {
       llenarCabecera();
       builder.form.patchValue({ name: '  Hipertrofia  ', goal: '  Ganar masa  ' });
       builder.addDay();
+      builder.setTitle(0, seleccionar('Tren inferior'));
       builder.addExercise(dia(0), seleccionar('ex-001'));
 
       builder.onSubmit();
@@ -413,6 +477,26 @@ describe('RoutineBuilderComponent', () => {
 
     expect(builder.days()).toHaveLength(1);
     expect(builder.form.getRawValue().name).toBe('Hipertrofia');
+  });
+
+  // QA-33: con [value] en el select, el valor se aplicaba antes de crear las
+  // opciones y se veia la primera ("Lunes", "Pecho") en vez de la guardada.
+  it('los selectores de dia y foco muestran el valor del dia', () => {
+    builder.reset({ ...RUTINA, days: RUTINA.days.map(day => ({ ...day, weekday: 3 })) });
+    builder.toggleDay(0);
+    fixture.detectChanges();
+
+    const selects = (fixture.nativeElement as HTMLElement).querySelectorAll('select');
+    expect(selects[0]?.value).toBe('3');
+    expect(selects[1]?.value).toBe('legs');
+  });
+
+  it('un dia nuevo muestra el foco con que nace', () => {
+    builder.addDay();
+    fixture.detectChanges();
+
+    const foco = (fixture.nativeElement as HTMLElement).querySelectorAll('select')[1];
+    expect(foco?.value).toBe('fullbody');
   });
 
   it('reset(null) deja el constructor en blanco', () => {

@@ -1,5 +1,7 @@
 import { existsSync } from 'node:fs';
 
+import { isPasswordValid } from '@app/ui/shared/validators/password-rules';
+
 import { adminClient } from '../infrastructure/supabase';
 
 /**
@@ -20,6 +22,11 @@ async function main(): Promise<void> {
     throw new Error(
       'Uso: TRAINER_PASSWORD=... npm run create:trainer -- <correo> <nombre> [apellido]',
     );
+  }
+  // El login exige las mismas reglas: con una contrasena mas debil el
+  // entrenador quedaba creado pero sin poder ingresar.
+  if (!isPasswordValid(password)) {
+    throw new Error('La contraseña necesita 8+ caracteres, una mayúscula, un número y un símbolo.');
   }
 
   const db = adminClient();

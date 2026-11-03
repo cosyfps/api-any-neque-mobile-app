@@ -115,6 +115,20 @@ describe('InvitePage', () => {
 
       expect(page.facade.viewState()).toBe('error');
       expect(page.facade.errorMessage()).toBe('Esta invitación expiró.');
+      expect(page.facade.linkRejected()).toBe(true);
+    });
+
+    // QA-26: sin red el enlace puede estar bien; decir "no valida" lo
+    // daba por perdido y no habia como reintentar.
+    it('un fallo de red no marca el enlace como rechazado y se puede reintentar', () => {
+      resolveInvitation.mockReturnValue(throwError(() => domainError('network')));
+      page = createPage('inv-sin-red');
+      expect(page.facade.linkRejected()).toBe(false);
+
+      resolveInvitation.mockReturnValue(of(INVITATION));
+      page.retryLoad();
+
+      expect(page.facade.viewState()).toBe('success');
     });
   });
 

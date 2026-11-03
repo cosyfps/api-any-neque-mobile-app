@@ -117,6 +117,16 @@ describe('RoutineAssignComponent', () => {
       expect(emitido?.[1]?.endDate).toBeNull();
     });
 
+    // QA-21: la medianoche local pasada a UTC corria el dia en husos UTC+.
+    it('envia el dia elegido tal cual, sin pasar por UTC', () => {
+      form.toggle(LIBRE);
+      form.setFecha(LIBRE, 'start', escribir('2026-11-10'));
+
+      form.onSubmit();
+
+      expect(emitido?.[1]?.startDate).toBe('2026-11-10');
+    });
+
     // Quitar a todos es valido: la rutina vuelve a la biblioteca.
     it('sin nadie marcado emite la lista vacia', () => {
       form.toggle(YA_ASIGNADA);

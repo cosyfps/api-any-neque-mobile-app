@@ -1,5 +1,6 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { FormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 
 import { Assessment } from '@app/domain/students/model/assessment.model';
 
@@ -11,6 +12,30 @@ const MEDIDAS = [
   { control: 'armCm', label: 'Brazo' },
   { control: 'thighCm', label: 'Muslo' },
 ] as const;
+
+type Medida = (typeof MEDIDAS)[number]['control'];
+type CampoNumerico = 'weightKg' | 'heightCm' | 'bodyFatPct' | 'muscleMassKg' | Medida;
+
+/**
+ * Rango de cada dato, el mismo que anuncian los `min`/`max` de su input y
+ * dentro de lo que acepta el backend.
+ */
+const RANGOS: Record<CampoNumerico, { min: number; max: number; unidad: string }> = {
+  weightKg: { min: 20, max: 300, unidad: 'kg' },
+  heightCm: { min: 100, max: 250, unidad: 'cm' },
+  bodyFatPct: { min: 2, max: 70, unidad: '%' },
+  muscleMassKg: { min: 1, max: 150, unidad: 'kg' },
+  chestCm: { min: 10, max: 250, unidad: 'cm' },
+  waistCm: { min: 10, max: 250, unidad: 'cm' },
+  hipCm: { min: 10, max: 250, unidad: 'cm' },
+  armCm: { min: 10, max: 250, unidad: 'cm' },
+  thighCm: { min: 10, max: 250, unidad: 'cm' },
+};
+
+const rango = (campo: CampoNumerico): ValidatorFn[] => [
+  Validators.min(RANGOS[campo].min),
+  Validators.max(RANGOS[campo].max),
+];
 
 /**
  * Evaluacion fisica.
@@ -26,32 +51,42 @@ const MEDIDAS = [
     <form class="form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
       <div class="row-2">
         <div class="field">
-          <label class="nq-field-label" [attr.for]="id('peso')">Peso (kg) *</label>
-          <div class="nq-field-input">
+          <label class="nq-field-label" [attr.for]="id('weightKg')">Peso (kg) *</label>
+          <div class="nq-field-input" [class.error]="errorOf('weightKg') !== null">
             <input
-              [attr.id]="id('peso')"
+              [attr.id]="id('weightKg')"
               formControlName="weightKg"
               type="number"
               inputmode="decimal"
-              min="20"
-              max="300"
+              [min]="rangos.weightKg.min"
+              [max]="rangos.weightKg.max"
               step="0.1"
+              [attr.aria-invalid]="errorOf('weightKg') !== null"
+              [attr.aria-describedby]="errorOf('weightKg') ? id('weightKg') + '-error' : null"
             />
           </div>
+          @if (errorOf('weightKg'); as error) {
+            <span class="nq-field-error" [id]="id('weightKg') + '-error'">{{ error }}</span>
+          }
         </div>
 
         <div class="field">
-          <label class="nq-field-label" [attr.for]="id('estatura')">Estatura (cm) *</label>
-          <div class="nq-field-input">
+          <label class="nq-field-label" [attr.for]="id('heightCm')">Estatura (cm) *</label>
+          <div class="nq-field-input" [class.error]="errorOf('heightCm') !== null">
             <input
-              [attr.id]="id('estatura')"
+              [attr.id]="id('heightCm')"
               formControlName="heightCm"
               type="number"
               inputmode="numeric"
-              min="100"
-              max="250"
+              [min]="rangos.heightCm.min"
+              [max]="rangos.heightCm.max"
+              [attr.aria-invalid]="errorOf('heightCm') !== null"
+              [attr.aria-describedby]="errorOf('heightCm') ? id('heightCm') + '-error' : null"
             />
           </div>
+          @if (errorOf('heightCm'); as error) {
+            <span class="nq-field-error" [id]="id('heightCm') + '-error'">{{ error }}</span>
+          }
         </div>
       </div>
 
@@ -63,33 +98,45 @@ const MEDIDAS = [
 
       <div class="row-2">
         <div class="field">
-          <label class="nq-field-label" [attr.for]="id('grasa')">Grasa (%)</label>
-          <div class="nq-field-input">
+          <label class="nq-field-label" [attr.for]="id('bodyFatPct')">Grasa (%)</label>
+          <div class="nq-field-input" [class.error]="errorOf('bodyFatPct') !== null">
             <input
-              [attr.id]="id('grasa')"
+              [attr.id]="id('bodyFatPct')"
               formControlName="bodyFatPct"
               type="number"
               inputmode="decimal"
-              min="1"
-              max="70"
+              [min]="rangos.bodyFatPct.min"
+              [max]="rangos.bodyFatPct.max"
               step="0.1"
+              [attr.aria-invalid]="errorOf('bodyFatPct') !== null"
+              [attr.aria-describedby]="errorOf('bodyFatPct') ? id('bodyFatPct') + '-error' : null"
             />
           </div>
+          @if (errorOf('bodyFatPct'); as error) {
+            <span class="nq-field-error" [id]="id('bodyFatPct') + '-error'">{{ error }}</span>
+          }
         </div>
 
         <div class="field">
-          <label class="nq-field-label" [attr.for]="id('musculo')">Masa muscular (kg)</label>
-          <div class="nq-field-input">
+          <label class="nq-field-label" [attr.for]="id('muscleMassKg')">Masa muscular (kg)</label>
+          <div class="nq-field-input" [class.error]="errorOf('muscleMassKg') !== null">
             <input
-              [attr.id]="id('musculo')"
+              [attr.id]="id('muscleMassKg')"
               formControlName="muscleMassKg"
               type="number"
               inputmode="decimal"
-              min="1"
-              max="150"
+              [min]="rangos.muscleMassKg.min"
+              [max]="rangos.muscleMassKg.max"
               step="0.1"
+              [attr.aria-invalid]="errorOf('muscleMassKg') !== null"
+              [attr.aria-describedby]="
+                errorOf('muscleMassKg') ? id('muscleMassKg') + '-error' : null
+              "
             />
           </div>
+          @if (errorOf('muscleMassKg'); as error) {
+            <span class="nq-field-error" [id]="id('muscleMassKg') + '-error'">{{ error }}</span>
+          }
         </div>
       </div>
 
@@ -101,17 +148,26 @@ const MEDIDAS = [
               <label class="nq-field-label sm" [attr.for]="id(medida.control)">
                 {{ medida.label }}
               </label>
-              <div class="nq-field-input">
+              <div class="nq-field-input" [class.error]="errorOf(medida.control) !== null">
                 <input
                   [attr.id]="id(medida.control)"
                   [formControlName]="medida.control"
                   type="number"
                   inputmode="decimal"
-                  min="10"
-                  max="250"
+                  [min]="rangos[medida.control].min"
+                  [max]="rangos[medida.control].max"
                   step="0.1"
+                  [attr.aria-invalid]="errorOf(medida.control) !== null"
+                  [attr.aria-describedby]="
+                    errorOf(medida.control) ? id(medida.control) + '-error' : null
+                  "
                 />
               </div>
+              @if (errorOf(medida.control); as error) {
+                <span class="nq-field-error" [id]="id(medida.control) + '-error'">
+                  {{ error }}
+                </span>
+              }
             </div>
           }
         </div>
@@ -120,7 +176,12 @@ const MEDIDAS = [
       <div class="field">
         <label class="nq-field-label" [attr.for]="id('notas')">Notas</label>
         <div class="nq-field-input">
-          <input [attr.id]="id('notas')" formControlName="notes" enterkeyhint="done" />
+          <input
+            [attr.id]="id('notas')"
+            formControlName="notes"
+            enterkeyhint="done"
+            maxlength="1000"
+          />
         </div>
       </div>
 
@@ -132,7 +193,12 @@ const MEDIDAS = [
         <button class="nq-btn nq-btn-secondary" type="button" (click)="cancelled.emit()">
           Cancelar
         </button>
-        <button class="nq-btn nq-btn-primary" type="submit" [disabled]="busy()">
+        <button
+          class="nq-btn nq-btn-primary"
+          type="submit"
+          [disabled]="busy()"
+          [attr.aria-busy]="busy()"
+        >
           {{ busy() ? 'Guardando…' : 'Registrar' }}
         </button>
       </div>
@@ -150,27 +216,49 @@ export class AssessmentFormComponent {
   readonly cancelled = output<void>();
 
   readonly medidas = MEDIDAS;
+  readonly rangos = RANGOS;
 
   readonly form = inject(FormBuilder).nonNullable.group({
-    weightKg: [null as number | null, Validators.required],
-    heightCm: [null as number | null, Validators.required],
-    bodyFatPct: [null as number | null],
-    muscleMassKg: [null as number | null],
-    chestCm: [null as number | null],
-    waistCm: [null as number | null],
-    hipCm: [null as number | null],
-    armCm: [null as number | null],
-    thighCm: [null as number | null],
-    notes: [''],
+    weightKg: [null as number | null, [Validators.required, ...rango('weightKg')]],
+    heightCm: [null as number | null, [Validators.required, ...rango('heightCm')]],
+    bodyFatPct: [null as number | null, rango('bodyFatPct')],
+    muscleMassKg: [null as number | null, rango('muscleMassKg')],
+    chestCm: [null as number | null, rango('chestCm')],
+    waistCm: [null as number | null, rango('waistCm')],
+    hipCm: [null as number | null, rango('hipCm')],
+    armCm: [null as number | null, rango('armCm')],
+    thighCm: [null as number | null, rango('thighCm')],
+    notes: ['', Validators.maxLength(1000)],
   });
 
-  readonly requiredError = computed(() => this.intentado() && this.form.invalid);
+  /** Valores como senal: los errores se recalculan al corregir un campo. */
+  private readonly valores = toSignal(this.form.valueChanges, {
+    initialValue: this.form.getRawValue(),
+  });
+
+  /** Solo el faltante de peso o estatura; los rangos van junto a su campo. */
+  readonly requiredError = computed(() => {
+    this.valores();
+    const { weightKg, heightCm } = this.form.controls;
+    return this.intentado() && (weightKg.hasError('required') || heightCm.hasError('required'));
+  });
 
   private readonly intentado = signal(false);
   private readonly uid = `ev-${Math.random().toString(36).slice(2, 8)}`;
 
   id(campo: string): string {
     return `${this.uid}-${campo}`;
+  }
+
+  /** «Entre 20 y 300 kg.» cuando el valor esta fuera de rango, tras intentar guardar. */
+  errorOf(campo: CampoNumerico): string | null {
+    this.valores();
+    const control = this.form.controls[campo];
+    if (!this.intentado() || !(control.hasError('min') || control.hasError('max'))) {
+      return null;
+    }
+    const { min, max, unidad } = RANGOS[campo];
+    return `Entre ${min} y ${max} ${unidad}.`;
   }
 
   reset(): void {
@@ -180,7 +268,7 @@ export class AssessmentFormComponent {
 
   onSubmit(): void {
     this.intentado.set(true);
-    if (this.form.invalid) {
+    if (this.form.invalid || this.busy()) {
       return;
     }
 

@@ -132,7 +132,10 @@ export function requireRole(role: UserRole): MiddlewareHandler<AppEnv> {
   };
 }
 
-/** Valida el cuerpo con zod. Campos desconocidos se rechazan. */
+/**
+ * Valida el cuerpo con zod. Los campos desconocidos no se rechazan: zod los
+ * descarta y nunca llegan a la capa de aplicacion.
+ */
 export async function parseBody<S extends ZodTypeAny>(
   c: Ctx | Context,
   schema: S,

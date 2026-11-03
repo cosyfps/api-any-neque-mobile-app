@@ -48,6 +48,37 @@ describe('ExerciseFormComponent', () => {
 
       expect(emitido).toMatchObject({ name: 'Zancada', muscleGroup: 'fullbody' });
     });
+
+    // QA-11
+    it('un nombre con solo espacios no es un nombre', () => {
+      form.form.controls.name.setValue('    ');
+
+      form.onSubmit();
+
+      expect(emitido).toBeNull();
+      expect(form.nameError()).toBe(true);
+    });
+
+    it('limita las instrucciones a 20 pasos', () => {
+      form.form.patchValue({
+        name: 'Zancada',
+        instructions: Array.from({ length: 21 }, (_v, i) => `Paso ${i + 1}`).join('\n'),
+      });
+
+      form.onSubmit();
+
+      expect(emitido).toBeNull();
+      expect(form.instructionsError()).toBe('Hasta 20 pasos; ahora hay 21.');
+    });
+
+    it('limita cada paso a 500 caracteres', () => {
+      form.form.patchValue({ name: 'Zancada', instructions: 'x'.repeat(501) });
+
+      form.onSubmit();
+
+      expect(emitido).toBeNull();
+      expect(form.instructionsError()).toContain('500 caracteres');
+    });
   });
 
   describe('campos', () => {

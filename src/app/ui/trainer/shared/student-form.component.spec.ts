@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
+import { CLOCK } from '@app/domain/shared/port/clock.port';
 import { Student } from '@app/domain/students/model/student.model';
 
 import { fn } from '@testing/typed-mock';
@@ -32,7 +33,10 @@ describe('StudentFormComponent', () => {
   const crear = (mode: 'create' | 'edit' = 'create', student: Student | null = null): void => {
     emitido = null;
     TestBed.resetTestingModule();
-    TestBed.configureTestingModule({ imports: [StudentFormComponent] });
+    TestBed.configureTestingModule({
+      imports: [StudentFormComponent],
+      providers: [{ provide: CLOCK, useValue: { now: () => new Date(2026, 10, 3, 12) } }],
+    });
 
     fixture = TestBed.createComponent(StudentFormComponent);
     fixture.componentRef.setInput('mode', mode);
@@ -117,6 +121,93 @@ describe('StudentFormComponent', () => {
 
       expect(emitido?.heightCm).toBe(168);
     });
+
+    // QA-04: con el boton deshabilitado, el espacio final del autocompletado
+    // de iOS bloqueaba el alta sin ningun mensaje.
+    it('recorta el correo al salir del campo y deja el boton habilitado', () => {
+      llenar('nueva@neque.cl ');
+      fixture.detectChanges();
+
+      form.touchEmail();
+      fixture.detectChanges();
+
+      const boton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+        'button[type="submit"]',
+      );
+      expect(form.form.controls.email.value).toBe('nueva@neque.cl');
+      expect(form.emailError()).toBeNull();
+      expect(boton?.disabled).toBe(false);
+    });
+
+    it('el error del correo se actualiza al corregirlo', () => {
+      llenar('no-es-correo');
+      form.onSubmit();
+      expect(form.emailError()).toBe('Ese correo no es válido.');
+
+      form.form.controls.email.setValue('ok@neque.cl');
+
+      expect(form.emailError()).toBeNull();
+    });
+
+    // QA-05
+    it('un nombre con solo espacios no es un nombre', () => {
+      form.form.patchValue({ firstName: '   ', lastName: 'Alumna', email: 'nueva@neque.cl' });
+
+      form.onSubmit();
+
+      expect(emitido).toBeNull();
+      expect(form.errorOf('firstName')).toBe('Escribe el nombre.');
+    });
+
+    // QA-06
+    it.each([-170, 0, 99, 251, 9999])('rechaza una estatura de %p cm', estatura => {
+      llenar();
+      form.form.controls.heightCm.setValue(estatura);
+
+      form.onSubmit();
+
+      expect(emitido).toBeNull();
+      expect(form.errorOf('heightCm')).toBe('Entre 100 y 250 cm.');
+    });
+
+    // QA-07
+    it.each(['2026-11-04', '1899-12-31'])('rechaza el nacimiento %p', fecha => {
+      llenar();
+      form.form.controls.birthDate.setValue(fecha);
+
+      form.onSubmit();
+
+      expect(emitido).toBeNull();
+      expect(form.errorOf('birthDate')).not.toBeNull();
+    });
+
+    it('acepta un nacimiento de hoy hacia atras', () => {
+      llenar();
+      form.form.controls.birthDate.setValue('2026-11-03');
+
+      form.onSubmit();
+
+      expect(emitido?.birthDate).toBe('2026-11-03');
+    });
+
+    // QA-08
+    it.each(['abc', '123', '+56 9 1234 5678 999'])('rechaza el telefono %p', telefono => {
+      llenar();
+      form.form.controls.phone.setValue(telefono);
+
+      form.onSubmit();
+
+      expect(emitido).toBeNull();
+      expect(form.errorOf('phone')).not.toBeNull();
+    });
+
+    it('no muestra errores antes de tocar los campos', () => {
+      expect(form.errorOf('firstName')).toBeNull();
+
+      form.touch('firstName');
+
+      expect(form.errorOf('firstName')).toBe('Escribe el nombre.');
+    });
   });
 
   describe('edicion', () => {
@@ -132,6 +223,15 @@ describe('StudentFormComponent', () => {
         phone: '+56 9 1111 1111',
         heightCm: 165,
       });
+    });
+
+    // QA-25: el backend entrega la fecha como ISO con hora y el input
+    // `type=date` solo muestra `yyyy-MM-dd`; precargada entera se veia vacia.
+    it('precarga el nacimiento en el formato del input de fecha', () => {
+      crear('edit', { ...ALUMNO, birthDate: '1998-04-12T12:00:00.000Z' });
+      form.reset();
+
+      expect(form.form.controls.birthDate.value).toBe('1998-04-12');
     });
 
     // Cambiar el correo dejaria invitaciones apuntando a otra persona.

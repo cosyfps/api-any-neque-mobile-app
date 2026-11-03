@@ -69,7 +69,7 @@ describe('ProfileHeroComponent', () => {
   it('rechaza un archivo que no es imagen', () => {
     elegir(new File(['hola'], 'doc.pdf', { type: 'application/pdf' }));
 
-    expect(errores).toEqual(['Elige una imagen.']);
+    expect(errores).toEqual(['Elige una foto JPG, PNG, WebP o HEIC.']);
   });
 
   it('rechaza una foto de mas de 8 MB', () => {

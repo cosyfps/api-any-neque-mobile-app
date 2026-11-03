@@ -69,6 +69,7 @@ interface Fechas {
                     <input
                       [attr.id]="id(option, 'fin')"
                       type="date"
+                      [min]="fechas.start"
                       [value]="fechas.end"
                       (change)="setFecha(option, 'end', $event)"
                     />
@@ -184,8 +185,13 @@ export class RoutineAssignComponent {
     );
   }
 
+  /**
+   * La fecha viaja tal cual, `yyyy-MM-dd`: convertir la medianoche local a
+   * UTC y que el backend recorte los 10 primeros caracteres corria el dia
+   * en los husos al este de Greenwich.
+   */
   private aIso(fecha: string): string {
-    return new Date(`${fecha}T00:00:00`).toISOString();
+    return fecha;
   }
 
   /** `<input type="date">` solo entiende `yyyy-MM-dd`. */

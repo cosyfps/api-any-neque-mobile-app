@@ -21,6 +21,7 @@ import { SeriesPoint } from '@shared/components/chart/chart-math';
 import { LineChartComponent } from '@shared/components/chart/line-chart.component';
 import { PageStateComponent } from '@shared/components/page-state.component';
 import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
+import { IMAGE_ACCEPT, imageFileError } from '@shared/validators/field-rules';
 
 type ProgressTab = 'metrics' | 'photos';
 type MetricSeries = 'weight' | 'bmi';
@@ -288,7 +289,7 @@ type CompareSide = 'before' | 'after';
                 }
                 <input
                   type="file"
-                  accept="image/*"
+                  [accept]="imageAccept"
                   aria-label="Tomar o elegir foto de progreso"
                   [disabled]="uploading()"
                   (change)="onFile($event)"
@@ -423,6 +424,7 @@ export class StudentProgressPage {
   readonly tab = signal<ProgressTab>('metrics');
   readonly series = signal<MetricSeries>('weight');
   readonly selectedAngle = signal<PhotoAngle>('front');
+  readonly imageAccept = IMAGE_ACCEPT;
   /** Posicion del divisor del comparador, en porcentaje. */
   readonly divisor = signal(50);
   private arrastrandoDivisor = false;
@@ -567,6 +569,12 @@ export class StudentProgressPage {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (file === undefined || this.uploading()) {
+      return;
+    }
+    const invalida = imageFileError(file);
+    if (invalida !== null) {
+      this.uploadError.set(invalida);
+      input.value = '';
       return;
     }
 

@@ -1,8 +1,7 @@
 import { Component, input, output } from '@angular/core';
 import { LucideCamera, LucideLoaderCircle } from '@lucide/angular';
 
-/** Tope de la foto de perfil: una foto de camara pesa 3-5 MB, esto sobra. */
-const MAX_BYTES = 8 * 1024 * 1024;
+import { IMAGE_ACCEPT, imageFileError } from '@shared/validators/field-rules';
 
 /**
  * Cabecera teal del perfil, compartida por alumno y entrenador.
@@ -34,7 +33,7 @@ const MAX_BYTES = 8 * 1024 * 1024;
           <!-- Oculto pero enfocable: con display none el teclado no lo alcanza. -->
           <input
             type="file"
-            accept="image/*"
+            [accept]="imageAccept"
             aria-label="Cambiar foto de perfil"
             [disabled]="busy()"
             (change)="onFile($event)"
@@ -159,6 +158,8 @@ export class ProfileHeroComponent {
   readonly photoUrl = input<string | null>(null);
   readonly busy = input(false);
 
+  readonly imageAccept = IMAGE_ACCEPT;
+
   /** Foto elegida, ya leida como data-URL. */
   readonly photo = output<string>();
   /** La foto no se pudo usar: mensaje listo para mostrar. */
@@ -172,12 +173,10 @@ export class ProfileHeroComponent {
     if (archivo === undefined) {
       return;
     }
-    if (!archivo.type.startsWith('image/')) {
-      this.photoError.emit('Elige una imagen.');
-      return;
-    }
-    if (archivo.size > MAX_BYTES) {
-      this.photoError.emit('La foto pesa más de 8 MB. Elige otra.');
+    // Los mismos formatos y tope que acepta el BFF.
+    const invalida = imageFileError(archivo);
+    if (invalida !== null) {
+      this.photoError.emit(invalida);
       return;
     }
 

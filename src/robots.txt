@@ -1,0 +1,8 @@
+# Ñeque es una app móvil privada y nada de este dominio debe indexarse.
+#
+# El rastreo se permite A PROPÓSITO: la desindexación la hacen la cabecera
+# `X-Robots-Tag: noindex` y la meta robots de index.html, y un buscador solo
+# las ve si puede pedir la página. Con `Disallow: /`, las URLs que ya estaban
+# indexadas se quedarían en los resultados sin que el buscador vea el noindex.
+User-agent: *
+Allow: /

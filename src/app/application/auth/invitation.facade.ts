@@ -27,6 +27,16 @@ export class InvitationFacade {
     () => this.invitation.error()?.message ?? null,
   );
 
+  /**
+   * True si el backend rechazo el enlace (vencido, usado o inexistente).
+   * Un fallo de red o del servicio no dice nada del enlace: se puede
+   * reintentar.
+   */
+  readonly linkRejected: Signal<boolean> = computed(() => {
+    const code = this.invitation.error()?.code;
+    return code === 'invalid_invitation' || code === 'not_found' || code === 'validation';
+  });
+
   private token = '';
 
   /** Carga la invitacion del token de la URL. */

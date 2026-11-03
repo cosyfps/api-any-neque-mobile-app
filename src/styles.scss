@@ -84,17 +84,19 @@ app-root {
   height: 100%;
 }
 
+// La pantalla "solo app" del navegador se ve en cualquier orientacion: en un
+// escritorio (horizontal) el aviso de rotar tapaba el mensaje.
 // Sin `max-height`: con el limite de 500px el bloqueo solo alcanzaba a
 // telefonos y una tablet en horizontal renderizaba la app apaisada, con los
 // offsets de la portada calculados para 812px de alto.
 @media (orientation: landscape) {
-  app-root {
+  body:not(.nq-any-orientation) app-root {
     display: none;
   }
 
   // `fixed` con fondo propio: sin eso el aviso depende de que la app de
   // verdad haya desaparecido del flujo.
-  body::after {
+  body:not(.nq-any-orientation)::after {
     position: fixed;
     inset: 0;
     z-index: 9999;
