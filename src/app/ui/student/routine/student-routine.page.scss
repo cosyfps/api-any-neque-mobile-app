@@ -253,10 +253,6 @@
   color: var(--nq-text-muted);
 }
 
-.complete-btn {
-  margin-bottom: 8px;
-}
-
 .rest-day {
   display: flex;
   flex-direction: column;
@@ -309,4 +305,15 @@
   font-size: 14px;
   line-height: 1.5;
   color: var(--nq-text-secondary);
+}
+
+// Dia de la rutina sin sesion programada esta semana.
+.no-session {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--nq-text-secondary);
+  background: var(--nq-surface-2);
+  border-radius: var(--nq-radius-md);
 }

@@ -69,6 +69,13 @@
 // ── Aviso de exito ──
 // Siempre en el DOM para que `role="status"` anuncie el cambio de texto.
 .toast {
+  // Vacio no ocupa espacio (si no, separaba de mas la seccion siguiente),
+  // pero sigue en el DOM: es una region viva y tiene que existir antes del aviso.
+  &:empty {
+    min-height: 0;
+    margin: 0;
+  }
+
   min-height: 20px;
   margin: 8px 0 0;
   font-size: 13px;
@@ -160,4 +167,10 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+// Boton "Listo" de la hoja de Apariencia.
+.sheet-done {
+  width: 100%;
+  margin-top: 20px;
 }

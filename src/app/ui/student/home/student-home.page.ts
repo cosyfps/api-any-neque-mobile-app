@@ -53,6 +53,7 @@ const TIME_FORMAT = new Intl.DateTimeFormat('es-CL', { hour: '2-digit', minute: 
 
         <button
           class="bell"
+          data-tour="bell"
           type="button"
           [attr.aria-label]="bellLabel()"
           (click)="goToNotifications()"

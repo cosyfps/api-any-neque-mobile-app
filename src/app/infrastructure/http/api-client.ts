@@ -29,6 +29,7 @@ const REQUEST_TIMEOUT_MS = 15_000;
 const CODES: readonly DomainErrorCode[] = [
   'not_found',
   'unauthorized',
+  'session_replaced',
   'forbidden',
   'invalid_credentials',
   'too_many_attempts',

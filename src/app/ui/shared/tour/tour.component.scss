@@ -1,0 +1,126 @@
+// Por encima de los sheets (`.nq-overlay`, z-index 200) y del tab bar.
+$z: 300;
+
+// Atrapa los toques: mientras el tutorial esta activo nada de atras responde.
+.blocker {
+  position: fixed;
+  inset: 0;
+  z-index: $z;
+}
+
+// Sin elemento que resaltar, la pantalla entera se oscurece.
+.dim {
+  position: fixed;
+  inset: 0;
+  z-index: $z;
+  pointer-events: none;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+// El "hueco": una caja transparente con una sombra enorme oscurece todo lo
+// demas y deja el elemento a la vista.
+.hole {
+  position: fixed;
+  z-index: $z;
+  pointer-events: none;
+  border-radius: var(--nq-radius-lg);
+  box-shadow: 0 0 0 200vmax rgba(15, 23, 42, 0.6);
+  transition:
+    top 0.25s ease,
+    left 0.25s ease,
+    width 0.25s ease,
+    height 0.25s ease;
+}
+
+.card {
+  position: fixed;
+  left: 50%;
+  z-index: $z + 1;
+  width: min(calc(100vw - 32px), 400px);
+  padding: 20px;
+  background: var(--nq-bg);
+  border-radius: var(--nq-radius-lg);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.25);
+  transform: translateX(-50%);
+
+  &.centered {
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chip {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--nq-primary-strong);
+  background: rgba(var(--nq-primary-strong-rgb), 0.1);
+  border-radius: var(--nq-radius-sm);
+}
+
+.count {
+  font-size: 13px;
+  color: var(--nq-text-secondary);
+}
+
+.title {
+  margin: 12px 0 6px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--nq-text);
+}
+
+.text {
+  margin: 0 0 18px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--nq-text-secondary);
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.skip,
+.next {
+  min-height: 44px;
+  padding: 0 22px;
+  font-family: var(--nq-font-family);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: var(--nq-radius-full);
+}
+
+.skip {
+  color: var(--nq-text);
+  background: none;
+  border: none;
+}
+
+.next {
+  color: var(--nq-primary-strong);
+  background: var(--nq-bg);
+  border: 2px solid var(--nq-primary-strong);
+}
+
+.skip:focus-visible,
+.next:focus-visible {
+  outline: 2px solid var(--nq-primary-strong);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hole {
+    transition: none;
+  }
+}

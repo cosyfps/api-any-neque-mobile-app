@@ -6,6 +6,7 @@ import { UserRole } from '@app/domain/auth/model/auth-user.model';
 
 import { env } from '../config/env';
 import { ApiError, fail } from '../domain/api-error';
+import { isReplacedSession, sessionIdOf } from '../domain/session-rules';
 import { adminClient, maybe } from '../infrastructure/supabase';
 
 /** Usuario autenticado, resuelto desde el JWT. Nada de esto lo manda el cliente. */
@@ -34,20 +35,27 @@ function keySet(): ReturnType<typeof createRemoteJWKSet> {
   return jwks;
 }
 
+/** Usuario y sesion de Supabase Auth de un access token valido. */
+export interface VerifiedToken {
+  readonly userId: string;
+  /** Claim `session_id`; null en tokens que no lo traen. */
+  readonly sessionId: string | null;
+}
+
 /**
- * Verifica el access token de Supabase y devuelve el id del usuario.
+ * Verifica el access token de Supabase y devuelve usuario y sesion.
  *
  * Con claves de firma asimetricas se verifica local contra el JWKS. Si el
  * proyecto aun firma con el secreto HS256 heredado, el JWKS no tiene la
  * clave y se valida contra Auth.
  */
-export async function verifyAccessToken(token: string): Promise<string> {
+export async function verifyAccessToken(token: string): Promise<VerifiedToken> {
   try {
     const { payload } = await jwtVerify(token, keySet(), {
       issuer: `${env().SUPABASE_URL}/auth/v1`,
     });
     if (typeof payload.sub === 'string') {
-      return payload.sub;
+      return { userId: payload.sub, sessionId: sessionIdOf(token) };
     }
   } catch (cause) {
     if (cause instanceof errors.JWTExpired) {
@@ -58,7 +66,26 @@ export async function verifyAccessToken(token: string): Promise<string> {
   if (error !== null || data.user === null) {
     throw new ApiError('unauthorized');
   }
-  return data.user.id;
+  return { userId: data.user.id, sessionId: sessionIdOf(token) };
+}
+
+/**
+ * Una sola sesion activa por cuenta (ver `session-rules.ts`). Una sesion
+ * reemplazada se cierra en Supabase (sin esperar) y se rechaza con
+ * `session_replaced`, que el cliente muestra al volver al login.
+ */
+function assertActiveSession(
+  activeSessionId: string | null,
+  sessionId: string | null,
+  token: string,
+): void {
+  if (!isReplacedSession(activeSessionId, sessionId)) {
+    return;
+  }
+  void adminClient()
+    .auth.admin.signOut(token, 'local')
+    .catch(() => undefined);
+  throw new ApiError('session_replaced');
 }
 
 interface ProfileRow {
@@ -67,20 +94,32 @@ interface ProfileRow {
   email: string;
   display_name: string;
   avatar_path: string | null;
+  active_session_id: string | null;
 }
 
-/** Arma el actor desde la base. Un alumno suspendido no entra. */
-export async function resolveActor(userId: string): Promise<Actor> {
+/**
+ * Arma el actor desde la base. Un alumno suspendido no entra.
+ *
+ * Con `token`, ademas exige que sea la sesion activa de la cuenta (ver
+ * `assertActiveSession`): lo usa toda peticion autenticada y el refresh.
+ */
+export async function resolveActor(
+  userId: string,
+  token?: { readonly sessionId: string | null; readonly raw: string },
+): Promise<Actor> {
   const db = adminClient();
   const profile = await maybe<ProfileRow>(
     db
       .from('profiles')
-      .select('id, role, email, display_name, avatar_path')
+      .select('id, role, email, display_name, avatar_path, active_session_id')
       .eq('id', userId)
       .maybeSingle(),
   );
   if (profile === null) {
     return fail('unauthorized');
+  }
+  if (token !== undefined) {
+    assertActiveSession(profile.active_session_id, token.sessionId, token.raw);
   }
 
   let profileId: string;
@@ -119,7 +158,11 @@ export const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (token === '') {
     throw new ApiError('unauthorized');
   }
-  c.set('actor', await resolveActor(await verifyAccessToken(token)));
+  const verified = await verifyAccessToken(token);
+  c.set(
+    'actor',
+    await resolveActor(verified.userId, { sessionId: verified.sessionId, raw: token }),
+  );
   await next();
 };
 

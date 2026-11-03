@@ -7,7 +7,11 @@ import {
 import { inject } from '@angular/core';
 import { Observable, catchError, finalize, shareReplay, switchMap, throwError } from 'rxjs';
 
-import { AuthSession } from '@app/domain/auth/model/auth-user.model';
+import {
+  AuthSession,
+  SESSION_END_KEY,
+  SessionEndReason,
+} from '@app/domain/auth/model/auth-user.model';
 import {
   SESSION_STORAGE_PORT,
   SessionStoragePort,
@@ -62,10 +66,23 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       if (!(error instanceof HttpErrorResponse) || error.status !== 401 || session === null) {
         return throwError(() => error);
       }
+      // Otro dispositivo abrio sesion: renovar no sirve, la cuenta ya no es de este.
+      if (isSessionReplaced(error)) {
+        return expire(storage, req, 'session_replaced');
+      }
       return refreshAndRetry(req, next, storage, base, session);
     }),
   );
 };
+
+/** El BFF dice que la cuenta abrio sesion en otro dispositivo. */
+function isSessionReplaced(error: unknown): boolean {
+  if (!(error instanceof HttpErrorResponse)) {
+    return false;
+  }
+  const body = error.error as { error?: { code?: string } } | null;
+  return body?.error?.code === 'session_replaced';
+}
 
 function refreshAndRetry(
   req: HttpRequest<unknown>,
@@ -96,7 +113,9 @@ function refreshAndRetry(
     // del refresh, o cualquier error del reintento, se propagan tal cual:
     // antes deslogueaban al usuario por perder la conexion un momento.
     catchError((error: unknown) =>
-      refreshRejected(error) ? expire(storage, req) : throwError(() => error),
+      refreshRejected(error)
+        ? expire(storage, req, isSessionReplaced(error) ? 'session_replaced' : 'unauthorized')
+        : throwError(() => error),
     ),
     switchMap(renewed => {
       storage.write(renewed);
@@ -104,7 +123,7 @@ function refreshAndRetry(
         // Un 401 con el token recien renovado si es una sesion invalida.
         catchError((error: unknown) =>
           error instanceof HttpErrorResponse && error.status === 401
-            ? expire(storage, req)
+            ? expire(storage, req, isSessionReplaced(error) ? 'session_replaced' : 'unauthorized')
             : throwError(() => error),
         ),
       );
@@ -117,15 +136,32 @@ function refreshRejected(error: unknown): boolean {
   return error instanceof HttpErrorResponse && (error.status === 400 || error.status === 401);
 }
 
-function expire(storage: SessionStoragePort, req: HttpRequest<unknown>) {
+function expire(
+  storage: SessionStoragePort,
+  req: HttpRequest<unknown>,
+  code: 'unauthorized' | 'session_replaced' = 'unauthorized',
+) {
   storage.clear();
+  if (code === 'session_replaced') {
+    // El login lo lee tras la recarga para explicar por que se cerro la sesion.
+    rememberSessionEnd(code);
+  }
   onSessionExpired();
   return throwError(
     () =>
       new HttpErrorResponse({
         status: 401,
         url: req.url,
-        error: { error: { code: 'unauthorized' } },
+        error: { error: { code } },
       }),
   );
+}
+
+/** Guarda el motivo del cierre para mostrarlo una vez en el login. */
+function rememberSessionEnd(code: SessionEndReason): void {
+  try {
+    sessionStorage.setItem(SESSION_END_KEY, code);
+  } catch {
+    // Sin sessionStorage (modo privado estricto) solo se pierde el aviso.
+  }
 }

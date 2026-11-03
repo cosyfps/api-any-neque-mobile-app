@@ -7,6 +7,11 @@ import {
   LucideChevronRight,
   LucideFlame,
   LucideImage,
+  LucideCompass,
+  LucideDumbbell,
+  LucideMail,
+  LucidePhone,
+  LucidePalette,
   LucideKeyRound,
   LucideLogOut,
   LucideUserPen,
@@ -15,6 +20,11 @@ import {
 import { SessionFacade } from '@app/application/auth/session.facade';
 import { NotificationsFacade } from '@app/application/notifications/notifications.facade';
 import { StudentProfileFacade } from '@app/application/students/student-profile.facade';
+import {
+  Trainer,
+  trainerFullName,
+  trainerInitials,
+} from '@app/domain/trainers/model/trainer.model';
 
 import {
   ChangePasswordFormComponent,
@@ -22,7 +32,11 @@ import {
 } from '@shared/components/change-password-form.component';
 import { PageStateComponent } from '@shared/components/page-state.component';
 import { ProfileHeroComponent } from '@shared/components/profile-hero.component';
+import { ThemePickerComponent } from '@shared/components/theme-picker.component';
 import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
+import { THEME_LABEL, ThemeService } from '@shared/theme/theme.service';
+import { STUDENT_TOUR } from '@shared/tour/tour-steps';
+import { TourService } from '@shared/tour/tour.service';
 import { PHONE_PATTERN } from '@shared/validators/field-rules';
 
 const DATE_FORMAT = new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'numeric' });
@@ -36,11 +50,17 @@ const DATE_FORMAT = new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'num
     ProfileHeroComponent,
     ChangePasswordFormComponent,
     SheetTrapDirective,
+    ThemePickerComponent,
     LucideBell,
     LucideCalendarDays,
     LucideChevronRight,
     LucideFlame,
     LucideImage,
+    LucideCompass,
+    LucideDumbbell,
+    LucideMail,
+    LucidePhone,
+    LucidePalette,
     LucideKeyRound,
     LucideLogOut,
     LucideUserPen,
@@ -131,6 +151,25 @@ const DATE_FORMAT = new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'num
 
             <section class="nq-section nq-ani nq-d3">
               <div class="nq-section-header">
+                <h2 class="nq-section-title">Preferencias</h2>
+              </div>
+              <div class="nq-menu">
+                <button class="nq-list-item" type="button" (click)="appearanceOpen.set(true)">
+                  <svg lucidePalette [size]="19" [strokeWidth]="1.8"></svg>
+                  <span class="nq-menu-label">Apariencia</span>
+                  <span class="nq-menu-value">{{ themeLabel() }}</span>
+                  <svg lucideChevronRight [size]="18" [strokeWidth]="2"></svg>
+                </button>
+                <button class="nq-list-item" type="button" (click)="startTour()">
+                  <svg lucideCompass [size]="19" [strokeWidth]="1.8"></svg>
+                  <span class="nq-menu-label">Ver tutorial</span>
+                  <svg lucideChevronRight [size]="18" [strokeWidth]="2"></svg>
+                </button>
+              </div>
+            </section>
+
+            <section class="nq-section nq-ani nq-d3">
+              <div class="nq-section-header">
                 <h2 class="nq-section-title">Cuenta</h2>
               </div>
               <div class="nq-menu">
@@ -151,9 +190,21 @@ const DATE_FORMAT = new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'num
             </section>
 
             @if (student.trainerName) {
-              <p class="trainer-line">
-                Entrenas con {{ student.trainerName }} desde {{ formatDate(student.joinedAt) }}
-              </p>
+              <section class="nq-section nq-ani nq-d3">
+                <div class="nq-section-header">
+                  <h2 class="nq-section-title">Tu entrenador</h2>
+                </div>
+                <div class="nq-menu">
+                  <button class="nq-list-item trainer-row" type="button" (click)="openTrainer()">
+                    <svg lucideDumbbell [size]="19" [strokeWidth]="1.8"></svg>
+                    <span class="nq-menu-label trainer-text">
+                      <span class="trainer-name">{{ student.trainerName }}</span>
+                      <span class="trainer-since">Desde {{ formatDate(student.joinedAt) }}</span>
+                    </span>
+                    <svg lucideChevronRight [size]="18" [strokeWidth]="2"></svg>
+                  </button>
+                </div>
+              </section>
             }
 
             <button class="nq-btn nq-btn-ghost logout" type="button" (click)="askSignOut()">
@@ -236,6 +287,107 @@ const DATE_FORMAT = new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'num
       </div>
     </div>
 
+    <!-- Ficha del entrenador: lo que escribe en su perfil, a la vista del alumno. -->
+    <div class="nq-overlay" [class.open]="trainerOpen()" (click)="trainerOpen.set(false)">
+      <div
+        class="nq-sheet trainer-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trainer-title"
+        [nqSheetTrap]="trainerOpen()"
+        (dismissed)="trainerOpen.set(false)"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="nq-sheet-handle"></div>
+        @switch (facade.trainer.viewState()) {
+          @case ('loading') {
+            <h2 class="nq-sheet-title" id="trainer-title">Tu entrenador</h2>
+            <nq-page-state type="loading" loadingLabel="Cargando a tu entrenador" />
+          }
+          @case ('error') {
+            <h2 class="nq-sheet-title" id="trainer-title">Tu entrenador</h2>
+            <nq-page-state
+              type="error"
+              message="No pudimos cargar a tu entrenador."
+              [retry]="reloadTrainer"
+            />
+          }
+          @default {
+            @if (facade.trainer.data(); as trainer) {
+              <div class="trainer-head">
+                @if (trainer.avatarUrl) {
+                  <img class="trainer-avatar" [src]="trainer.avatarUrl" alt="" />
+                } @else {
+                  <span class="trainer-avatar initials" aria-hidden="true">
+                    {{ trainerInitials(trainer) }}
+                  </span>
+                }
+                <h2 class="nq-sheet-title" id="trainer-title">{{ trainerFullName(trainer) }}</h2>
+                @if (trainer.specialty) {
+                  <p class="trainer-specialty">{{ trainer.specialty }}</p>
+                }
+              </div>
+
+              @if (trainer.certifications.length > 0) {
+                <ul class="trainer-chips" aria-label="Certificaciones">
+                  @for (cert of trainer.certifications; track cert) {
+                    <li class="nq-badge nq-badge-primary">{{ cert }}</li>
+                  }
+                </ul>
+              }
+
+              @if (trainer.bio) {
+                <p class="trainer-bio">{{ trainer.bio }}</p>
+              }
+
+              <div class="nq-menu">
+                @if (trainer.phone) {
+                  <a class="nq-list-item" [href]="'tel:' + phoneHref(trainer.phone)">
+                    <svg lucidePhone [size]="19" [strokeWidth]="1.8"></svg>
+                    <span class="nq-menu-label">{{ trainer.phone }}</span>
+                  </a>
+                }
+                <a class="nq-list-item" [href]="'mailto:' + trainer.email">
+                  <svg lucideMail [size]="19" [strokeWidth]="1.8"></svg>
+                  <span class="nq-menu-label">{{ trainer.email }}</span>
+                </a>
+              </div>
+            }
+          }
+        }
+        <button
+          class="nq-btn nq-btn-secondary sheet-done"
+          type="button"
+          (click)="trainerOpen.set(false)"
+        >
+          Cerrar
+        </button>
+      </div>
+    </div>
+
+    <div class="nq-overlay" [class.open]="appearanceOpen()" (click)="appearanceOpen.set(false)">
+      <div
+        class="nq-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="appearance-title"
+        [nqSheetTrap]="appearanceOpen()"
+        (dismissed)="appearanceOpen.set(false)"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="nq-sheet-handle"></div>
+        <h2 class="nq-sheet-title" id="appearance-title">Apariencia</h2>
+        <nq-theme-picker />
+        <button
+          class="nq-btn nq-btn-primary sheet-done"
+          type="button"
+          (click)="appearanceOpen.set(false)"
+        >
+          Listo
+        </button>
+      </div>
+    </div>
+
     <div class="nq-overlay" [class.open]="changingPassword()" (click)="closePassword()">
       <div
         class="nq-sheet"
@@ -294,6 +446,7 @@ const DATE_FORMAT = new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'num
 })
 export class StudentProfilePage {
   readonly facade = inject(StudentProfileFacade);
+  private readonly tour = inject(TourService);
   readonly notifications = inject(NotificationsFacade);
 
   private readonly session = inject(SessionFacade);
@@ -304,6 +457,13 @@ export class StudentProfilePage {
   readonly signingOut = signal(false);
   readonly editing = signal(false);
   readonly changingPassword = signal(false);
+  /** Hoja de Preferencias > Apariencia. */
+  readonly appearanceOpen = signal(false);
+  /** Ficha del entrenador. */
+  readonly trainerOpen = signal(false);
+  readonly reloadTrainer = (): void => this.facade.loadTrainer();
+  readonly themeLabel = computed(() => THEME_LABEL[this.theme.preference()]);
+  private readonly theme = inject(ThemeService);
   readonly savingPhoto = signal(false);
   readonly photoError = signal<string | null>(null);
   /** Aviso breve de exito: "Datos guardados", "Contraseña cambiada". */
@@ -409,6 +569,35 @@ export class StudentProfilePage {
       this.editing.set(false);
       this.showToast('Datos guardados');
     }
+  }
+
+  /** Vuelve a lanzar la guia de primer ingreso, desde su primer paso. */
+  startTour(): void {
+    const userId = this.session.user()?.id;
+    if (userId !== undefined) {
+      this.tour.start(`student.${userId}`, STUDENT_TOUR);
+    }
+  }
+
+  /** Abre la ficha del entrenador; la primera vez la carga. */
+  openTrainer(): void {
+    if (this.facade.trainer.data() === null) {
+      this.facade.loadTrainer();
+    }
+    this.trainerOpen.set(true);
+  }
+
+  trainerFullName(trainer: Trainer): string {
+    return trainerFullName(trainer);
+  }
+
+  trainerInitials(trainer: Trainer): string {
+    return trainerInitials(trainer);
+  }
+
+  /** `tel:` sin espacios: algunos telefonos no marcan "+56 9 1234 5678". */
+  phoneHref(phone: string): string {
+    return phone.replace(/\s+/g, '');
   }
 
   openPassword(): void {

@@ -18,9 +18,13 @@ import {
   LucideEye,
   LucideEyeOff,
   LucideLoaderCircle,
+  LucideSmartphone,
 } from '@lucide/angular';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
+import { SESSION_END_KEY } from '@app/domain/auth/model/auth-user.model';
+import { domainError } from '@app/domain/shared/model/app-error';
+import { SheetTrapDirective } from '@app/ui/shared/directives/sheet-trap.directive';
 import { isPasswordValid, passwordRules } from '@app/ui/shared/validators/password-rules';
 
 @Component({
@@ -33,6 +37,8 @@ import { isPasswordValid, passwordRules } from '@app/ui/shared/validators/passwo
     LucideEye,
     LucideEyeOff,
     LucideLoaderCircle,
+    LucideSmartphone,
+    SheetTrapDirective,
   ],
   template: `
     <div class="nq-screen">
@@ -324,6 +330,32 @@ import { isPasswordValid, passwordRules } from '@app/ui/shared/validators/passwo
         </div>
       </div>
     </div>
+
+    <!-- Cierre forzado de sesion ("ingresaste desde otro dispositivo"). El
+         overlay queda en el DOM y se muestra con .open, como el resto de
+         sheets del design system. -->
+    <div class="nq-overlay" [class.open]="sessionEndNotice() !== null" (click)="dismissNotice()">
+      <div
+        class="nq-sheet notice"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="notice-title"
+        aria-describedby="notice-desc"
+        [nqSheetTrap]="sessionEndNotice() !== null"
+        (dismissed)="dismissNotice()"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="nq-sheet-handle"></div>
+        <div class="notice-icon" aria-hidden="true">
+          <svg lucideSmartphone [size]="24" [strokeWidth]="1.8"></svg>
+        </div>
+        <h2 class="nq-sheet-title" id="notice-title">Sesión cerrada</h2>
+        <p class="notice-desc" id="notice-desc">{{ sessionEndNotice() }}</p>
+        <button class="nq-btn nq-btn-primary" type="button" (click)="dismissNotice()">
+          Entendido
+        </button>
+      </div>
+    </div>
   `,
   // `.nq-screen` se estira contra el ancestro posicionado que aporta esta
   // clase; sin ella el contenedor no tiene contra que medir su alto.
@@ -342,6 +374,16 @@ export class StartPage {
   private readonly loginButton = viewChild<ElementRef<HTMLButtonElement>>('loginButton');
   private readonly emailInput = viewChild<ElementRef<HTMLInputElement>>('emailInput');
   private readonly passwordInput = viewChild<ElementRef<HTMLInputElement>>('passwordInput');
+
+  /**
+   * Motivo de un cierre de sesion forzado, si lo hubo: abre el modal una vez
+   * y se borra. Hoy solo existe "ingresaste desde otro dispositivo".
+   */
+  readonly sessionEndNotice = signal(consumeSessionEndNotice());
+
+  dismissNotice(): void {
+    this.sessionEndNotice.set(null);
+  }
 
   /** Error de credenciales devuelto por el backend, para `.nq-field-error`. */
   readonly loginError = computed(() => this.session.loginError()?.message ?? null);
@@ -504,5 +546,16 @@ export class StartPage {
   private focusFirstInvalid(): void {
     const target = this.form.controls.email.invalid ? this.emailInput() : this.passwordInput();
     target?.nativeElement.focus();
+  }
+}
+
+/** Lee y borra el motivo del ultimo cierre forzado de sesion. */
+export function consumeSessionEndNotice(): string | null {
+  try {
+    const reason = sessionStorage.getItem(SESSION_END_KEY);
+    sessionStorage.removeItem(SESSION_END_KEY);
+    return reason === 'session_replaced' ? domainError('session_replaced').message : null;
+  } catch {
+    return null;
   }
 }

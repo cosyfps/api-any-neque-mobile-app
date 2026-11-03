@@ -15,6 +15,8 @@ import { Assessment } from '@app/domain/students/model/assessment.model';
 import { Student } from '@app/domain/students/model/student.model';
 import { ASSESSMENTS_PORT, AssessmentsPort } from '@app/domain/students/port/assessments.port';
 import { STUDENTS_PORT, StudentsPort } from '@app/domain/students/port/students.port';
+import { Trainer } from '@app/domain/trainers/model/trainer.model';
+import { TRAINERS_PORT, TrainersPort } from '@app/domain/trainers/port/trainers.port';
 import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
 
 import { fn, MockOf } from '@testing/typed-mock';
@@ -50,6 +52,22 @@ const ASSESSMENT: Assessment = {
   measurements: { chestCm: null, waistCm: null, hipCm: null, armCm: null, thighCm: null },
   notes: null,
 };
+
+const TRAINER: Trainer = {
+  id: 'trn-001',
+  userId: 'usr-trn',
+  firstName: 'Kelvin',
+  lastName: 'Moreno',
+  email: 'kelvin@neque.cl',
+  phone: '+56 9 1234 5678',
+  avatarUrl: null,
+  specialty: 'Hipertrofia',
+  certifications: ['Entrenador personal certificado'],
+  bio: 'Entreno a personas que quieren cambiar.',
+  joinedAt: '2025-11-01T12:00:00.000Z',
+};
+
+const getTrainer = fn<TrainersPort['getById']>(() => of(TRAINER));
 
 describe('StudentProfilePage', () => {
   let page: StudentProfilePage;
@@ -93,6 +111,10 @@ describe('StudentProfilePage', () => {
         { provide: WORKOUTS_PORT, useValue: { listByStudent: () => of([]) } },
         { provide: AUTH_PORT, useValue: { changePassword } },
         {
+          provide: TRAINERS_PORT,
+          useValue: { getById: getTrainer, update: fn<TrainersPort['update']>() },
+        },
+        {
           provide: NOTIFICATIONS_PORT,
           useValue: {
             listByUser: () => of([]),
@@ -118,6 +140,33 @@ describe('StudentProfilePage', () => {
   });
 
   afterEach(() => jest.useRealTimers());
+
+  describe('ficha del entrenador', () => {
+    it('al abrirla carga al entrenador y muestra la hoja', () => {
+      getTrainer.mockClear();
+
+      page.openTrainer();
+
+      expect(page.trainerOpen()).toBe(true);
+      expect(getTrainer).toHaveBeenCalledWith('trn-001');
+      expect(page.trainerFullName(TRAINER)).toBe('Kelvin Moreno');
+      expect(page.trainerInitials(TRAINER)).toBe('KM');
+    });
+
+    it('la segunda vez no lo vuelve a pedir', () => {
+      page.openTrainer();
+      page.trainerOpen.set(false);
+      getTrainer.mockClear();
+
+      page.openTrainer();
+
+      expect(getTrainer).not.toHaveBeenCalled();
+    });
+
+    it('el enlace tel: va sin espacios', () => {
+      expect(page.phoneHref('+56 9 1234 5678')).toBe('+56912345678');
+    });
+  });
 
   describe('estado inicial', () => {
     it('carga la ficha del alumno', () => {

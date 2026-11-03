@@ -1,6 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 
-import { BarInput, ChartBox, scaleBars } from './chart-math';
+import { BarInput, ChartBox, ScaledBar, scaleBars } from './chart-math';
 
 const BOX: ChartBox = { width: 280, height: 110, padding: 8 };
 
@@ -25,9 +25,7 @@ const BOX: ChartBox = { width: 280, height: 110, padding: 8 };
           [attr.width]="bar.width"
           [attr.height]="bar.height"
           rx="4"
-          [attr.fill]="
-            bar.highlighted ? 'var(--nq-primary-strong)' : 'rgba(var(--nq-primary-rgb),0.18)'
-          "
+          [attr.fill]="fillOf(bar)"
         />
       }
     </svg>
@@ -49,4 +47,18 @@ export class BarChartComponent {
   readonly viewBox = `0 0 ${BOX.width} ${BOX.height}`;
 
   readonly bars = computed(() => scaleBars(this.data(), BOX));
+
+  /**
+   * Un dia con algo cumplido va en el verde fuerte: se ve de un vistazo lo
+   * que ya se entreno y motiva a completar la semana. Hoy sin cumplir queda
+   * a medio tono, para marcar donde se esta; el resto, claro.
+   */
+  fillOf(bar: ScaledBar): string {
+    if (bar.value > 0) {
+      return 'var(--nq-primary-strong)';
+    }
+    return bar.highlighted
+      ? 'rgba(var(--nq-primary-strong-rgb),0.45)'
+      : 'rgba(var(--nq-primary-rgb),0.18)';
+  }
 }

@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, Router, provideRouter } from '@angular/router';
 import { Subject } from 'rxjs';
 
+import { SessionFacade } from '@app/application/auth/session.facade';
+
 import { fn } from '@testing/typed-mock';
 
 import { TrainerLayoutPage } from './trainer-layout.page';
@@ -25,7 +27,11 @@ describe('TrainerLayoutPage', () => {
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
-      providers: [provideRouter([]), { provide: Router, useValue: routerStub }],
+      providers: [
+        provideRouter([]),
+        { provide: Router, useValue: routerStub },
+        { provide: SessionFacade, useValue: { user: () => ({ id: 'u1' }) } },
+      ],
     });
     router = TestBed.inject(Router);
     return TestBed.runInInjectionContext(() => new TrainerLayoutPage());

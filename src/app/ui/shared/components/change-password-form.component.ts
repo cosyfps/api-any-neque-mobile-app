@@ -24,18 +24,27 @@ export interface PasswordChange {
   imports: [ReactiveFormsModule, LucideCheck, LucideEye, LucideEyeOff],
   template: `
     <form class="form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
-      <button class="toggle" type="button" (click)="visible.set(!visible())">
-        @if (visible()) {
-          <svg lucideEyeOff [size]="16" [strokeWidth]="2"></svg>
-          Ocultar contraseñas
-        } @else {
-          <svg lucideEye [size]="16" [strokeWidth]="2"></svg>
-          Mostrar contraseñas
-        }
-      </button>
-
       <div class="field">
-        <label class="nq-field-label" [attr.for]="uid + '-actual'">Contraseña actual</label>
+        <!-- El toggle comparte linea con la primera etiqueta: suelto encima
+             del formulario quedaba descuadrado respecto del titulo del sheet. -->
+        <div class="label-row">
+          <label class="nq-field-label" [attr.for]="uid + '-actual'">Contraseña actual</label>
+          <button
+            class="toggle"
+            type="button"
+            [attr.aria-label]="visible() ? 'Ocultar contraseñas' : 'Mostrar contraseñas'"
+            [attr.aria-pressed]="visible()"
+            (click)="visible.set(!visible())"
+          >
+            @if (visible()) {
+              <svg lucideEyeOff [size]="16" [strokeWidth]="2"></svg>
+              Ocultar
+            } @else {
+              <svg lucideEye [size]="16" [strokeWidth]="2"></svg>
+              Mostrar
+            }
+          </button>
+        </div>
         <div class="nq-field-input" [class.error]="currentError() !== null">
           <input
             [id]="uid + '-actual'"
@@ -141,12 +150,24 @@ export interface PasswordChange {
       .nq-field-input.error {
         border-color: var(--nq-danger);
       }
+      .label-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      .label-row .nq-field-label {
+        margin-bottom: 0;
+      }
+      /* 44px de toque sin agrandar la fila: los margenes negativos lo
+         dejan alineado con la etiqueta. */
       .toggle {
         display: inline-flex;
-        gap: 8px;
+        gap: 6px;
         align-items: center;
-        align-self: flex-end;
         min-height: 44px;
+        margin: -12px -8px -12px 0;
+        padding: 0 8px;
         font-family: var(--nq-font-family);
         font-size: 13px;
         font-weight: 600;

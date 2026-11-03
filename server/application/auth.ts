@@ -3,6 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { AuthSession, PasswordResetTicket } from '@app/domain/auth/model/auth-user.model';
 
 import { ApiError, fail } from '../domain/api-error';
+import { sessionIdOf } from '../domain/session-rules';
 import { Actor, resolveActor } from '../http/context';
 import { signedUrl } from '../infrastructure/storage';
 import { adminClient, maybe, must, publicClient } from '../infrastructure/supabase';
@@ -24,8 +25,17 @@ interface SupabaseSession {
   readonly user: { readonly id: string };
 }
 
-async function toSession(session: SupabaseSession): Promise<SessionResponse> {
-  const actor = await resolveActor(session.user.id);
+/**
+ * Arma la respuesta de sesion. Con `enforce` (refresh) exige que sea la
+ * sesion activa de la cuenta: una reemplazada no se puede renovar.
+ */
+async function toSession(session: SupabaseSession, enforce = false): Promise<SessionResponse> {
+  const actor = await resolveActor(
+    session.user.id,
+    enforce
+      ? { sessionId: sessionIdOf(session.access_token), raw: session.access_token }
+      : undefined,
+  );
   const expiresAt =
     session.expires_at === undefined
       ? new Date(Date.now() + 3_600_000).toISOString()
@@ -43,6 +53,23 @@ async function toSession(session: SupabaseSession): Promise<SessionResponse> {
     expiresAt,
     refreshToken: session.refresh_token,
   };
+}
+
+/**
+ * Abre la sesion como la UNICA activa de la cuenta. Cualquier otro
+ * dispositivo queda fuera en su proxima peticion o refresh
+ * (`session_replaced`).
+ */
+async function openSession(session: SupabaseSession): Promise<SessionResponse> {
+  await must(
+    adminClient()
+      .from('profiles')
+      .update({ active_session_id: sessionIdOf(session.access_token) })
+      .eq('id', session.user.id)
+      .select('id')
+      .single(),
+  );
+  return toSession(session);
 }
 
 // ── Intentos fallidos ──────────────────────────────────────────────────────
@@ -92,12 +119,12 @@ export async function login(email: string, password: string): Promise<SessionRes
     return registerFailure(key);
   }
   await maybe(adminClient().from('login_attempts').delete().eq('key', key));
-  return toSession(session);
+  return openSession(session);
 }
 
 /** Abre sesion tras fijar la contrasena (invitacion o recuperacion). */
 export async function sessionFor(email: string, password: string): Promise<SessionResponse> {
-  return toSession(await signIn(normalize(email), password));
+  return openSession(await signIn(normalize(email), password));
 }
 
 export async function refresh(refreshToken: string): Promise<SessionResponse> {
@@ -105,7 +132,7 @@ export async function refresh(refreshToken: string): Promise<SessionResponse> {
   if (error !== null || data.session === null) {
     throw new ApiError('unauthorized');
   }
-  return toSession(data.session);
+  return toSession(data.session, true);
 }
 
 export async function logout(accessToken: string): Promise<void> {
@@ -193,7 +220,10 @@ export async function changePassword(
   newPassword: string,
 ): Promise<void> {
   try {
-    await signIn(actor.email, currentPassword);
+    // Solo comprueba la contrasena: la sesion que abre Supabase se cierra en
+    // seguida y no reemplaza a la activa.
+    const check = await signIn(actor.email, currentPassword);
+    await adminClient().auth.admin.signOut(check.access_token, 'local');
   } catch {
     fail('invalid_credentials', 'La contraseña actual no es correcta.');
   }

@@ -18,6 +18,8 @@ import { Assessment } from '@app/domain/students/model/assessment.model';
 import { Student } from '@app/domain/students/model/student.model';
 import { ASSESSMENTS_PORT, AssessmentsPort } from '@app/domain/students/port/assessments.port';
 import { STUDENTS_PORT, StudentsPort } from '@app/domain/students/port/students.port';
+import { Trainer } from '@app/domain/trainers/model/trainer.model';
+import { TRAINERS_PORT, TrainersPort } from '@app/domain/trainers/port/trainers.port';
 import { WorkoutSession, WorkoutStatus } from '@app/domain/workouts/model/workout-session.model';
 import { WORKOUTS_PORT, WorkoutsPort } from '@app/domain/workouts/port/workouts.port';
 
@@ -78,6 +80,22 @@ const SESSIONS: WorkoutSession[] = [
   session('s5', new Date(2026, 8, 22, 18), 'scheduled'),
 ];
 
+const TRAINER: Trainer = {
+  id: 'trn-001',
+  userId: 'usr-trn',
+  firstName: 'Kelvin',
+  lastName: 'Moreno',
+  email: 'kelvin@neque.cl',
+  phone: '+56 9 1234 5678',
+  avatarUrl: null,
+  specialty: 'Hipertrofia',
+  certifications: ['Entrenador personal certificado'],
+  bio: 'Entreno a personas que quieren cambiar.',
+  joinedAt: '2025-11-01T12:00:00.000Z',
+};
+
+const getTrainer = fn<TrainersPort['getById']>(() => of(TRAINER));
+
 describe('StudentHomePage', () => {
   let page: StudentHomePage;
   let router: Router;
@@ -98,6 +116,10 @@ describe('StudentHomePage', () => {
         { provide: CLOCK, useValue: { now: () => now } },
         // El perfil lo pide para cambiar la contrasena; el home no lo usa.
         { provide: AUTH_PORT, useValue: { changePassword: fn<AuthPort['changePassword']>() } },
+        {
+          provide: TRAINERS_PORT,
+          useValue: { getById: getTrainer, update: fn<TrainersPort['update']>() },
+        },
         {
           provide: SessionFacade,
           useValue: { profileId: () => 'std-001', user: () => ({ id: 'usr-1' }) },

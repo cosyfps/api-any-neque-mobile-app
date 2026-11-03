@@ -79,6 +79,14 @@ svg {
   max-width: 100%;
 }
 
+// Sin arrastre de imagenes: en iOS una pulsacion larga sobre una foto la
+// "levantaba" como vista previa flotante con sombra. En el comparador pasaba
+// cada vez que el dedo se apoyaba en la foto para mover el divisor.
+img {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
 app-root {
   display: block;
   height: 100%;

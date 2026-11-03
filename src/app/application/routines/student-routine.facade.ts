@@ -3,7 +3,7 @@ import { Injectable, Signal, computed, inject, signal } from '@angular/core';
 import { SessionFacade } from '@app/application/auth/session.facade';
 import { Routine, RoutineDay, dayForWeekday } from '@app/domain/routines/model/routine.model';
 import { ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
-import { Weekday, isSameDay, isoWeekday, parseIsoDate } from '@app/domain/shared/model/date';
+import { Weekday, isWithinRange, isoWeekday, weekRange } from '@app/domain/shared/model/date';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
 import {
   WorkoutSession,
@@ -51,17 +51,19 @@ export class StudentRoutineFacade {
     if (day === null) {
       return null;
     }
-    const today = this.clock.now();
-    const candidates = (this.sessions.data() ?? []).filter(
-      item => item.routineDayId === day.id && item.status !== 'skipped',
+    // Solo la semana en curso. Antes, sin sesion hoy, se tomaba la ULTIMA de
+    // ese dia de la rutina aunque fuera semanas adelante: el alumno completaba
+    // la del lunes 16 creyendo que era la de este lunes y el grafico semanal
+    // (que cuenta por fecha programada) no subia.
+    const semana = weekRange(this.clock.now());
+    return (
+      (this.sessions.data() ?? []).find(
+        item =>
+          item.routineDayId === day.id &&
+          item.status !== 'skipped' &&
+          isWithinRange(item.scheduledFor, semana),
+      ) ?? null
     );
-
-    const ofToday = candidates.find(item => {
-      const scheduled = parseIsoDate(item.scheduledFor);
-      return scheduled !== null && isSameDay(scheduled, today);
-    });
-
-    return ofToday ?? candidates[candidates.length - 1] ?? null;
   });
 
   /** Avance del dia seleccionado, entre 0 y 1. */

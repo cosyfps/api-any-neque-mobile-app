@@ -57,18 +57,18 @@
 // ── Aviso de exito ──
 // Siempre en el DOM para que `role="status"` anuncie el cambio de texto.
 .toast {
+  // Vacio no ocupa espacio (si no, separaba de mas la seccion siguiente),
+  // pero sigue en el DOM: es una region viva y tiene que existir antes del aviso.
+  &:empty {
+    min-height: 0;
+    margin: 0;
+  }
+
   min-height: 20px;
   margin: 8px 0 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--nq-primary-strong);
-  text-align: center;
-}
-
-.trainer-line {
-  margin: 8px 0 0;
-  font-size: 13px;
-  color: var(--nq-text-secondary);
   text-align: center;
 }
 
@@ -114,4 +114,89 @@
   .nq-btn {
     flex: 1;
   }
+}
+
+// Boton "Listo" de la hoja de Apariencia.
+.sheet-done {
+  width: 100%;
+  margin-top: 20px;
+}
+
+// ── Tu entrenador ──
+.trainer-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.trainer-name {
+  font-weight: 600;
+}
+
+.trainer-since {
+  font-size: 13px;
+  color: var(--nq-text-secondary);
+}
+
+.trainer-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 16px;
+  text-align: center;
+
+  .nq-sheet-title {
+    margin-bottom: 4px;
+  }
+}
+
+.trainer-avatar {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 12px;
+  object-fit: cover;
+  border-radius: var(--nq-radius-full);
+
+  &.initials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--nq-text-inverse);
+    background: var(--nq-primary-strong);
+  }
+}
+
+.trainer-specialty {
+  margin: 0;
+  font-size: 14px;
+  color: var(--nq-text-secondary);
+}
+
+.trainer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.trainer-bio {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--nq-text);
+  text-align: center;
+}
+
+// Dentro del sheet (fondo --nq-bg) las filas usan la superficie para
+// distinguirse; son enlaces tel:/mailto:, sin subrayado.
+.trainer-sheet .nq-list-item {
+  color: var(--nq-text);
+  background: var(--nq-surface);
+  text-decoration: none;
 }

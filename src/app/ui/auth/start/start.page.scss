@@ -75,6 +75,36 @@
   margin: 0 0 36px;
 }
 
+// Modal de cierre forzado ("ingresaste desde otro dispositivo"). Informa, no
+// es un error del usuario: icono en tono de advertencia, no en rojo.
+.notice {
+  padding-bottom: 28px;
+  text-align: center;
+
+  .nq-btn {
+    width: 100%;
+  }
+}
+
+.notice-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: 4px auto 12px;
+  color: var(--nq-warning);
+  background: rgba(var(--nq-warning-rgb), 0.12);
+  border-radius: var(--nq-radius-full);
+}
+
+.notice-desc {
+  margin: 8px 0 24px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--nq-text-secondary);
+}
+
 .btn-login {
   @include nq-btn-gradient;
   max-width: 300px;

@@ -9,6 +9,8 @@ import { Assessment } from '@app/domain/students/model/assessment.model';
 import { Student } from '@app/domain/students/model/student.model';
 import { ASSESSMENTS_PORT, AssessmentsPort } from '@app/domain/students/port/assessments.port';
 import { STUDENTS_PORT, StudentsPort } from '@app/domain/students/port/students.port';
+import { Trainer } from '@app/domain/trainers/model/trainer.model';
+import { TRAINERS_PORT, TrainersPort } from '@app/domain/trainers/port/trainers.port';
 import { WorkoutSession } from '@app/domain/workouts/model/workout-session.model';
 import { WORKOUTS_PORT, WorkoutsPort } from '@app/domain/workouts/port/workouts.port';
 
@@ -44,6 +46,22 @@ const ASSESSMENT: Assessment = {
   notes: null,
 };
 
+const TRAINER: Trainer = {
+  id: 'trn-001',
+  userId: 'usr-trn',
+  firstName: 'Kelvin',
+  lastName: 'Moreno',
+  email: 'kelvin@neque.cl',
+  phone: '+56 9 1234 5678',
+  avatarUrl: null,
+  specialty: 'Hipertrofia',
+  certifications: ['Entrenador personal certificado'],
+  bio: 'Entreno a personas que quieren cambiar.',
+  joinedAt: '2025-11-01T12:00:00.000Z',
+};
+
+const getTrainer = fn<TrainersPort['getById']>(() => of(TRAINER));
+
 describe('StudentProfileFacade', () => {
   let getById: MockOf<StudentsPort['getById']>;
   let latestByStudent: MockOf<AssessmentsPort['latestByStudent']>;
@@ -70,6 +88,10 @@ describe('StudentProfileFacade', () => {
         },
         { provide: WORKOUTS_PORT, useValue: { listByStudent: listSessions } },
         { provide: AUTH_PORT, useValue: { changePassword } },
+        {
+          provide: TRAINERS_PORT,
+          useValue: { getById: getTrainer, update: fn<TrainersPort['update']>() },
+        },
         // Miercoles 23 de septiembre de 2026.
         { provide: CLOCK, useValue: { now: () => new Date(2026, 8, 23, 12) } },
         {
@@ -93,6 +115,29 @@ describe('StudentProfileFacade', () => {
     changePassword = fn<AuthPort['changePassword']>().mockReturnValue(of(undefined));
     listSessions = fn<WorkoutsPort['listByStudent']>().mockReturnValue(of([]));
     profileId = 'std-001';
+  });
+
+  // Lo que el entrenador escribe en su perfil ahora lo ve su alumno.
+  describe('loadTrainer()', () => {
+    it('carga el entrenador de la ficha', () => {
+      getTrainer.mockClear();
+      const facade = build();
+      facade.load();
+
+      facade.loadTrainer();
+
+      expect(getTrainer).toHaveBeenCalledWith('trn-001');
+      expect(facade.trainer.data()?.specialty).toBe('Hipertrofia');
+    });
+
+    it('sin ficha cargada no pide nada', () => {
+      getTrainer.mockClear();
+      const facade = build();
+
+      facade.loadTrainer();
+
+      expect(getTrainer).not.toHaveBeenCalled();
+    });
   });
 
   describe('racha', () => {

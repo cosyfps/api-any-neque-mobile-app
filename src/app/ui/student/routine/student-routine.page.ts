@@ -97,7 +97,14 @@ const WEEKDAYS: readonly { value: Weekday; label: string }[] = [
               <div class="bar-fill" [style.width.%]="progressPercent()"></div>
             </div>
 
-            @if (!facade.isDayCompleted()) {
+            @if (facade.selectedSession() === null) {
+              <!-- El dia existe en la rutina pero no hay sesion programada esta
+                   semana (p. ej. la rutina empieza despues): se muestra, no se hace. -->
+              <p class="no-session nq-ani" role="status">
+                Esta semana no tienes sesión este día. Te mostramos lo que trae para que lo
+                conozcas.
+              </p>
+            } @else if (!facade.isDayCompleted()) {
               <button
                 class="nq-btn nq-btn-primary start-btn nq-ani"
                 type="button"
@@ -127,7 +134,7 @@ const WEEKDAYS: readonly { value: Weekday; label: string }[] = [
                     role="checkbox"
                     [attr.aria-checked]="isDone(exercise.id)"
                     [attr.aria-label]="checkLabel(exercise)"
-                    [disabled]="busyId() === exercise.id"
+                    [disabled]="busyId() === exercise.id || facade.selectedSession() === null"
                     (click)="toggle(exercise)"
                   >
                     @if (isDone(exercise.id)) {
@@ -156,17 +163,6 @@ const WEEKDAYS: readonly { value: Weekday; label: string }[] = [
                 </li>
               }
             </ul>
-
-            @if (!facade.isDayCompleted() && facade.selectedSession() !== null) {
-              <button
-                class="nq-btn nq-btn-secondary complete-btn"
-                type="button"
-                [disabled]="completing()"
-                (click)="completeSession(day.estimatedMinutes)"
-              >
-                Marcar como completada
-              </button>
-            }
           } @else {
             <div class="rest-day nq-ani">
               <span class="rest-day-title">Día de descanso</span>
@@ -212,7 +208,6 @@ export class StudentRoutinePage {
 
   readonly weekdays = WEEKDAYS;
   readonly busyId = signal<string | null>(null);
-  readonly completing = signal(false);
   readonly showCelebration = signal(false);
 
   readonly progressPercent = computed(() => Math.round(this.facade.dayProgress() * 100));
@@ -285,19 +280,6 @@ export class StudentRoutinePage {
     this.busyId.set(null);
     // Marcar el ultimo ejercicio cierra la sesion: se celebra, una sola vez.
     if (this.facade.claimCelebration()) {
-      this.showCelebration.set(true);
-    }
-  }
-
-  async completeSession(durationMinutes: number): Promise<void> {
-    if (this.completing()) {
-      return;
-    }
-    this.completing.set(true);
-    const ok = await this.facade.completeSelectedSession(durationMinutes);
-    this.completing.set(false);
-
-    if (ok && this.facade.claimCelebration()) {
       this.showCelebration.set(true);
     }
   }

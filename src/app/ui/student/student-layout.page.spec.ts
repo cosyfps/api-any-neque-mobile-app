@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, Router, provideRouter } from '@angular/router';
 import { Subject } from 'rxjs';
 
+import { SessionFacade } from '@app/application/auth/session.facade';
+
 import { fn } from '@testing/typed-mock';
 
 import { StudentLayoutPage } from './student-layout.page';
@@ -24,7 +26,11 @@ describe('StudentLayoutPage', () => {
     } as unknown as Router;
 
     TestBed.configureTestingModule({
-      providers: [provideRouter([]), { provide: Router, useValue: routerStub }],
+      providers: [
+        provideRouter([]),
+        { provide: Router, useValue: routerStub },
+        { provide: SessionFacade, useValue: { user: () => ({ id: 'u1' }) } },
+      ],
     });
     router = TestBed.inject(Router);
     return TestBed.runInInjectionContext(() => new StudentLayoutPage());
@@ -83,5 +89,33 @@ describe('StudentLayoutPage', () => {
 
       expect(router.navigate).toHaveBeenCalledWith(['/student/profile']);
     });
+  });
+});
+
+// Tutorial de primer ingreso.
+describe('StudentLayoutPage › tutorial', () => {
+  afterEach(() => localStorage.clear());
+
+  const crear = (): StudentLayoutPage => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: SessionFacade, useValue: { user: () => ({ id: 'u9' }) } },
+      ],
+    });
+    return TestBed.runInInjectionContext(() => new StudentLayoutPage());
+  };
+
+  it('arranca solo en el primer ingreso del alumno', () => {
+    localStorage.clear();
+
+    expect(crear().tour.active()).toBe(true);
+  });
+
+  it('no vuelve a arrancar si ya se vio en este dispositivo', () => {
+    localStorage.setItem('neque.tour-done.student.u9', '1');
+
+    expect(crear().tour.active()).toBe(false);
   });
 });

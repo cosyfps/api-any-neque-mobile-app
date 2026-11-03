@@ -3,6 +3,7 @@ import { DomainErrorCode, domainError } from '@app/domain/shared/model/app-error
 const STATUS: Record<DomainErrorCode, number> = {
   not_found: 404,
   unauthorized: 401,
+  session_replaced: 401,
   forbidden: 403,
   invalid_credentials: 401,
   too_many_attempts: 429,

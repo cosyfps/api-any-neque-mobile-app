@@ -53,6 +53,7 @@ const ACCION: Record<PendingKind, string> = {
         </div>
         <button
           class="bell"
+          data-tour="bell"
           type="button"
           [attr.aria-label]="bellLabel()"
           (click)="goToNotifications()"
@@ -72,7 +73,7 @@ const ACCION: Record<PendingKind, string> = {
           <nq-page-state type="error" message="No pudimos cargar tu día." [retry]="reload" />
         }
         @default {
-          <div class="kpis nq-ani">
+          <div class="kpis nq-ani" data-tour="kpis">
             <button class="kpi kpi-1" type="button" (click)="goToStudents()">
               <span class="kpi-value">{{ facade.activeCount() }}</span>
               <span class="kpi-label">{{

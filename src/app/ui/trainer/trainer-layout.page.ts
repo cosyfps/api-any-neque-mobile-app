@@ -4,7 +4,12 @@ import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { LucideDumbbell, LucideHouse, LucidePlus, LucideUser, LucideUsers } from '@lucide/angular';
 import { filter, map, scan } from 'rxjs/operators';
 
+import { SessionFacade } from '@app/application/auth/session.facade';
+
 import { FabRegistry } from '@shared/navigation/fab';
+import { TRAINER_TOUR } from '@shared/tour/tour-steps';
+import { TourComponent } from '@shared/tour/tour.component';
+import { TourService } from '@shared/tour/tour.service';
 
 interface TrainerTab {
   readonly path: string;
@@ -28,10 +33,18 @@ function tabFor(url: string): string {
 @Component({
   selector: 'app-trainer-layout',
   standalone: true,
-  imports: [RouterOutlet, LucideHouse, LucideUsers, LucideDumbbell, LucideUser, LucidePlus],
+  imports: [
+    RouterOutlet,
+    LucideHouse,
+    LucideUsers,
+    LucideDumbbell,
+    LucideUser,
+    LucidePlus,
+    TourComponent,
+  ],
   template: `
     <div class="layout">
-      <div class="layout-content">
+      <div class="layout-content" [attr.inert]="tour.active() ? '' : null">
         <router-outlet />
       </div>
 
@@ -40,6 +53,8 @@ function tabFor(url: string): string {
       @if (fab.action(); as action) {
         <button
           class="nq-fab"
+          data-tour="fab"
+          [attr.inert]="tour.active() ? '' : null"
           type="button"
           [attr.aria-label]="action.label()"
           (click)="action.run()"
@@ -48,7 +63,11 @@ function tabFor(url: string): string {
         </button>
       }
 
-      <nav class="tab-bar" aria-label="Navegación principal">
+      <nav
+        class="tab-bar"
+        aria-label="Navegación principal"
+        [attr.inert]="tour.active() ? '' : null"
+      >
         @for (tab of tabs; track tab.path) {
           <button
             class="tab"
@@ -56,6 +75,7 @@ function tabFor(url: string): string {
             [class.active]="isActive(tab.path)"
             [attr.aria-label]="tab.label"
             [attr.aria-current]="isActive(tab.path) ? 'page' : null"
+            [attr.data-tour]="'tab-' + tab.icon"
             (click)="navigate(tab.path)"
           >
             @switch (tab.icon) {
@@ -76,6 +96,9 @@ function tabFor(url: string): string {
           </button>
         }
       </nav>
+
+      <!-- Tutorial de primer ingreso (y desde Perfil): encima de todo. -->
+      <nq-tour />
     </div>
   `,
   styleUrl: './trainer-layout.page.scss',
@@ -83,8 +106,17 @@ function tabFor(url: string): string {
 export class TrainerLayoutPage {
   readonly tabs = TABS;
   readonly fab = inject(FabRegistry);
+  readonly tour = inject(TourService);
 
   private readonly router = inject(Router);
+
+  constructor() {
+    // Primer ingreso de este entrenador en este dispositivo: guia por las pestanas.
+    const userId = inject(SessionFacade).user()?.id;
+    if (userId !== undefined) {
+      this.tour.startIfFirstTime(`trainer.${userId}`, TRAINER_TOUR);
+    }
+  }
 
   /**
    * Ultima pestana visitada.

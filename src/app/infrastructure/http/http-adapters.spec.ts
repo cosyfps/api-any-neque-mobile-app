@@ -569,6 +569,63 @@ describe('adapters HTTP', () => {
       expect(expired).not.toHaveBeenCalled();
     });
 
+    // Sesion unica: otro dispositivo abrio sesion con la misma cuenta.
+    it('un 401 session_replaced cierra la sesion sin intentar renovarla', async () => {
+      const expired = fn<() => void>();
+      setSessionExpiredHandler(expired);
+      sessionStorage.clear();
+      storage.value = session('viejo');
+      const result = firstValueFrom(TestBed.inject(TrainersHttpAdapter).getById('t1'));
+      http
+        .expectOne(`${BASE}/trainers/t1`)
+        .flush(
+          { error: { code: 'session_replaced' } },
+          { status: 401, statusText: 'Unauthorized' },
+        );
+
+      await expect(result).rejects.toMatchObject({ code: 'session_replaced' });
+      http.expectNone(`${BASE}/auth/refresh`);
+      expect(storage.value).toBeNull();
+      expect(expired).toHaveBeenCalled();
+      expect(sessionStorage.getItem('neque.session-end')).toBe('session_replaced');
+    });
+
+    it('un refresh rechazado por sesion reemplazada deja el aviso', async () => {
+      const expired = fn<() => void>();
+      setSessionExpiredHandler(expired);
+      sessionStorage.clear();
+      storage.value = session('viejo');
+      const result = firstValueFrom(TestBed.inject(TrainersHttpAdapter).getById('t1'));
+      http
+        .expectOne(`${BASE}/trainers/t1`)
+        .flush(null, { status: 401, statusText: 'Unauthorized' });
+      http
+        .expectOne(`${BASE}/auth/refresh`)
+        .flush(
+          { error: { code: 'session_replaced' } },
+          { status: 401, statusText: 'Unauthorized' },
+        );
+
+      await expect(result).rejects.toMatchObject({ code: 'session_replaced' });
+      expect(sessionStorage.getItem('neque.session-end')).toBe('session_replaced');
+    });
+
+    it('un 401 comun no deja aviso de otro dispositivo', async () => {
+      setSessionExpiredHandler(fn<() => void>());
+      sessionStorage.clear();
+      storage.value = session('viejo');
+      const result = firstValueFrom(TestBed.inject(TrainersHttpAdapter).getById('t1'));
+      http
+        .expectOne(`${BASE}/trainers/t1`)
+        .flush(null, { status: 401, statusText: 'Unauthorized' });
+      http
+        .expectOne(`${BASE}/auth/refresh`)
+        .flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      await expect(result).rejects.toMatchObject({ code: 'unauthorized' });
+      expect(sessionStorage.getItem('neque.session-end')).toBeNull();
+    });
+
     it('un 401 con el token recien renovado cierra la sesion', async () => {
       const expired = fn<() => void>();
       setSessionExpiredHandler(expired);

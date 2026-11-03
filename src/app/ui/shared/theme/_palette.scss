@@ -95,4 +95,72 @@
   // enfocarlos. No depende del `maximum-scale=1` del viewport, que sigue ahi
   // porque la app no admite zoom.
   --nq-font-input: 16px;
+
+  // ── Sobre fotos ── Iguales en ambos temas: una etiqueta sobre una foto
+  // necesita blanco sobre velo oscuro sea cual sea la apariencia de la app.
+  --nq-on-media: #ffffff;
+  --nq-media-scrim-rgb: 26, 43, 42;
+
+  // Fondo detras de sheets y modales.
+  --nq-backdrop: rgba(0, 0, 0, 0.25);
+
+  color-scheme: light;
+}
+
+// ── Tema oscuro "Grafito" ──
+// Gris neutro con el teal de marca. Contraste medido (WCAG AA = 4.5:1):
+// texto 15.9:1, secundario 8.8:1, tenue 6.1:1 sobre tarjeta, verde 9.8:1,
+// texto de boton sobre verde 8.7:1, error 6.0:1, aviso 9.9:1.
+//
+// El verde fuerte cambia de rol: en claro es oscuro con texto blanco encima;
+// en oscuro un #0f766e casi no se lee sobre el fondo, asi que pasa a claro y
+// el texto de los botones (`--nq-text-inverse`) pasa a verde muy oscuro.
+@mixin nq-dark-tokens {
+  --nq-primary-strong: #34d3be;
+  --nq-primary-strong-rgb: 52, 211, 190;
+  --nq-gradient-strong-start: #34d3be;
+  --nq-gradient-strong-end: #22d3ee;
+
+  --nq-bg: #1c1f22;
+  --nq-surface: #131517;
+  --nq-surface-2: #24282c;
+
+  --nq-text: #eceff1;
+  --nq-text-rgb: 236, 239, 241;
+  --nq-text-secondary: #adb5bb;
+  --nq-text-muted: #949ea5;
+  --nq-text-inverse: #062421;
+
+  --nq-border: rgba(255, 255, 255, 0.08);
+  --nq-border-hover: rgba(255, 255, 255, 0.16);
+  --nq-border-solid: #2c3136;
+
+  --nq-success: #4ade80;
+  --nq-success-rgb: 74, 222, 128;
+  --nq-warning: #fbbf24;
+  --nq-warning-rgb: 251, 191, 36;
+  --nq-danger: #f87171;
+  --nq-danger-rgb: 248, 113, 113;
+
+  --nq-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --nq-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --nq-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --nq-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+  --nq-backdrop: rgba(0, 0, 0, 0.6);
+
+  // Controles nativos (fecha, scrollbars, autocompletado) en oscuro.
+  color-scheme: dark;
+}
+
+// Elegido en Perfil (ver ThemeService): manda sobre el sistema.
+:root[data-theme='dark'] {
+  @include nq-dark-tokens;
+}
+
+// "Segun el dispositivo": sin `data-theme`, sigue al sistema.
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    @include nq-dark-tokens;
+  }
 }

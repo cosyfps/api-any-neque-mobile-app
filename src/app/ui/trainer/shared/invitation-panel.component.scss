@@ -64,6 +64,8 @@
   justify-content: center;
   min-height: 180px;
   padding: 12px;
+  // Blanco en ambos temas a proposito: los lectores necesitan un QR oscuro
+  // sobre fondo claro; invertido muchas camaras no lo reconocen.
   background: #fff;
   border-radius: var(--nq-radius-md);
 }

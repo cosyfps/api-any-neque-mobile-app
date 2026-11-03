@@ -2,6 +2,8 @@
 export type DomainErrorCode =
   | 'not_found'
   | 'unauthorized'
+  /** La cuenta abrio sesion en otro dispositivo: esta sesion ya no vale. */
+  | 'session_replaced'
   | 'forbidden'
   | 'invalid_credentials'
   | 'too_many_attempts'
@@ -31,6 +33,7 @@ export class DomainError extends Error {
 const DEFAULT_MESSAGES: Record<DomainErrorCode, string> = {
   not_found: 'No encontramos lo que buscabas.',
   unauthorized: 'Tu sesión expiró. Vuelve a ingresar.',
+  session_replaced: 'Tu sesión se cerró porque ingresaste desde otro dispositivo.',
   forbidden: 'Tu cuenta no tiene acceso a esta sección.',
   invalid_credentials: 'Correo o contraseña incorrectos.',
   too_many_attempts: 'Demasiados intentos fallidos. Espera unos minutos e intenta de nuevo.',

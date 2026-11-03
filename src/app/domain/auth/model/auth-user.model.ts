@@ -47,3 +47,12 @@ export interface Credentials {
 export function homeRouteForRole(role: UserRole): string {
   return role === 'trainer' ? '/trainer/home' : '/student/home';
 }
+
+/** Por que se cerro la sesion sin que el usuario la cerrara. */
+export type SessionEndReason = 'session_replaced';
+
+/**
+ * Clave de `sessionStorage` con el motivo del ultimo cierre forzado. La
+ * escribe el interceptor HTTP antes de recargar y la lee (y borra) el login.
+ */
+export const SESSION_END_KEY = 'neque.session-end';

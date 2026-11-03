@@ -3,6 +3,8 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import {
   LucideChevronRight,
+  LucideCompass,
+  LucidePalette,
   LucideKeyRound,
   LucideLogOut,
   LucideMail,
@@ -11,6 +13,7 @@ import {
   LucideUserPen,
 } from '@lucide/angular';
 
+import { SessionFacade } from '@app/application/auth/session.facade';
 import { TrainerProfileFacade } from '@app/application/trainers/trainer-profile.facade';
 
 import {
@@ -19,7 +22,11 @@ import {
 } from '@shared/components/change-password-form.component';
 import { PageStateComponent } from '@shared/components/page-state.component';
 import { ProfileHeroComponent } from '@shared/components/profile-hero.component';
+import { ThemePickerComponent } from '@shared/components/theme-picker.component';
 import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
+import { THEME_LABEL, ThemeService } from '@shared/theme/theme.service';
+import { TRAINER_TOUR } from '@shared/tour/tour-steps';
+import { TourService } from '@shared/tour/tour.service';
 import { PHONE_PATTERN } from '@shared/validators/field-rules';
 
 @Component({
@@ -31,7 +38,10 @@ import { PHONE_PATTERN } from '@shared/validators/field-rules';
     ProfileHeroComponent,
     ChangePasswordFormComponent,
     SheetTrapDirective,
+    ThemePickerComponent,
     LucideChevronRight,
+    LucideCompass,
+    LucidePalette,
     LucideKeyRound,
     LucideLogOut,
     LucideMail,
@@ -123,6 +133,25 @@ import { PHONE_PATTERN } from '@shared/validators/field-rules';
                   </li>
                 }
               </ul>
+            </section>
+
+            <section class="nq-section nq-ani nq-d3">
+              <div class="nq-section-header">
+                <h2 class="nq-section-title">Preferencias</h2>
+              </div>
+              <div class="nq-menu">
+                <button class="nq-list-item" type="button" (click)="appearanceOpen.set(true)">
+                  <svg lucidePalette [size]="19" [strokeWidth]="1.8"></svg>
+                  <span class="nq-menu-label">Apariencia</span>
+                  <span class="nq-menu-value">{{ themeLabel() }}</span>
+                  <svg lucideChevronRight [size]="18" [strokeWidth]="2"></svg>
+                </button>
+                <button class="nq-list-item" type="button" (click)="startTour()">
+                  <svg lucideCompass [size]="19" [strokeWidth]="1.8"></svg>
+                  <span class="nq-menu-label">Ver tutorial</span>
+                  <svg lucideChevronRight [size]="18" [strokeWidth]="2"></svg>
+                </button>
+              </div>
             </section>
 
             <section class="nq-section nq-ani nq-d3">
@@ -267,6 +296,29 @@ import { PHONE_PATTERN } from '@shared/validators/field-rules';
       </div>
     </div>
 
+    <div class="nq-overlay" [class.open]="appearanceOpen()" (click)="appearanceOpen.set(false)">
+      <div
+        class="nq-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tp-appearance-title"
+        [nqSheetTrap]="appearanceOpen()"
+        (dismissed)="appearanceOpen.set(false)"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="nq-sheet-handle"></div>
+        <h2 class="nq-sheet-title" id="tp-appearance-title">Apariencia</h2>
+        <nq-theme-picker />
+        <button
+          class="nq-btn nq-btn-primary sheet-done"
+          type="button"
+          (click)="appearanceOpen.set(false)"
+        >
+          Listo
+        </button>
+      </div>
+    </div>
+
     <div class="nq-overlay" [class.open]="changingPassword()" (click)="closePassword()">
       <div
         class="nq-sheet"
@@ -325,6 +377,8 @@ import { PHONE_PATTERN } from '@shared/validators/field-rules';
 })
 export class TrainerProfilePage {
   readonly facade = inject(TrainerProfileFacade);
+  private readonly tour = inject(TourService);
+  private readonly sessionUser = inject(SessionFacade);
 
   private readonly router = inject(Router);
   private readonly passwordForm = viewChild<ChangePasswordFormComponent>('passwordForm');
@@ -334,6 +388,10 @@ export class TrainerProfilePage {
   readonly signingOut = signal(false);
   readonly editing = signal(false);
   readonly changingPassword = signal(false);
+  /** Hoja de Preferencias > Apariencia. */
+  readonly appearanceOpen = signal(false);
+  readonly themeLabel = computed(() => THEME_LABEL[this.theme.preference()]);
+  private readonly theme = inject(ThemeService);
   readonly savingPhoto = signal(false);
   readonly photoError = signal<string | null>(null);
   /** Aviso breve de exito: "Datos guardados", "Contraseña cambiada". */
@@ -444,6 +502,14 @@ export class TrainerProfilePage {
     if (ok) {
       this.editing.set(false);
       this.showToast('Datos guardados');
+    }
+  }
+
+  /** Vuelve a lanzar la guia de primer ingreso, desde su primer paso. */
+  startTour(): void {
+    const userId = this.sessionUser.user()?.id;
+    if (userId !== undefined) {
+      this.tour.start(`trainer.${userId}`, TRAINER_TOUR);
     }
   }
 

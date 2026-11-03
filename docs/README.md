@@ -34,6 +34,7 @@ Leer en orden: cada documento asume el anterior.
 | 2026-09-18 | [Cierre de la Épica 11](auditoria/2026-09-18-cierre-epica-11.md)               |
 | 2026-11-02 | [Auditoría integral](auditoria/2026-11-02-auditoria-integral.md)               |
 | 2026-11-03 | [Auditoría QA + UX/UI](../QA_AUDIT_REPORT.md)                                  |
+| 2026-11-03 | [Cambios de la auditoría (resumen)](auditoria/2026-11-03-cambios-auditoria.md) |
 
 ## Planes
 

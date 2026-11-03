@@ -216,6 +216,38 @@ describe('StudentRoutineFacade', () => {
       expect(facade.selectedDay()?.title).toBe('Tren inferior');
     });
 
+    // Caso real: el alumno eligio "Lun" y completo la sesion de un lunes dos
+    // semanas adelante; el grafico de esta semana no subio.
+    describe('solo sesiones de la semana en curso', () => {
+      const lunes = (dia: number): WorkoutSession => ({
+        ...todaySession([false, false]),
+        id: `wks-lun-${dia}`,
+        routineDayId: 'day-001',
+        scheduledFor: toIsoDate(new Date(2026, 8, dia, 9)),
+      });
+
+      it('elige el lunes de esta semana y no uno futuro', () => {
+        listByStudent.mockReturnValue(of([lunes(14), lunes(28)]));
+        const facade = build();
+        facade.load();
+
+        facade.selectDay(1);
+
+        expect(facade.selectedSession()?.id).toBe('wks-lun-14');
+      });
+
+      it('sin sesion esta semana no ofrece una de otra semana', () => {
+        listByStudent.mockReturnValue(of([lunes(21), lunes(28)]));
+        const facade = build();
+        facade.load();
+
+        facade.selectDay(1);
+
+        expect(facade.selectedDay()?.title).toBe('Tren inferior');
+        expect(facade.selectedSession()).toBeNull();
+      });
+    });
+
     it('un dia sin entrenamiento deja selectedDay en null', () => {
       const facade = build();
       facade.load();

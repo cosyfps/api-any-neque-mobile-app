@@ -10,6 +10,8 @@ import { BmiResult, calculateBmi } from '@app/domain/students/model/bmi';
 import { Student, fullName, initials } from '@app/domain/students/model/student.model';
 import { ASSESSMENTS_PORT } from '@app/domain/students/port/assessments.port';
 import { STUDENTS_PORT, StudentSelfEditableFields } from '@app/domain/students/port/students.port';
+import { Trainer } from '@app/domain/trainers/model/trainer.model';
+import { TRAINERS_PORT } from '@app/domain/trainers/port/trainers.port';
 import { weekStreak } from '@app/domain/workouts/model/streak';
 import { WorkoutSession } from '@app/domain/workouts/model/workout-session.model';
 import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
@@ -29,6 +31,7 @@ export class StudentProfileFacade {
   private readonly assessments = inject(ASSESSMENTS_PORT);
   private readonly workouts = inject(WORKOUTS_PORT);
   private readonly auth = inject(AUTH_PORT);
+  private readonly trainers = inject(TRAINERS_PORT);
   private readonly clock = inject(CLOCK);
   private readonly session = inject(SessionFacade);
 
@@ -83,6 +86,22 @@ export class StudentProfileFacade {
   );
 
   readonly viewState: Signal<ViewState> = this.student.viewState;
+
+  /**
+   * Perfil del entrenador del alumno: especialidad, certificaciones, bio y
+   * contacto. Sin esto lo que el entrenador escribe en su perfil no lo veia
+   * nadie. Se carga al abrir su ficha, no con el perfil.
+   */
+  readonly trainer: AsyncState<Trainer> = asyncState<Trainer>();
+
+  /** Carga (o recarga) el perfil del entrenador de la ficha cargada. */
+  loadTrainer(): void {
+    const trainerId = this.student.data()?.trainerId;
+    if (trainerId === undefined || trainerId === '') {
+      return;
+    }
+    this.trainer.load(() => this.trainers.getById(trainerId));
+  }
 
   /** Carga la ficha del alumno de la sesion activa. */
   load(): void {

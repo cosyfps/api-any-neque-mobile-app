@@ -203,11 +203,17 @@ type CompareSide = 'before' | 'after';
                     <!-- Las dos fotos se superponen y el divisor recorta la de
                          arriba. Una al lado de otra no deja ver el cambio. -->
                     <figure class="compare" #comparador>
-                      <img class="compare-img" [src]="before.url" alt="Foto anterior" />
+                      <img
+                        class="compare-img"
+                        [src]="before.url"
+                        alt="Foto anterior"
+                        draggable="false"
+                      />
                       <img
                         class="compare-img compare-after"
                         [src]="after.url"
                         alt="Foto reciente"
+                        draggable="false"
                         [style.clip-path]="'inset(0 0 0 ' + divisor() + '%)'"
                       />
 
@@ -310,7 +316,11 @@ type CompareSide = 'before' | 'after';
                   <div class="gallery">
                     @for (photo of group.photos; track photo.id) {
                       <figure class="photo">
-                        <img [src]="photo.url" [alt]="'Foto ' + angleLabel(photo.angle)" />
+                        <img
+                          [src]="photo.url"
+                          [alt]="'Foto ' + angleLabel(photo.angle)"
+                          draggable="false"
+                        />
                         <figcaption>{{ angleLabel(photo.angle) }}</figcaption>
                         <button
                           class="photo-remove"
@@ -369,7 +379,7 @@ type CompareSide = 'before' | 'after';
               [disabled]="option.inUse"
               (click)="pick(option.photo.id)"
             >
-              <img [src]="option.photo.url" alt="" />
+              <img [src]="option.photo.url" alt="" draggable="false" />
               <span class="pick-date">{{ formatShortDate(option.photo.takenAt) }}</span>
               @if (option.inUse) {
                 <span class="pick-tag">En uso</span>

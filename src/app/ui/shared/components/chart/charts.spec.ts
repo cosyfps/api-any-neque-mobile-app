@@ -43,6 +43,20 @@ describe('BarChartComponent', () => {
     expect(chart.bars()[1]?.highlighted).toBe(true);
   });
 
+  // Un dia cumplido se ve fuerte: motiva a completar la semana.
+  it('pinta en verde fuerte los dias con algo cumplido', () => {
+    ref.setInput('data', [
+      { label: 'L', value: 1, highlighted: false },
+      { label: 'M', value: 0, highlighted: true },
+      { label: 'X', value: 0, highlighted: false },
+    ] satisfies BarInput[]);
+    const [cumplido, hoy, pendiente] = chart.bars();
+
+    expect(cumplido && chart.fillOf(cumplido)).toBe('var(--nq-primary-strong)');
+    expect(hoy && chart.fillOf(hoy)).toContain('--nq-primary-strong-rgb');
+    expect(pendiente && chart.fillOf(pendiente)).toContain('--nq-primary-rgb');
+  });
+
   it('expone un viewBox valido', () => {
     expect(chart.viewBox).toMatch(/^0 0 \d+ \d+$/);
   });

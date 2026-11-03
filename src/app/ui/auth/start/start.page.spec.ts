@@ -13,7 +13,7 @@ import { CLOCK } from '@app/domain/shared/port/clock.port';
 
 import { fn, MockOf } from '@testing/typed-mock';
 
-import { StartPage } from './start.page';
+import { StartPage, consumeSessionEndNotice } from './start.page';
 
 const STUDENT_SESSION: AuthSession = {
   user: {
@@ -385,5 +385,77 @@ describe('StartPage', () => {
 
       expect(navigate).toHaveBeenCalledWith(['/forgot-password']);
     });
+  });
+});
+
+// Sesion unica: el interceptor deja el motivo antes de recargar.
+describe('consumeSessionEndNotice', () => {
+  afterEach(() => sessionStorage.clear());
+
+  it('explica el cierre por otro dispositivo y lo muestra una sola vez', () => {
+    sessionStorage.setItem('neque.session-end', 'session_replaced');
+
+    expect(consumeSessionEndNotice()).toBe(
+      'Tu sesión se cerró porque ingresaste desde otro dispositivo.',
+    );
+    expect(consumeSessionEndNotice()).toBeNull();
+  });
+
+  it('sin motivo guardado no muestra nada', () => {
+    expect(consumeSessionEndNotice()).toBeNull();
+  });
+});
+
+describe('StartPage › modal de sesion cerrada', () => {
+  afterEach(() => sessionStorage.clear());
+
+  const render = () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [StartPage],
+      providers: [
+        provideRouter([]),
+        { provide: CLOCK, useValue: { now: () => new Date('2026-11-03T12:00:00.000Z') } },
+        { provide: AUTH_PORT, useValue: {} },
+        {
+          provide: SESSION_STORAGE_PORT,
+          useValue: {
+            read: () => null,
+            write: fn<SessionStoragePort['write']>(),
+            clear: fn<SessionStoragePort['clear']>(),
+          },
+        },
+      ],
+    });
+    const fixture = TestBed.createComponent(StartPage);
+    fixture.detectChanges();
+    return fixture;
+  };
+
+  it('se abre con el motivo y se cierra con Entendido', () => {
+    sessionStorage.setItem('neque.session-end', 'session_replaced');
+    const fixture = render();
+    const el = fixture.nativeElement as HTMLElement;
+    const overlay = (): Element | null => el.querySelector('.nq-overlay');
+
+    expect(overlay()?.classList.contains('open')).toBe(true);
+    expect(el.querySelector('[role="alertdialog"]')?.textContent).toContain(
+      'ingresaste desde otro dispositivo',
+    );
+
+    (el.querySelector('.notice .nq-btn') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(overlay()?.classList.contains('open')).toBe(false);
+  });
+
+  it('sin cierre forzado el modal queda cerrado', () => {
+    const fixture = render();
+
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('.nq-overlay')
+        ?.classList.contains('open'),
+    ).toBe(false);
   });
 });

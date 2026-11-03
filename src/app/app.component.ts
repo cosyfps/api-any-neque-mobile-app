@@ -4,6 +4,7 @@ import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 
 import { APP_SCHEME, deepLinkPath } from '@app/ui/shared/navigation/deep-link';
+import { ThemeService } from '@app/ui/shared/theme/theme.service';
 
 import { environment } from '@env/environment';
 
@@ -34,6 +35,9 @@ export class AppComponent {
   private readonly zone = inject(NgZone);
 
   constructor() {
+    // Se instancia al arrancar para que aplique la apariencia guardada.
+    inject(ThemeService);
+
     if (Capacitor.isNativePlatform()) {
       void App.addListener('appUrlOpen', ({ url }) => this.openDeepLink(url));
     }

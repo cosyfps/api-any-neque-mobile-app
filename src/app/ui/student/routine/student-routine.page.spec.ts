@@ -138,7 +138,6 @@ describe('StudentRoutinePage', () => {
     it('arranca sin celebracion ni operaciones en curso', () => {
       expect(page.showCelebration()).toBe(false);
       expect(page.busyId()).toBeNull();
-      expect(page.completing()).toBe(false);
     });
   });
 
@@ -209,30 +208,18 @@ describe('StudentRoutinePage', () => {
     });
   });
 
-  describe('completeSession()', () => {
-    it('cierra la sesion y muestra la celebracion', async () => {
-      await page.completeSession(50);
+  // Ya no hay "Marcar como completada": la sesion se cierra marcando sus
+  // ejercicios o terminando el entrenamiento guiado.
+  it('no ofrece cerrar la sesion sin hacer los ejercicios', () => {
+    expect('completeSession' in page).toBe(false);
+  });
 
-      expect(complete).toHaveBeenCalledWith('wks-today', { durationMinutes: 50, note: null });
-      expect(page.showCelebration()).toBe(true);
-      expect(page.completing()).toBe(false);
-    });
+  it('dismissCelebration() cierra el modal', () => {
+    page.showCelebration.set(true);
 
-    it('ignora un segundo envio mientras hay uno en curso', async () => {
-      page.completing.set(true);
+    page.dismissCelebration();
 
-      await page.completeSession(50);
-
-      expect(complete).not.toHaveBeenCalled();
-    });
-
-    it('dismissCelebration() cierra el modal', async () => {
-      await page.completeSession(50);
-
-      page.dismissCelebration();
-
-      expect(page.showCelebration()).toBe(false);
-    });
+    expect(page.showCelebration()).toBe(false);
   });
 
   describe('celebracion una sola vez', () => {

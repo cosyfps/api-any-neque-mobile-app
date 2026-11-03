@@ -20,7 +20,8 @@
     "prepare": "husky",
     "dev:api": "tsx watch --tsconfig tsconfig.server.json server/dev.ts",
     "build:vercel": "node scripts/build-vercel.mjs",
-    "create:trainer": "tsx --tsconfig tsconfig.server.json server/scripts/create-trainer.ts"
+    "create:trainer": "tsx --tsconfig tsconfig.server.json server/scripts/create-trainer.ts",
+    "create:student": "tsx --tsconfig tsconfig.server.json server/scripts/create-student.ts"
   },
   "dependencies": {
     "@angular/animations": "^17.0.0",

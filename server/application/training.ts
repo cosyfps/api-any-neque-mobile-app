@@ -4,6 +4,7 @@ import { DateRange } from '@app/domain/shared/model/date-range';
 import { WorkoutSession } from '@app/domain/workouts/model/workout-session.model';
 
 import { fail } from '../domain/api-error';
+import { DateWindow, staleSessionWindow } from '../domain/assignment-rules';
 import { Actor } from '../http/context';
 import {
   ExerciseRow,
@@ -205,6 +206,16 @@ export async function setAssignments(
       })),
     }),
   );
+  // La funcion SQL borra lo pendiente desde hoy; esto cubre lo que queda en
+  // la semana en curso antes del nuevo inicio (ver `staleSessionWindow`).
+  const hoy = new Date().toISOString().slice(0, 10);
+  for (const item of assignments) {
+    const ventana = staleSessionWindow(hoy, dateIn(item.startDate));
+    if (ventana !== null) {
+      await removeStaleSessions(item.studentId, ventana);
+    }
+  }
+
   const previos = new Set(antes.assignments.map(item => item.studentId));
   for (const item of assignments) {
     if (!previos.has(item.studentId)) {
@@ -218,6 +229,38 @@ export async function setAssignments(
     }
   }
   return loadRoutine(routineId);
+}
+
+/**
+ * Borra las sesiones no completadas del alumno dentro de la ventana. Las que
+ * una cita de la agenda referencia se dejan: borrarlas romperia la clave
+ * foranea de `scheduled_sessions` y con ella todo el guardado.
+ */
+async function removeStaleSessions(studentId: string, ventana: DateWindow): Promise<void> {
+  const candidatas =
+    (await maybe<{ id: string }[]>(
+      db()
+        .from('workout_sessions')
+        .select('id')
+        .eq('student_id', studentId)
+        .neq('status', 'completed')
+        .gte('scheduled_date', ventana.from)
+        .lt('scheduled_date', ventana.to),
+    )) ?? [];
+  if (candidatas.length === 0) {
+    return;
+  }
+  const ids = candidatas.map(row => row.id);
+  const enAgenda =
+    (await maybe<{ workout_session_id: string }[]>(
+      db().from('scheduled_sessions').select('workout_session_id').in('workout_session_id', ids),
+    )) ?? [];
+  const usadas = new Set(enAgenda.map(row => row.workout_session_id));
+  const borrables = ids.filter(id => !usadas.has(id));
+  if (borrables.length > 0) {
+    // Logs y series se van en cascada.
+    await maybe(db().from('workout_sessions').delete().in('id', borrables));
+  }
 }
 
 /** Sale de la biblioteca y libera a sus alumnos. El historial no se toca. */
