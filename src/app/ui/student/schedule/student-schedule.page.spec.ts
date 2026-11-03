@@ -6,9 +6,11 @@ import { SessionFacade } from '@app/application/auth/session.facade';
 import { ScheduleFacade } from '@app/application/schedule/schedule.facade';
 import { MonthCell } from '@app/domain/schedule/model/month-grid';
 import { ScheduledSession } from '@app/domain/schedule/model/scheduled-session.model';
-import { SCHEDULE_PORT } from '@app/domain/schedule/port/schedule.port';
+import { SCHEDULE_PORT, SchedulePort } from '@app/domain/schedule/port/schedule.port';
 import { toIsoDate } from '@app/domain/shared/model/date';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { StudentSchedulePage } from './student-schedule.page';
 
@@ -33,7 +35,7 @@ const SESSION: ScheduledSession = {
 describe('StudentSchedulePage', () => {
   let page: StudentSchedulePage;
   let router: Router;
-  let confirm: jest.Mock;
+  let confirm: MockOf<SchedulePort['confirm']>;
 
   const createPage = (): StudentSchedulePage => {
     TestBed.resetTestingModule();
@@ -45,7 +47,11 @@ describe('StudentSchedulePage', () => {
         { provide: SessionFacade, useValue: { profileId: () => 'std-001' } },
         {
           provide: SCHEDULE_PORT,
-          useValue: { listByStudent: () => of([SESSION]), confirm, cancel: jest.fn() },
+          useValue: {
+            listByStudent: () => of([SESSION]),
+            confirm,
+            cancel: fn<SchedulePort['cancel']>(),
+          },
         },
       ],
     });
@@ -55,7 +61,9 @@ describe('StudentSchedulePage', () => {
   };
 
   beforeEach(() => {
-    confirm = jest.fn().mockReturnValue(of({ ...SESSION, status: 'confirmed' as const }));
+    confirm = fn<SchedulePort['confirm']>().mockReturnValue(
+      of({ ...SESSION, status: 'confirmed' as const }),
+    );
     page = createPage();
   });
 

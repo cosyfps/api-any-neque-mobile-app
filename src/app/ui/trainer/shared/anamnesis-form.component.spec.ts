@@ -15,7 +15,7 @@ const REGISTRADA: Anamnesis = {
   previousActivity: 'Corría los fines de semana',
   declaredGoal: 'Ganar masa',
   weeklyAvailability: [1, 3, 5],
-  emergencyContact: { name: 'Luis Rojas', phone: '+56 9 2222', relation: 'Padre' },
+  emergencyContact: { name: 'Luis Acosta', phone: '+56 9 2222', relation: 'Padre' },
   updatedAt: '2026-03-05T10:00:00.000Z',
 };
 
@@ -196,7 +196,7 @@ describe('AnamnesisFormComponent', () => {
     });
 
     it('precarga el contacto de urgencia', () => {
-      expect(form.form.controls.contactName.value).toBe('Luis Rojas');
+      expect(form.form.controls.contactName.value).toBe('Luis Acosta');
       expect(form.form.controls.contactRelation.value).toBe('Padre');
     });
 

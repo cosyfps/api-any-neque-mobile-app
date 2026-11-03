@@ -4,8 +4,13 @@ import { of } from 'rxjs';
 
 import { AuthSession } from '@app/domain/auth/model/auth-user.model';
 import { AUTH_PORT } from '@app/domain/auth/port/auth.port';
-import { SESSION_STORAGE_PORT } from '@app/domain/auth/port/session-storage.port';
+import {
+  SESSION_STORAGE_PORT,
+  SessionStoragePort,
+} from '@app/domain/auth/port/session-storage.port';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+
+import { fn } from '@testing/typed-mock';
 
 import { authGuard, publicOnlyGuard, roleGuard } from './auth.guard';
 
@@ -16,7 +21,7 @@ const sessionFor = (role: 'trainer' | 'student'): AuthSession => ({
     id: `usr-${role}`,
     email: `${role}@neque.cl`,
     role,
-    displayName: role === 'trainer' ? 'Kelvin Moreno' : 'Ana Rojas',
+    displayName: role === 'trainer' ? 'Kelvin Moreno' : 'Alejandra Acosta',
     avatarUrl: null,
     profileId: role === 'trainer' ? 'trn-001' : 'std-001',
   },
@@ -44,7 +49,11 @@ describe('guards de autenticacion', () => {
         },
         {
           provide: SESSION_STORAGE_PORT,
-          useValue: { read: () => stored, write: jest.fn(), clear: jest.fn() },
+          useValue: {
+            read: () => stored,
+            write: fn<SessionStoragePort['write']>(),
+            clear: fn<SessionStoragePort['clear']>(),
+          },
         },
       ],
     });

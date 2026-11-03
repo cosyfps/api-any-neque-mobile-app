@@ -4,8 +4,13 @@ import { of } from 'rxjs';
 
 import { WorkoutRunnerFacade } from '@app/application/workouts/workout-runner.facade';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
-import { WorkoutSession } from '@app/domain/workouts/model/workout-session.model';
-import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
+import {
+  WorkoutExerciseLog,
+  WorkoutSession,
+} from '@app/domain/workouts/model/workout-session.model';
+import { WORKOUTS_PORT, WorkoutsPort } from '@app/domain/workouts/port/workouts.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { WorkoutRunnerPage } from './workout-runner.page';
 
@@ -51,10 +56,12 @@ const SESSION: WorkoutSession = {
   ],
 };
 
+const [DOMINADAS, REMO] = SESSION.exercises as [WorkoutExerciseLog, WorkoutExerciseLog];
+
 describe('WorkoutRunnerPage', () => {
   let page: WorkoutRunnerPage;
   let router: Router;
-  let complete: jest.Mock;
+  let complete: MockOf<WorkoutsPort['complete']>;
 
   const createPage = (session: WorkoutSession = SESSION): WorkoutRunnerPage => {
     TestBed.resetTestingModule();
@@ -74,9 +81,10 @@ describe('WorkoutRunnerPage', () => {
             getById: () => of(session),
             start: () => of({ ...session, status: 'in_progress' as const }),
             logSet: () => of(session),
+            skipExercise: () => of(session),
             complete,
-            listByStudent: jest.fn(),
-            markExercise: jest.fn(),
+            listByStudent: fn<WorkoutsPort['listByStudent']>(),
+            markExercise: fn<WorkoutsPort['markExercise']>(),
           },
         },
       ],
@@ -88,7 +96,9 @@ describe('WorkoutRunnerPage', () => {
 
   beforeEach(() => {
     jest.useFakeTimers();
-    complete = jest.fn().mockReturnValue(of({ ...SESSION, status: 'completed' as const }));
+    complete = fn<WorkoutsPort['complete']>().mockReturnValue(
+      of({ ...SESSION, status: 'completed' as const }),
+    );
     page = createPage();
   });
 
@@ -245,60 +255,192 @@ describe('WorkoutRunnerPage', () => {
   });
 
   describe('registro de la serie', () => {
-    const cambio = (value: string): Event => ({ target: { value } }) as unknown as Event;
-
     it('muestra lo prescrito mientras el alumno no corrige', () => {
       page.facade.start();
 
       expect(page.repsValue()).toBe(8);
-      expect(page.weightValue()).toBeNull();
     });
 
-    it('refleja lo que el alumno escribe', () => {
+    it('refleja lo que el alumno ajusta con el stepper', () => {
       page.facade.start();
+      page.next();
 
-      page.setReps(cambio('6'));
-      page.setWeight(cambio('47.5'));
+      page.repsOverride.set(6);
+      page.weightOverride.set(27.5);
 
       expect(page.repsValue()).toBe(6);
-      expect(page.weightValue()).toBe(47.5);
-    });
-
-    // Vaciar el campo vuelve a lo prescrito, no a cero.
-    it('vuelve a lo prescrito con el campo vacio', () => {
-      page.facade.start();
-      page.setReps(cambio('6'));
-
-      page.setReps(cambio('  '));
-
-      expect(page.repsValue()).toBe(8);
-    });
-
-    it('ignora un valor que no es numero', () => {
-      page.facade.start();
-
-      page.setReps(cambio('mucho'));
-
-      expect(page.repsValue()).toBe(8);
+      expect(page.weightValue()).toBe(27.5);
     });
 
     it('manda la correccion al cerrar la serie', () => {
       page.facade.start();
       const completeSet = jest.spyOn(page.facade, 'completeSet');
 
-      page.setReps(cambio('6'));
+      page.repsOverride.set(6);
       page.completeSet();
 
-      expect(completeSet).toHaveBeenCalledWith(6, null);
+      expect(completeSet).toHaveBeenCalledWith(6, null, null);
     });
 
     it('vuelve a lo prescrito para la serie siguiente', () => {
       page.facade.start();
-      page.setReps(cambio('6'));
+      page.repsOverride.set(6);
 
       page.completeSet();
 
       expect(page.repsValue()).toBe(8);
+    });
+
+    // Lo corregido era del ejercicio anterior.
+    it('cambiar de ejercicio descarta lo corregido', () => {
+      page.facade.start();
+      page.repsOverride.set(3);
+
+      page.next();
+      page.previous();
+
+      expect(page.repsValue()).toBe(8);
+    });
+  });
+
+  describe('carga y medida', () => {
+    it('un ejercicio sin kg es de peso corporal: sin campo de kg y lo dice', () => {
+      page.facade.start();
+
+      expect(page.conKg()).toBe(false);
+      expect(page.metaLine()).toBe('Peso corporal · Descanso 1 min');
+    });
+
+    it('un ejercicio con peso muestra el campo de kg', () => {
+      page.facade.start();
+      page.next();
+
+      expect(page.conKg()).toBe(true);
+      expect(page.kgLabel()).toBe('kg');
+      expect(page.metaLine()).toBe('Descanso 45 s');
+    });
+
+    it('con peso extra los kg se nombran como peso extra', () => {
+      page = createPage({
+        ...SESSION,
+        exercises: [{ ...DOMINADAS, load: 'weighted_bodyweight', weightKg: 10 }],
+      });
+      page.facade.start();
+
+      expect(page.kgLabel()).toBe('peso extra · kg');
+    });
+
+    it('sin descanso no muestra un "0 s"', () => {
+      page = createPage({
+        ...SESSION,
+        exercises: [{ ...REMO, restSeconds: 0 }],
+      });
+      page.facade.start();
+
+      expect(page.metaLine()).toBe('');
+    });
+
+    describe('por tiempo', () => {
+      beforeEach(() => {
+        page = createPage({
+          ...SESSION,
+          exercises: [{ ...DOMINADAS, name: 'Plancha', measure: 'time', durationSeconds: 45 }],
+        });
+        page.facade.start();
+      });
+
+      it('se reconoce y muestra la duracion en mm:ss', () => {
+        expect(page.porTiempo()).toBe(true);
+        expect(page.workLabel()).toBe('0:45');
+      });
+
+      it('la cuenta regresiva parte de la duracion ajustada', () => {
+        page.durationOverride.set(60);
+
+        page.toggleWork();
+        jest.advanceTimersByTime(2000);
+
+        expect(page.workLabel()).toBe('0:58');
+      });
+
+      it('pasos de 15 s en series cortas y de 1 min en las largas', () => {
+        expect(page.durationStep()).toBe(15);
+
+        page.durationOverride.set(600);
+
+        expect(page.durationStep()).toBe(60);
+      });
+
+      it('manda la duracion al cerrar la serie', () => {
+        const completeSet = jest.spyOn(page.facade, 'completeSet');
+        page.durationOverride.set(40);
+
+        page.completeSet();
+
+        expect(completeSet).toHaveBeenCalledWith(null, null, 40);
+      });
+    });
+  });
+
+  describe('saltar con motivo', () => {
+    it('askSkip() abre la hoja con el titulo de lo que se salta', () => {
+      page.facade.start();
+
+      page.askSkip('exercise');
+
+      expect(page.skipping()).toBe('exercise');
+      expect(page.skipTitle()).toBe('Saltar Dominadas');
+    });
+
+    it('ofrece los cuatro motivos', () => {
+      expect(page.reasons.map(reason => reason.label)).toEqual([
+        'Máquina ocupada',
+        'Molestia o dolor',
+        'Sin tiempo',
+        'Otro motivo',
+      ]);
+    });
+
+    it('elegir un motivo salta la serie con ese motivo y cierra la hoja', () => {
+      page.facade.start();
+      const skipSet = jest.spyOn(page.facade, 'skipSet');
+      page.askSkip('set');
+
+      page.confirmSkip('equipment_busy');
+
+      expect(skipSet).toHaveBeenCalledWith('equipment_busy');
+      expect(page.skipping()).toBeNull();
+    });
+
+    it('sin motivo tambien salta', () => {
+      page.facade.start();
+      const skipExercise = jest.spyOn(page.facade, 'skipExercise');
+      page.askSkip('exercise');
+
+      page.confirmSkip(null);
+
+      expect(skipExercise).toHaveBeenCalledWith(null);
+    });
+
+    it('cancelar cierra sin saltar', () => {
+      page.facade.start();
+      const skipSet = jest.spyOn(page.facade, 'skipSet');
+      page.askSkip('set');
+
+      page.cancelSkip();
+      page.confirmSkip('pain');
+
+      expect(skipSet).not.toHaveBeenCalled();
+    });
+
+    it('el resumen cuenta los ejercicios saltados', () => {
+      page = createPage({
+        ...SESSION,
+        exercises: [{ ...DOMINADAS, skipped: true }, REMO],
+      });
+
+      expect(page.skippedCount()).toBe(1);
+      expect(page.skippedLabel()).toBe('Saltaste 1 ejercicio');
     });
   });
 

@@ -89,7 +89,7 @@
     border: none;
     outline: none;
     background: transparent;
-    font-size: 15px;
+    font-size: var(--nq-font-input);
     font-family: var(--nq-font-family);
     color: var(--nq-text);
     min-width: 0;
@@ -120,7 +120,10 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 16px 32px;
+  // 16px a los lados y no 32: los botones son de ancho completo y el texto
+  // va centrado, asi que el padding lateral solo sirve para forzar saltos
+  // de linea. En pares de 2 columnas partia "Guardar e invitar" en dos.
+  padding: 16px;
   border-radius: var(--nq-radius-md);
   border: none;
   font-family: var(--nq-font-family);
@@ -288,6 +291,81 @@
 }
 
 // ══════════════════════════════════════
+//  PERFIL
+// ══════════════════════════════════════
+
+// Metricas que flotan sobre el borde inferior de `<nq-profile-hero>`: el
+// margen negativo las monta sobre la curva teal.
+.nq-hero-stats {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 8px;
+  margin: -28px 0 16px;
+}
+
+.nq-hero-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  padding: 12px 8px;
+  text-align: center;
+  background: var(--nq-bg);
+  border: 1px solid var(--nq-border);
+  border-radius: var(--nq-radius-md);
+  box-shadow: var(--nq-shadow);
+}
+
+.nq-hero-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--nq-text);
+
+  &.accent {
+    color: var(--nq-primary-strong);
+  }
+}
+
+.nq-hero-stat-label {
+  font-size: 12px;
+  color: var(--nq-text-secondary);
+}
+
+// Lista de accesos del perfil: cada fila es un boton con icono teal.
+.nq-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .nq-list-item {
+    gap: 12px;
+    width: 100%;
+    padding: 14px 16px;
+    font-family: var(--nq-font-family);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--nq-text);
+    text-align: left;
+    border: 1px solid var(--nq-border);
+
+    > svg:first-child {
+      flex-shrink: 0;
+      color: var(--nq-primary-strong);
+    }
+
+    > svg:last-child {
+      color: var(--nq-text-muted);
+    }
+  }
+}
+
+.nq-menu-label {
+  flex: 1;
+}
+
+// ══════════════════════════════════════
 //  SECTION
 // ══════════════════════════════════════
 
@@ -386,7 +464,12 @@
   -webkit-tap-highlight-color: transparent;
 
   &.active {
-    background: var(--nq-text);
+    // Degradado fuerte: admite texto blanco encima y da el tono teal de marca.
+    background: linear-gradient(
+      135deg,
+      var(--nq-gradient-strong-start),
+      var(--nq-gradient-strong-end)
+    );
     color: var(--nq-text-inverse);
   }
 
@@ -439,20 +522,66 @@
 }
 
 .nq-sheet {
+  --nq-sheet-pb: 40px;
   background: var(--nq-bg);
   border-radius: var(--nq-radius-xl) var(--nq-radius-xl) 0 0;
-  padding: 12px var(--nq-page-px) 40px;
+  padding: 12px var(--nq-page-px) var(--nq-sheet-pb);
   width: 100%;
+  // Todo sheet desplaza su propio contenido, y al llegar a un borde el gesto
+  // se queda aqui: sin `contain` seguia de largo y movia la pantalla de atras.
+  max-height: 92vh;
+  max-height: 92dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   transform: translateY(100%);
   transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+
+  // Recibe el foco al abrirse (`nqSheetTrap`) solo para meterlo en el
+  // dialogo; no es un control, asi que no pinta anillo.
+  &:focus {
+    outline: none;
+  }
 }
 
+// Botonera de un formulario largo dentro de un sheet con scroll: queda
+// fija al pie para que "Guardar" no exija bajar hasta el final. El fondo
+// tapa el contenido que pasa por debajo, y el padding inferior respeta el
+// indicador de inicio del iPhone. El `bottom` negativo compensa el padding
+// inferior del sheet: sin el, la botonera flota 40px arriba del borde y el
+// contenido se asoma por debajo.
+.nq-sheet-actions {
+  position: sticky;
+  bottom: calc(-1 * var(--nq-sheet-pb));
+  z-index: 1;
+  padding: 12px 0 max(12px, env(safe-area-inset-bottom, 0px));
+  background: var(--nq-bg);
+  box-shadow: 0 -12px 12px -12px rgba(26, 43, 42, 0.12);
+}
+
+// El asa es una de las dos zonas desde las que se arrastra el sheet para
+// cerrarlo (`nqSheetTrap`); la otra es el titulo. Se ve de 36×4 pero el
+// `::before` le da un area de toque de 44px de alto.
 .nq-sheet-handle {
+  position: relative;
   width: 36px;
   height: 4px;
   background: var(--nq-surface-2);
   border-radius: var(--nq-radius-full);
   margin: 0 auto 20px;
+
+  &::before {
+    position: absolute;
+    inset: -20px -60px;
+    content: '';
+  }
+}
+
+// Con un sheet abierto la pantalla de atras no se desplaza: el scroll solo
+// existe dentro del sheet. Cubre las pantallas del shell y las `.nq-screen`.
+.layout-content:has(.nq-overlay.open),
+.nq-screen:has(.nq-overlay.open) {
+  overflow: hidden;
 }
 
 .nq-sheet-title {
@@ -473,23 +602,29 @@
   justify-content: center;
   padding: 48px var(--nq-page-px);
   text-align: center;
-  gap: 16px;
+  // Icono, titulo y texto se leen como un bloque: con 16px entre cada uno
+  // quedaban sueltos, y el icono parecia flotar.
+  gap: 8px;
 }
 
+// Circulo teñido y no `--nq-surface`: ese es el fondo de las pantallas, asi
+// que el circulo desaparecia y el icono quedaba suelto sobre el titulo. Los
+// estados de error y sin conexion lo repintan con su color.
 .nq-state-icon {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 8px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--nq-surface);
-  color: var(--nq-text-muted);
+  background: rgba(var(--nq-primary-rgb), 0.12);
+  color: var(--nq-primary-strong);
 }
 
 .nq-state-title {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--nq-text);
 }
 
@@ -497,38 +632,64 @@
   font-size: 14px;
   color: var(--nq-text-secondary);
   line-height: 1.5;
-  max-width: 260px;
+  max-width: 280px;
+}
+
+// Vacio dentro de una seccion ("Sin evaluaciones", "Nada agendado"): una
+// tarjeta punteada con el mismo radio que las tarjetas vecinas, para que el
+// mensaje quede alineado con ellas y no suelto bajo el titulo. El estado
+// vacio de pantalla completa es `.nq-state`.
+.nq-empty-inline {
+  margin: 0;
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--nq-text-secondary);
+  text-align: center;
+  background: var(--nq-bg);
+  border: 1px dashed var(--nq-border-solid);
+  border-radius: var(--nq-radius-md);
 }
 
 // ══════════════════════════════════════
-//  PULL TO REFRESH
+//  BOTON FLOTANTE (FAB)
 // ══════════════════════════════════════
 
-// La directiva `nqPullToRefresh` no pinta nada: expone `--nq-pull` y conmuta
-// estas clases. El indicador se dibuja aqui para que viva con el resto del
-// design system y no duplicado en cada pagina.
-.nq-pulling,
-.nq-refreshing {
-  position: relative;
+// "Agregar" abajo a la derecha, sobre el tab bar: la zona que alcanza el
+// pulgar con una mano. Lo dibuja el shell junto al tab bar (ver `useFab()`),
+// fuera del contenedor con scroll, asi no se mueve con la lista. La pagina
+// que lo usa reserva `--nq-fab-space` al final para no tapar su ultimo item.
+.nq-fab {
+  position: absolute;
+  right: var(--nq-page-px);
+  bottom: calc(var(--nq-tab-bottom) + var(--nq-tab-height) + 16px);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--nq-fab-size);
+  height: var(--nq-fab-size);
+  color: var(--nq-text-inverse);
+  cursor: pointer;
+  background: var(--nq-primary-strong);
+  border: none;
+  border-radius: var(--nq-radius-full);
+  box-shadow: var(--nq-shadow-lg);
+  // Mismas transiciones que el tab bar: con un sheet abierto ambos se retiran.
+  transition:
+    opacity var(--nq-transition),
+    transform var(--nq-transition),
+    visibility 0s;
+  -webkit-tap-highlight-color: transparent;
 
-  &::before {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    width: 24px;
-    height: 24px;
-    margin-top: -32px;
-    content: '';
-    border: 2.5px solid var(--nq-border-solid);
-    border-top-color: var(--nq-primary-strong);
-    border-radius: 50%;
-    transform: translate(-50%, var(--nq-pull, 0px));
+  &:active {
+    transform: scale(0.94);
   }
-}
 
-.nq-refreshing::before {
-  transform: translate(-50%, 48px);
-  animation: nq-spin 0.7s linear infinite;
+  &:focus-visible {
+    outline: 2px solid var(--nq-primary-strong);
+    outline-offset: 3px;
+  }
 }
 
 // ══════════════════════════════════════

@@ -5,15 +5,23 @@ import {
   LucideChevronLeft,
   LucideChevronRight,
   LucideCheck,
+  LucidePause,
   LucidePlay,
   LucidePlus,
+  LucideSkipForward,
 } from '@lucide/angular';
 
 import { WorkoutRunnerFacade } from '@app/application/workouts/workout-runner.facade';
+import { formatDuration, loadOf, measureOf, usesKg } from '@app/domain/routines/model/prescription';
+import { SKIP_REASON_LABEL, SkipReason } from '@app/domain/workouts/model/workout-set.model';
 
 import { RingProgressComponent } from '@shared/components/chart/ring-progress.component';
 import { PageStateComponent } from '@shared/components/page-state.component';
+import { StepperComponent } from '@shared/components/stepper.component';
 import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
+
+/** Que se esta por saltar; null con la hoja cerrada. */
+type SkipTarget = 'set' | 'exercise';
 
 @Component({
   selector: 'app-workout-runner',
@@ -22,12 +30,15 @@ import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
     PageStateComponent,
     RingProgressComponent,
     SheetTrapDirective,
+    StepperComponent,
     LucideArrowLeft,
     LucideChevronLeft,
     LucideChevronRight,
     LucideCheck,
+    LucidePause,
     LucidePlay,
     LucidePlus,
+    LucideSkipForward,
   ],
   providers: [WorkoutRunnerFacade],
   template: `
@@ -99,42 +110,65 @@ import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
                         Serie {{ facade.currentSet() }} de {{ facade.totalSets() }}
                       </div>
 
-                      <div class="targets">
-                        <label class="target">
-                          <input
-                            class="target-input"
-                            type="number"
-                            inputmode="numeric"
-                            min="1"
-                            max="99"
-                            [value]="repsValue()"
-                            (input)="setReps($event)"
-                          />
-                          <span class="target-label">repeticiones</span>
-                        </label>
-                        @if (exercise.weightKg !== null) {
-                          <label class="target">
-                            <input
-                              class="target-input"
-                              type="number"
-                              inputmode="decimal"
-                              min="0"
-                              max="500"
-                              step="0.5"
-                              [value]="weightValue()"
-                              (input)="setWeight($event)"
-                            />
-                            <span class="target-label">kg</span>
-                          </label>
-                        }
-                        <div class="target">
-                          <span class="target-value">{{ exercise.restSeconds }}</span>
-                          <span class="target-label">seg descanso</span>
+                      <!-- Serie por tiempo: cuenta regresiva grande, la que se
+                           mira de reojo mientras se hace la plancha. -->
+                      @if (porTiempo()) {
+                        <div class="work" [class.running]="facade.workRunning()">
+                          <span class="work-time">{{ workLabel() }}</span>
+                          <button
+                            class="nq-btn nq-btn-secondary work-btn"
+                            type="button"
+                            (click)="toggleWork()"
+                          >
+                            @if (facade.workRunning()) {
+                              <svg lucidePause [size]="18" [strokeWidth]="2"></svg>
+                              Pausar
+                            } @else {
+                              <svg lucidePlay [size]="18" [strokeWidth]="2"></svg>
+                              {{ facade.workRemaining() === null ? 'Iniciar' : 'Seguir' }}
+                            }
+                          </button>
                         </div>
+                      }
+
+                      <div class="targets" [class.single]="!conKg()">
+                        @if (porTiempo()) {
+                          <nq-stepper
+                            label="duración"
+                            format="time"
+                            [value]="durationValue()"
+                            [min]="5"
+                            [max]="7200"
+                            [step]="durationStep()"
+                            (valueChange)="durationOverride.set($event)"
+                          />
+                        } @else {
+                          <nq-stepper
+                            label="repeticiones"
+                            [value]="repsValue()"
+                            [min]="1"
+                            [max]="99"
+                            (valueChange)="repsOverride.set($event)"
+                          />
+                        }
+                        @if (conKg()) {
+                          <nq-stepper
+                            format="decimal"
+                            [label]="kgLabel()"
+                            [value]="weightValue()"
+                            [min]="0"
+                            [max]="500"
+                            [step]="2.5"
+                            (valueChange)="weightOverride.set($event)"
+                          />
+                        }
                       </div>
 
+                      @if (metaLine(); as meta) {
+                        <p class="targets-meta">{{ meta }}</p>
+                      }
                       <p class="targets-hint">
-                        Viene con lo que te toca. Ajústalo solo si levantaste algo distinto.
+                        Viene con lo que te toca. Ajústalo solo si hiciste algo distinto.
                       </p>
 
                       <button
@@ -146,13 +180,23 @@ import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
                         Serie completada
                       </button>
 
+                      <div class="skip-row">
+                        <button class="skip-btn" type="button" (click)="askSkip('set')">
+                          <svg lucideSkipForward [size]="16" [strokeWidth]="2"></svg>
+                          Saltar serie
+                        </button>
+                        <button class="skip-btn" type="button" (click)="askSkip('exercise')">
+                          Saltar ejercicio
+                        </button>
+                      </div>
+
                       <div class="nav-row">
                         <button
                           class="nav-btn"
                           type="button"
                           aria-label="Ejercicio anterior"
                           [disabled]="facade.exerciseIndex() === 0"
-                          (click)="facade.previous()"
+                          (click)="previous()"
                         >
                           <svg lucideChevronLeft [size]="20" [strokeWidth]="2"></svg>
                         </button>
@@ -160,7 +204,7 @@ import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
                           class="nav-btn"
                           type="button"
                           aria-label="Siguiente ejercicio"
-                          (click)="facade.next()"
+                          (click)="next()"
                         >
                           <svg lucideChevronRight [size]="20" [strokeWidth]="2"></svg>
                         </button>
@@ -228,6 +272,12 @@ import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
                       </div>
                     </div>
 
+                    @if (skippedCount() > 0) {
+                      <p class="stage-desc">
+                        {{ skippedLabel() }}. Tu entrenador lo verá para ajustar tu rutina.
+                      </p>
+                    }
+
                     <button
                       class="nq-btn nq-btn-primary stage-cta"
                       type="button"
@@ -242,6 +292,44 @@ import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
             </div>
           }
         }
+      </div>
+    </div>
+
+    <!-- Saltar: el motivo es opcional y se elige con un toque. Tocar un motivo
+         ya confirma; "Saltar sin motivo" no obliga a elegir. -->
+    <div class="nq-overlay" [class.open]="skipping() !== null" (click)="cancelSkip()">
+      <div
+        class="nq-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="skip-title"
+        aria-describedby="skip-desc"
+        [nqSheetTrap]="skipping() !== null"
+        (dismissed)="cancelSkip()"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="nq-sheet-handle"></div>
+        <h2 class="nq-sheet-title" id="skip-title">{{ skipTitle() }}</h2>
+        <p class="confirm-desc skip-desc" id="skip-desc">
+          ¿Por qué? Es opcional: tu entrenador lo verá para ajustar tu rutina.
+        </p>
+
+        <div class="reasons" role="group" aria-label="Motivo">
+          @for (reason of reasons; track reason.value) {
+            <button class="reason" type="button" (click)="confirmSkip(reason.value)">
+              {{ reason.label }}
+            </button>
+          }
+        </div>
+
+        <div class="confirm-actions">
+          <button class="nq-btn nq-btn-secondary" type="button" (click)="cancelSkip()">
+            Cancelar
+          </button>
+          <button class="nq-btn nq-btn-primary" type="button" (click)="confirmSkip(null)">
+            Saltar sin motivo
+          </button>
+        </div>
       </div>
     </div>
 
@@ -319,13 +407,84 @@ export class WorkoutRunnerPage {
    */
   readonly repsOverride = signal<number | null>(null);
   readonly weightOverride = signal<number | null>(null);
+  readonly durationOverride = signal<number | null>(null);
 
   readonly repsValue = computed(
-    () => this.repsOverride() ?? this.facade.currentExercise()?.targetReps ?? 0,
+    () => this.repsOverride() ?? this.facade.currentExercise()?.targetReps ?? 1,
   );
 
   readonly weightValue = computed(
-    () => this.weightOverride() ?? this.facade.currentExercise()?.weightKg ?? null,
+    () => this.weightOverride() ?? this.facade.currentExercise()?.weightKg ?? 0,
+  );
+
+  readonly durationValue = computed(
+    () => this.durationOverride() ?? this.facade.currentExercise()?.durationSeconds ?? 60,
+  );
+
+  /** Pasos finos en series cortas, de a minuto en las largas. */
+  readonly durationStep = computed(() => (this.durationValue() >= 300 ? 60 : 15));
+
+  readonly porTiempo = computed(() => {
+    const exercise = this.facade.currentExercise();
+    return exercise !== null && measureOf(exercise) === 'time';
+  });
+
+  readonly conKg = computed(() => {
+    const exercise = this.facade.currentExercise();
+    return exercise !== null && usesKg(exercise);
+  });
+
+  /** Con peso extra los kg son solo los del extra, no el total: se dice. */
+  readonly kgLabel = computed(() => {
+    const exercise = this.facade.currentExercise();
+    return exercise !== null && loadOf(exercise) === 'weighted_bodyweight'
+      ? 'peso extra · kg'
+      : 'kg';
+  });
+
+  /** "Peso corporal · Descanso 90 s". Sin descanso no se muestra un "0 s". */
+  readonly metaLine = computed(() => {
+    const exercise = this.facade.currentExercise();
+    if (exercise === null) {
+      return '';
+    }
+    const partes: string[] = [];
+    if (loadOf(exercise) === 'bodyweight') {
+      partes.push('Peso corporal');
+    }
+    if (exercise.restSeconds > 0) {
+      partes.push(`Descanso ${formatDuration(exercise.restSeconds)}`);
+    }
+    return partes.join(' · ');
+  });
+
+  /** Cuenta regresiva en mm:ss; antes de iniciar muestra la duracion completa. */
+  readonly workLabel = computed(() => {
+    const total = this.facade.workRemaining() ?? this.durationValue();
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+  });
+
+  readonly skipping = signal<SkipTarget | null>(null);
+
+  readonly reasons = (Object.keys(SKIP_REASON_LABEL) as SkipReason[]).map(value => ({
+    value,
+    label: SKIP_REASON_LABEL[value],
+  }));
+
+  readonly skipTitle = computed(() =>
+    this.skipping() === 'exercise'
+      ? `Saltar ${this.facade.currentExercise()?.name ?? 'ejercicio'}`
+      : 'Saltar esta serie',
+  );
+
+  readonly skippedCount = computed(
+    () => this.facade.exercises().filter(exercise => exercise.skipped === true).length,
+  );
+
+  readonly skippedLabel = computed(() =>
+    this.skippedCount() === 1
+      ? 'Saltaste 1 ejercicio'
+      : `Saltaste ${this.skippedCount()} ejercicios`,
   );
 
   readonly reload = (): void => this.facade.reload();
@@ -334,29 +493,53 @@ export class WorkoutRunnerPage {
     this.facade.open(this.route.snapshot.paramMap.get('sessionId') ?? '');
   }
 
-  setReps(event: Event): void {
-    this.repsOverride.set(this.numero(event));
-  }
-
-  setWeight(event: Event): void {
-    this.weightOverride.set(this.numero(event));
-  }
-
   /** Cierra la serie con lo corregido y vuelve a lo prescrito para la siguiente. */
   completeSet(): void {
-    this.facade.completeSet(this.repsOverride(), this.weightOverride());
-    this.repsOverride.set(null);
-    this.weightOverride.set(null);
+    this.facade.completeSet(this.repsOverride(), this.weightOverride(), this.durationOverride());
+    this.resetOverrides();
   }
 
-  /** Un campo vaciado vuelve a valer lo prescrito, no cero. */
-  private numero(event: Event): number | null {
-    const raw = (event.target as HTMLInputElement).value.trim();
-    if (raw === '') {
-      return null;
+  toggleWork(): void {
+    this.facade.toggleWork(this.durationValue());
+  }
+
+  askSkip(target: SkipTarget): void {
+    this.skipping.set(target);
+  }
+
+  cancelSkip(): void {
+    this.skipping.set(null);
+  }
+
+  confirmSkip(reason: SkipReason | null): void {
+    const target = this.skipping();
+    if (target === null) {
+      return;
     }
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+    if (target === 'set') {
+      this.facade.skipSet(reason);
+    } else {
+      this.facade.skipExercise(reason);
+    }
+    this.skipping.set(null);
+    this.resetOverrides();
+  }
+
+  /** Cambiar de ejercicio descarta lo corregido: era del ejercicio anterior. */
+  previous(): void {
+    this.resetOverrides();
+    this.facade.previous();
+  }
+
+  next(): void {
+    this.resetOverrides();
+    this.facade.next();
+  }
+
+  private resetOverrides(): void {
+    this.repsOverride.set(null);
+    this.weightOverride.set(null);
+    this.durationOverride.set(null);
   }
 
   async finish(): Promise<void> {

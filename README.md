@@ -110,10 +110,10 @@ de la Épica 10.
 
 Cuentas de prueba:
 
-| Rol        | Correo            | Contraseña     |
-| ---------- | ----------------- | -------------- |
-| Alumno     | `ana@neque.cl`    | `Alumno1234!`  |
-| Entrenador | `kelvin@neque.cl` | `Entrenador1!` |
+| Rol        | Correo               | Contraseña     |
+| ---------- | -------------------- | -------------- |
+| Alumno     | `alejandra@neque.cl` | `Alumno1234!`  |
+| Entrenador | `kelvin@neque.cl`    | `Entrenador1!` |
 
 Código OTP de recuperación: `123456`. Invitaciones de prueba: `/invite/inv-valida`,
 `/invite/inv-expirada`, `/invite/inv-usada`.

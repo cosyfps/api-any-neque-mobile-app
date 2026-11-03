@@ -1,5 +1,7 @@
 import { Id } from '@app/domain/shared/model/ids';
 
+import { ExerciseLoad, ExerciseMeasure } from './prescription';
+
 export type MuscleGroup =
   | 'chest'
   | 'back'
@@ -37,6 +39,10 @@ export interface Exercise {
    * Los ejercicios propios son privados: un entrenador nunca ve los de otro.
    */
   readonly ownerTrainerId: Id | null;
+  /** Carga que se sugiere al agregarlo a una rutina; el entrenador la cambia. */
+  readonly defaultLoad?: ExerciseLoad;
+  /** Medida que se sugiere al agregarlo a una rutina. */
+  readonly defaultMeasure?: ExerciseMeasure;
 }
 
 /** Campos que el formulario envia al crear un ejercicio propio. */

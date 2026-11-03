@@ -7,7 +7,9 @@ import {
   WorkoutExerciseLog,
   WorkoutSession,
 } from '@app/domain/workouts/model/workout-session.model';
-import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
+import { WORKOUTS_PORT, WorkoutsPort } from '@app/domain/workouts/port/workouts.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { WorkoutRunnerFacade } from './workout-runner.facade';
 
@@ -44,10 +46,11 @@ const session = (exercises: WorkoutExerciseLog[]): WorkoutSession => ({
 const TWO_EXERCISES = session([log('a', 2, 60), log('b', 1, 45)]);
 
 describe('WorkoutRunnerFacade', () => {
-  let getById: jest.Mock;
-  let start: jest.Mock;
-  let logSet: jest.Mock;
-  let complete: jest.Mock;
+  let getById: MockOf<WorkoutsPort['getById']>;
+  let start: MockOf<WorkoutsPort['start']>;
+  let logSet: MockOf<WorkoutsPort['logSet']>;
+  let complete: MockOf<WorkoutsPort['complete']>;
+  let skipExercise: MockOf<WorkoutsPort['skipExercise']>;
   let current: WorkoutSession;
 
   const build = (): WorkoutRunnerFacade => {
@@ -62,8 +65,9 @@ describe('WorkoutRunnerFacade', () => {
             start,
             logSet,
             complete,
-            listByStudent: jest.fn(),
-            markExercise: jest.fn(),
+            skipExercise,
+            listByStudent: fn<WorkoutsPort['listByStudent']>(),
+            markExercise: fn<WorkoutsPort['markExercise']>(),
           },
         },
       ],
@@ -88,10 +92,15 @@ describe('WorkoutRunnerFacade', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     current = TWO_EXERCISES;
-    getById = jest.fn().mockImplementation(() => of(current));
-    start = jest.fn().mockImplementation(() => of({ ...current, status: 'in_progress' as const }));
-    logSet = jest.fn().mockImplementation(() => of(current));
-    complete = jest.fn().mockImplementation(() => of({ ...current, status: 'completed' as const }));
+    getById = fn<WorkoutsPort['getById']>().mockImplementation(() => of(current));
+    start = fn<WorkoutsPort['start']>().mockImplementation(() =>
+      of({ ...current, status: 'in_progress' as const }),
+    );
+    logSet = fn<WorkoutsPort['logSet']>().mockImplementation(() => of(current));
+    complete = fn<WorkoutsPort['complete']>().mockImplementation(() =>
+      of({ ...current, status: 'completed' as const }),
+    );
+    skipExercise = fn<WorkoutsPort['skipExercise']>().mockImplementation(() => of(current));
   });
 
   afterEach(() => jest.useRealTimers());
@@ -182,10 +191,12 @@ describe('WorkoutRunnerFacade', () => {
         setNumber: 1,
         reps: 10,
         weightKg: null,
+        durationSeconds: null,
       });
     });
 
     it('registra el peso y las repeticiones corregidas', () => {
+      useSession(session([{ ...log('a', 2, 60), weightKg: 40 }]));
       const facade = opened();
       facade.start();
 
@@ -195,7 +206,51 @@ describe('WorkoutRunnerFacade', () => {
         setNumber: 1,
         reps: 8,
         weightKg: 45,
+        durationSeconds: null,
       });
+    });
+
+    // Peso corporal: no hay kg que registrar aunque llegue uno.
+    it('no registra kg en un ejercicio de peso corporal', () => {
+      const facade = opened();
+      facade.start();
+
+      facade.completeSet(8, 45);
+
+      expect(logSet).toHaveBeenCalledWith(
+        'wks-001',
+        'a',
+        expect.objectContaining({ weightKg: null }),
+      );
+    });
+
+    it('por tiempo registra la duracion y no repeticiones', () => {
+      useSession(session([{ ...log('a', 1, 0), measure: 'time', durationSeconds: 45 }]));
+      const facade = opened();
+      facade.start();
+
+      facade.completeSet(null, null, 40);
+
+      expect(logSet).toHaveBeenCalledWith('wks-001', 'a', {
+        setNumber: 1,
+        reps: null,
+        weightKg: null,
+        durationSeconds: 40,
+      });
+    });
+
+    it('por tiempo sin corregir registra la duracion prescrita', () => {
+      useSession(session([{ ...log('a', 1, 0), measure: 'time', durationSeconds: 45 }]));
+      const facade = opened();
+      facade.start();
+
+      facade.completeSet();
+
+      expect(logSet).toHaveBeenCalledWith(
+        'wks-001',
+        'a',
+        expect.objectContaining({ durationSeconds: 45 }),
+      );
     });
 
     it('avanza al siguiente ejercicio tras la ultima serie', () => {
@@ -237,6 +292,127 @@ describe('WorkoutRunnerFacade', () => {
       facade.completeSet();
 
       expect(facade.phase()).toBe('idle');
+    });
+  });
+
+  describe('saltar', () => {
+    it('skipSet() registra la serie saltada con su motivo y pasa a la siguiente sin descanso', () => {
+      const facade = opened();
+      facade.start();
+
+      facade.skipSet('equipment_busy');
+
+      expect(logSet).toHaveBeenCalledWith('wks-001', 'a', {
+        setNumber: 1,
+        reps: null,
+        weightKg: null,
+        skipped: true,
+        skipReason: 'equipment_busy',
+      });
+      expect(facade.phase()).toBe('exercise');
+      expect(facade.currentSet()).toBe(2);
+    });
+
+    it('skipSet() en la ultima serie pasa al siguiente ejercicio', () => {
+      const facade = opened();
+      facade.start();
+      facade.skipSet();
+      facade.skipSet();
+
+      expect(facade.exerciseIndex()).toBe(1);
+      expect(facade.phase()).toBe('exercise');
+    });
+
+    it('skipExercise() salta lo que queda y pasa al siguiente', () => {
+      const facade = opened();
+      facade.start();
+
+      facade.skipExercise('pain');
+
+      expect(skipExercise).toHaveBeenCalledWith('wks-001', 'a', 'pain');
+      expect(facade.exerciseIndex()).toBe(1);
+      expect(facade.currentSet()).toBe(1);
+    });
+
+    it('skipExercise() en el ultimo ejercicio va al resumen', () => {
+      const facade = opened();
+      facade.start();
+      facade.next();
+
+      facade.skipExercise(null);
+
+      expect(facade.phase()).toBe('summary');
+    });
+
+    it('sin sesion no hace nada', () => {
+      const facade = build();
+
+      facade.skipSet();
+      facade.skipExercise();
+
+      expect(logSet).not.toHaveBeenCalled();
+      expect(skipExercise).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('cuenta regresiva por tiempo', () => {
+    it('inicia desde los segundos dados y descuenta', () => {
+      const facade = opened();
+      facade.start();
+
+      facade.toggleWork(45);
+      jest.advanceTimersByTime(3000);
+
+      expect(facade.workRunning()).toBe(true);
+      expect(facade.workRemaining()).toBe(42);
+    });
+
+    it('pausar y reanudar sigue desde donde quedo', () => {
+      const facade = opened();
+      facade.start();
+      facade.toggleWork(45);
+      jest.advanceTimersByTime(5000);
+
+      facade.toggleWork(45);
+      jest.advanceTimersByTime(5000);
+      expect(facade.workRemaining()).toBe(40);
+
+      facade.toggleWork(45);
+      jest.advanceTimersByTime(1000);
+      expect(facade.workRemaining()).toBe(39);
+    });
+
+    it('se detiene sola en cero', () => {
+      const facade = opened();
+      facade.start();
+      facade.toggleWork(2);
+
+      jest.advanceTimersByTime(5000);
+
+      expect(facade.workRemaining()).toBe(0);
+      expect(facade.workRunning()).toBe(false);
+    });
+
+    it('resetWork() la vuelve al inicio, detenida', () => {
+      const facade = opened();
+      facade.start();
+      facade.toggleWork(45);
+      jest.advanceTimersByTime(2000);
+
+      facade.resetWork();
+
+      expect(facade.workRemaining()).toBeNull();
+      expect(facade.workRunning()).toBe(false);
+    });
+
+    it('cerrar la serie la limpia', () => {
+      const facade = opened();
+      facade.start();
+      facade.toggleWork(45);
+
+      facade.completeSet();
+
+      expect(facade.workRemaining()).toBeNull();
     });
   });
 

@@ -1,8 +1,15 @@
 import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
-import { INVITATION_PORT, InvitationDetails } from '@app/domain/auth/port/invitation.port';
+import {
+  INVITATION_PORT,
+  InvitationPort,
+  InvitationDetails,
+} from '@app/domain/auth/port/invitation.port';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+import { PUBLIC_APP_URL } from '@app/domain/shared/port/public-url.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { TrainerInvitationFacade } from './trainer-invitation.facade';
 
@@ -14,8 +21,8 @@ const invitacion = (
 ): InvitationDetails => ({
   token: 'inv-abc',
   studentId: 'std-009',
-  studentName: 'Ana Rojas',
-  email: 'ana@neque.cl',
+  studentName: 'Alejandra Acosta',
+  email: 'alejandra@neque.cl',
   trainerName: 'Kelvin Moreno',
   expiresAt: new Date(AHORA.getTime() + horas * 60 * 60 * 1000).toISOString(),
   status,
@@ -24,23 +31,24 @@ const invitacion = (
 describe('TrainerInvitationFacade', () => {
   let facade: TrainerInvitationFacade;
   let port: {
-    getForStudent: jest.Mock;
-    create: jest.Mock;
-    revoke: jest.Mock;
+    getForStudent: MockOf<InvitationPort['getForStudent']>;
+    create: MockOf<InvitationPort['create']>;
+    revoke: MockOf<InvitationPort['revoke']>;
   };
 
   const createFacade = (
     vigente: InvitationDetails | null = invitacion(48),
   ): TrainerInvitationFacade => {
     port = {
-      getForStudent: jest.fn().mockReturnValue(of(vigente)),
-      create: jest.fn().mockReturnValue(of(invitacion(48))),
-      revoke: jest.fn().mockReturnValue(of(undefined)),
+      getForStudent: fn<InvitationPort['getForStudent']>().mockReturnValue(of(vigente)),
+      create: fn<InvitationPort['create']>().mockReturnValue(of(invitacion(48))),
+      revoke: fn<InvitationPort['revoke']>().mockReturnValue(of(undefined)),
     };
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
         TrainerInvitationFacade,
+        { provide: PUBLIC_APP_URL, useValue: 'https://neque.vercel.app' },
         { provide: INVITATION_PORT, useValue: port },
         { provide: CLOCK, useValue: { now: () => AHORA } },
       ],
@@ -83,7 +91,7 @@ describe('TrainerInvitationFacade', () => {
     it('arma la ruta publica de la invitacion', () => {
       facade.load('std-009');
 
-      expect(facade.link()).toBe(`${window.location.origin}/invite/inv-abc`);
+      expect(facade.link()).toBe('https://neque.vercel.app/i/inv-abc');
     });
   });
 

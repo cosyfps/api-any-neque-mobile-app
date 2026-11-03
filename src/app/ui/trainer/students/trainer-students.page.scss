@@ -1,5 +1,6 @@
+// Aire bajo la lista para que el boton flotante no tape el ultimo item.
 .page {
-  padding: 24px var(--nq-page-px) 0;
+  padding: var(--nq-page-pt) var(--nq-page-px) var(--nq-fab-space);
 }
 
 .head {
@@ -33,7 +34,7 @@
   min-height: 44px;
   padding: 12px 44px;
   font-family: var(--nq-font-family);
-  font-size: 15px;
+  font-size: var(--nq-font-input);
   color: var(--nq-text);
   background: var(--nq-surface);
   border: 1.5px solid transparent;
@@ -121,32 +122,6 @@
   color: var(--nq-text-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.head-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.add {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  color: #fff;
-  cursor: pointer;
-  background: var(--nq-primary-strong);
-  border: none;
-  border-radius: 50%;
-
-  &:focus-visible {
-    outline: 2px solid var(--nq-primary-strong);
-    outline-offset: 2px;
-  }
 }
 
 // El formulario es mas alto que la pantalla en un telefono chico: el sheet

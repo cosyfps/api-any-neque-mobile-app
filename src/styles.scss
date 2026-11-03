@@ -39,6 +39,21 @@ body {
   // El resaltado azul del tap movil no aporta nada: cada control tiene su
   // propio estado `:active`.
   -webkit-tap-highlight-color: transparent;
+  // App, no documento: una pulsacion larga no selecciona texto ni abre el
+  // menu de iOS (Copiar, Traducir, Compartir) ni el de guardar imagen.
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+// Los campos si: sin esto no se podria seleccionar, copiar ni pegar lo que se
+// escribe, y en algunas versiones de iOS el input ni siquiera acepta texto.
+input,
+textarea,
+[contenteditable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 h1,

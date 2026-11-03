@@ -1,46 +1,176 @@
 .page {
-  padding: 24px var(--nq-page-px) 0;
+  padding: var(--nq-page-pt) var(--nq-page-px) var(--nq-fab-space);
 }
 
 .head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
   margin-bottom: 16px;
 }
 
+.bell {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  color: var(--nq-text);
+  cursor: pointer;
+  background: var(--nq-bg);
+  border: 1px solid var(--nq-border);
+  border-radius: var(--nq-radius-full);
+  -webkit-tap-highlight-color: transparent;
+
+  &:focus-visible {
+    outline: 2px solid var(--nq-primary-strong);
+    outline-offset: 2px;
+  }
+}
+
+// Mismo badge que la campana del alumno.
+.bell-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--nq-text-inverse);
+  background: var(--nq-danger);
+  border-radius: var(--nq-radius-full);
+}
+
+.see-all {
+  min-height: 44px;
+  padding: 0 4px;
+  font-family: var(--nq-font-family);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nq-primary-strong);
+  cursor: pointer;
+  background: none;
+  border: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--nq-primary-strong);
+    outline-offset: 2px;
+  }
+}
+
 .greeting {
-  margin: 4px 0 0;
   font-size: 14px;
   color: var(--nq-text-secondary);
 }
 
-.metrics {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 24px;
+.name {
+  margin: 2px 0 0;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--nq-text);
 }
 
-.metric {
+// Boton sin estilos del navegador: lo usan indicadores, alertas y filas.
+@mixin reset-button {
+  font-family: var(--nq-font-family);
+  text-align: left;
+  cursor: pointer;
+  border: none;
+  -webkit-tap-highlight-color: transparent;
+
+  &:focus-visible {
+    outline: 2px solid var(--nq-primary-strong);
+    outline-offset: 2px;
+  }
+}
+
+// ── Indicadores ──
+.kpis {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.kpi {
+  @include reset-button;
+
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 16px;
-  background: var(--nq-surface);
-  border-radius: var(--nq-radius-md);
+  padding: 14px 16px;
+  color: var(--nq-text-inverse);
+  border-radius: var(--nq-radius-lg);
+
+  &:disabled {
+    cursor: default;
+  }
 }
 
-.metric-value {
-  font-size: 28px;
-  font-weight: 700;
+// Texto blanco solo sobre el tramo "strong" del degradado: 5.5:1.
+.kpi-1 {
+  background: linear-gradient(
+    135deg,
+    var(--nq-gradient-strong-start),
+    var(--nq-gradient-strong-end)
+  );
+  box-shadow: 0 8px 20px rgba(var(--nq-primary-strong-rgb), 0.25);
+}
+
+.kpi-2 {
+  background: linear-gradient(135deg, var(--nq-gradient-strong-end), var(--nq-primary-strong));
+}
+
+.kpi-3,
+.kpi-4 {
   color: var(--nq-text);
-  line-height: 1;
+  background: var(--nq-bg);
+  border: 1px solid var(--nq-border);
 }
 
-.metric-label {
+.kpi-4.alerta {
+  color: var(--nq-warning);
+  background: rgba(var(--nq-warning-rgb), 0.1);
+  border-color: transparent;
+}
+
+.kpi-value {
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.kpi-label {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.92;
+}
+
+.kpi-3 .kpi-label,
+.kpi-4:not(.alerta) .kpi-label {
+  color: var(--nq-text-secondary);
+}
+
+.section-count {
   font-size: 13px;
   color: var(--nq-text-secondary);
 }
 
-.list {
+// ── Por atender ──
+.alerts,
+.timeline,
+.feed,
+.options {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -49,17 +179,33 @@
   list-style: none;
 }
 
-// `.nq-list-item` es un div en el resto de la app; aqui es un boton y hay
-// que devolverle el ancho y la alineacion que el user-agent le quita.
-.item {
+.alert {
+  @include reset-button;
+
+  display: flex;
+  gap: 12px;
+  align-items: center;
   width: 100%;
-  color: var(--nq-text-secondary);
-  font-family: var(--nq-font-family);
-  text-align: left;
-  border: none;
+  min-height: 56px;
+  padding: 12px;
+  border-radius: var(--nq-radius-md);
+
+  > svg {
+    flex-shrink: 0;
+  }
+
+  &.risk {
+    color: var(--nq-danger);
+    background: rgba(var(--nq-danger-rgb), 0.08);
+  }
+
+  &.pending {
+    color: var(--nq-warning);
+    background: rgba(var(--nq-warning-rgb), 0.1);
+  }
 }
 
-.item-body {
+.alert-body {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -67,51 +213,218 @@
   min-width: 0;
 }
 
-.item-name {
-  font-size: 15px;
+.alert-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.alert-sub {
+  font-size: 13px;
+  color: var(--nq-text-secondary);
+}
+
+.alert-action {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--nq-bg);
+  border-radius: var(--nq-radius-full);
+}
+
+// ── Hoy ──
+.slot {
+  @include reset-button;
+
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 12px;
+  background: var(--nq-bg);
+  border: 1px solid var(--nq-border);
+  border-radius: var(--nq-radius-md);
+}
+
+.slot-time {
+  flex-shrink: 0;
+  width: 44px;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--nq-primary-strong);
+}
+
+.avatar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--nq-primary-strong);
+  background: rgba(var(--nq-primary-rgb), 0.12);
+  border-radius: var(--nq-radius-full);
+}
+
+.slot-body,
+.event-body,
+.option-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.slot-name,
+.option-name {
+  font-size: 14px;
   font-weight: 600;
   color: var(--nq-text);
 }
 
-.item-sub {
+.slot-sub,
+.option-sub,
+.event-sub {
   overflow: hidden;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--nq-text-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.empty-text {
-  margin: 0;
-  font-size: 14px;
-  color: var(--nq-text-secondary);
+// ── Actividad reciente ──
+// Linea vertical que une los eventos, con un punto por cada uno.
+.feed {
+  position: relative;
+  padding-left: 20px;
+
+  &::before {
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    left: 7px;
+    width: 2px;
+    content: '';
+    background: var(--nq-border-solid);
+  }
 }
 
+.event {
+  @include reset-button;
+
+  position: relative;
+  display: flex;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--nq-bg);
+  border: 1px solid var(--nq-border);
+  border-radius: var(--nq-radius-md);
+}
+
+.event-dot {
+  position: absolute;
+  top: 12px;
+  left: -21px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--nq-text-inverse);
+  background: var(--nq-primary-strong);
+  border: 2px solid var(--nq-surface);
+  border-radius: var(--nq-radius-full);
+
+  .skipped & {
+    background: var(--nq-warning);
+  }
+}
+
+.event-text {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--nq-text);
+
+  strong {
+    font-weight: 700;
+  }
+}
+
+// ── Atajos ──
 .shortcuts {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 8px;
 }
 
 .shortcut {
+  @include reset-button;
+
   display: flex;
   flex-direction: column;
   gap: 8px;
   align-items: flex-start;
-  min-height: 44px;
-  padding: 16px;
-  font-family: var(--nq-font-family);
+  min-height: 88px;
+  padding: 14px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--nq-primary-strong);
-  text-align: left;
-  cursor: pointer;
-  background: rgba(var(--nq-primary-rgb), 0.08);
-  border: none;
+  background: rgba(var(--nq-primary-rgb), 0.12);
+  border-radius: var(--nq-radius-lg);
+
+  &.strong {
+    color: var(--nq-text-inverse);
+    background: linear-gradient(
+      135deg,
+      var(--nq-gradient-strong-start),
+      var(--nq-gradient-strong-end)
+    );
+  }
+}
+
+// ── Hoja de asignar ──
+.form-sheet {
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.options {
+  margin-bottom: 16px;
+}
+
+.option {
+  @include reset-button;
+
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px;
+  background: var(--nq-bg);
+  border: 2px solid var(--nq-border);
   border-radius: var(--nq-radius-md);
 
-  &:focus-visible {
-    outline: 2px solid var(--nq-primary-strong);
-    outline-offset: 2px;
+  &.selected {
+    background: rgba(var(--nq-primary-rgb), 0.08);
+    border-color: var(--nq-primary-strong);
   }
+}
+
+.option-check {
+  display: flex;
+  flex-shrink: 0;
+  width: 20px;
+  color: var(--nq-primary-strong);
+}
+
+.sheet-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
 }

@@ -179,7 +179,7 @@ describe('AsyncState', () => {
 
     it('trata un objeto sin length como lleno', () => {
       const state = asyncState<{ nombre: string }>();
-      state.load(() => of({ nombre: 'Ana' }));
+      state.load(() => of({ nombre: 'Alejandra' }));
       expect(state.viewState()).toBe('success');
     });
 

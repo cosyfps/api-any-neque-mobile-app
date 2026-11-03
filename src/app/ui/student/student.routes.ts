@@ -1,12 +1,12 @@
 import { Routes } from '@angular/router';
 
-import { provideStudentMockData } from '@app/infrastructure/student-providers';
+import { provideStudentData } from '@app/infrastructure/student-providers';
 
 /**
  * Rutas del alumno.
  *
  * Los providers viven aqui y no en `app.config.ts` a proposito: asi los
- * puertos, adapters, facades y semillas del alumno viajan en este chunk lazy
+ * puertos, adapters y facades del alumno viajan en este chunk lazy
  * y no engordan el bundle inicial.
  *
  * Van en UNA sola ruta contenedora, no repetidos por pantalla: dos
@@ -17,7 +17,7 @@ import { provideStudentMockData } from '@app/infrastructure/student-providers';
 export const STUDENT_ROUTES: Routes = [
   {
     path: '',
-    providers: [provideStudentMockData()],
+    providers: [provideStudentData()],
     children: [
       {
         path: '',
@@ -46,8 +46,8 @@ export const STUDENT_ROUTES: Routes = [
           {
             path: 'notifications',
             loadComponent: () =>
-              import('./notifications/student-notifications.page').then(
-                m => m.StudentNotificationsPage,
+              import('../shared/pages/notifications/notifications.page').then(
+                m => m.NotificationsPage,
               ),
           },
           {

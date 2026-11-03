@@ -1,6 +1,8 @@
 import { Provider } from '@angular/core';
 
+import { NotificationsFacade } from '@app/application/notifications/notifications.facade';
 import { INVITATION_PORT } from '@app/domain/auth/port/invitation.port';
+import { NOTIFICATIONS_PORT } from '@app/domain/notifications/port/notifications.port';
 import { EXERCISE_CATALOG_PORT, ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
 import { SCHEDULE_PORT } from '@app/domain/schedule/port/schedule.port';
 import { ANAMNESIS_PORT } from '@app/domain/students/port/anamnesis.port';
@@ -9,47 +11,36 @@ import { STUDENTS_PORT } from '@app/domain/students/port/students.port';
 import { TRAINERS_PORT } from '@app/domain/trainers/port/trainers.port';
 import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
 
-import { InvitationMockAdapter } from './auth/invitation.mock-adapter';
-import { ExerciseCatalogMockAdapter, RoutinesMockAdapter } from './routines/routines.mock-adapter';
-import { ScheduleMockAdapter } from './schedule/schedule.mock-adapter';
-import { AnamnesisMockAdapter } from './students/anamnesis.mock-adapter';
-import { AssessmentsMockAdapter } from './students/assessments.mock-adapter';
-import { StudentsMockAdapter } from './students/students.mock-adapter';
-import { TrainersMockAdapter } from './trainers/trainers.mock-adapter';
-import { WorkoutsMockAdapter } from './workouts/workouts.mock-adapter';
+import { InvitationHttpAdapter } from './auth/auth.http-adapter';
+import { NotificationsHttpAdapter, ScheduleHttpAdapter } from './engagement.http-adapters';
+import { ExerciseCatalogHttpAdapter, RoutinesHttpAdapter } from './routines/routines.http-adapter';
+import {
+  AnamnesisHttpAdapter,
+  AssessmentsHttpAdapter,
+  StudentsHttpAdapter,
+  TrainersHttpAdapter,
+} from './students/students.http-adapter';
+import { WorkoutsHttpAdapter } from './workouts/workouts.http-adapter';
 
 /**
- * Puertos y adapters del shell del entrenador.
- *
- * Se registran en `providers` de la ruta `/trainer` para que viajen en su
- * chunk lazy, igual que los del alumno. Comparten varios puertos con
- * `provideStudentMockData()`, pero cada shell tiene su propio injector: los
- * dos roles nunca conviven en la misma sesion.
- *
- * Al conectar el BFF esta funcion se reemplaza por
- * `provideTrainerHttpAdapters()` y ningun archivo de domain, application o ui
- * cambia.
+ * Puertos del shell del entrenador contra el BFF, en el chunk lazy de
+ * `/trainer`.
  */
-export function provideTrainerMockData(): Provider[] {
+export function provideTrainerData(): Provider[] {
   return [
-    TrainersMockAdapter,
-    StudentsMockAdapter,
-    InvitationMockAdapter,
-    AnamnesisMockAdapter,
-    AssessmentsMockAdapter,
-    RoutinesMockAdapter,
-    ExerciseCatalogMockAdapter,
-    WorkoutsMockAdapter,
-    ScheduleMockAdapter,
+    // Una sola instancia para el inicio (la campana) y la pantalla de
+    // notificaciones: leer en una se ve en la otra.
+    NotificationsFacade,
 
-    { provide: TRAINERS_PORT, useExisting: TrainersMockAdapter },
-    { provide: STUDENTS_PORT, useExisting: StudentsMockAdapter },
-    { provide: INVITATION_PORT, useExisting: InvitationMockAdapter },
-    { provide: ANAMNESIS_PORT, useExisting: AnamnesisMockAdapter },
-    { provide: ASSESSMENTS_PORT, useExisting: AssessmentsMockAdapter },
-    { provide: ROUTINES_PORT, useExisting: RoutinesMockAdapter },
-    { provide: EXERCISE_CATALOG_PORT, useExisting: ExerciseCatalogMockAdapter },
-    { provide: WORKOUTS_PORT, useExisting: WorkoutsMockAdapter },
-    { provide: SCHEDULE_PORT, useExisting: ScheduleMockAdapter },
+    { provide: TRAINERS_PORT, useClass: TrainersHttpAdapter },
+    { provide: STUDENTS_PORT, useClass: StudentsHttpAdapter },
+    { provide: INVITATION_PORT, useClass: InvitationHttpAdapter },
+    { provide: ANAMNESIS_PORT, useClass: AnamnesisHttpAdapter },
+    { provide: ASSESSMENTS_PORT, useClass: AssessmentsHttpAdapter },
+    { provide: ROUTINES_PORT, useClass: RoutinesHttpAdapter },
+    { provide: EXERCISE_CATALOG_PORT, useClass: ExerciseCatalogHttpAdapter },
+    { provide: WORKOUTS_PORT, useClass: WorkoutsHttpAdapter },
+    { provide: SCHEDULE_PORT, useClass: ScheduleHttpAdapter },
+    { provide: NOTIFICATIONS_PORT, useClass: NotificationsHttpAdapter },
   ];
 }

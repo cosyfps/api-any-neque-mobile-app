@@ -2,6 +2,7 @@ import { Injectable, Signal, computed, inject, signal } from '@angular/core';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
 import {
+  PHOTO_ANGLES,
   PhotoAngle,
   ProgressPhoto,
   ProgressPoint,
@@ -40,8 +41,9 @@ export class ProgressFacade {
   private readonly workoutsPort = inject(WORKOUTS_PORT);
   private readonly session = inject(SessionFacade);
 
-  private readonly _compareA = signal<string | null>(null);
-  private readonly _compareB = signal<string | null>(null);
+  private readonly _compareAngle = signal<PhotoAngle>('front');
+  /** Par elegido a mano; null usa el par por defecto del angulo. */
+  private readonly _compareIds = signal<readonly [string, string] | null>(null);
 
   readonly assessments: AsyncState<Assessment[]> = asyncState<Assessment[]>();
   readonly photos: AsyncState<ProgressPhoto[]> = asyncState<ProgressPhoto[]>();
@@ -117,30 +119,57 @@ export class ProgressFacade {
       });
   });
 
-  /** Par por defecto: extremos temporales del angulo frontal. */
-  private readonly defaultPair: Signal<readonly (ProgressPhoto | undefined)[]> = computed(() => {
-    const frontal = (this.photos.data() ?? [])
-      .filter(photo => photo.angle === 'front')
-      .sort((a, b) => a.takenAt.localeCompare(b.takenAt));
+  /** Angulos con al menos dos fotos: los unicos que se pueden comparar. */
+  readonly comparableAngles: Signal<readonly PhotoAngle[]> = computed(() => {
+    const photos = this.photos.data() ?? [];
+    return PHOTO_ANGLES.filter(angle => photos.filter(p => p.angle === angle).length >= 2);
+  });
 
-    return frontal.length < 2 ? [undefined, undefined] : [frontal[0], frontal[frontal.length - 1]];
+  /** Angulo del comparador; si el elegido ya no alcanza, el primero que si. */
+  readonly compareAngle: Signal<PhotoAngle> = computed(() => {
+    const selected = this._compareAngle();
+    const comparable = this.comparableAngles();
+    return comparable.includes(selected) ? selected : (comparable[0] ?? selected);
   });
 
   /**
-   * Fotos del comparador. Sin seleccion explicita usa la mas antigua y la
-   * mas reciente del mismo angulo: la comparacion util por defecto, sin
-   * obligar al alumno a configurar nada.
+   * Fotos que pueden entrar al comparador, de la mas antigua a la mas
+   * reciente. Solo del angulo actual: frente con frente, perfil con perfil,
+   * espalda con espalda.
    */
-  readonly compareA: Signal<ProgressPhoto | null> = computed(
-    () => this.findPhoto(this._compareA()) ?? this.defaultPair()[0] ?? null,
-  );
-  readonly compareB: Signal<ProgressPhoto | null> = computed(
-    () => this.findPhoto(this._compareB()) ?? this.defaultPair()[1] ?? null,
+  readonly compareCandidates: Signal<readonly ProgressPhoto[]> = computed(() =>
+    (this.photos.data() ?? [])
+      .filter(photo => photo.angle === this.compareAngle())
+      .sort((a, b) => a.takenAt.localeCompare(b.takenAt)),
   );
 
-  readonly canCompare: Signal<boolean> = computed(
-    () => this.compareA() !== null && this.compareB() !== null,
+  /**
+   * Par del comparador, siempre en orden cronologico: la anterior a la
+   * izquierda. Sin eleccion valida usa la mas antigua y la mas reciente.
+   */
+  private readonly comparePair: Signal<readonly [ProgressPhoto, ProgressPhoto] | null> = computed(
+    () => {
+      const candidates = this.compareCandidates();
+      const first = candidates[0];
+      const last = candidates[candidates.length - 1];
+      if (candidates.length < 2 || first === undefined || last === undefined) {
+        return null;
+      }
+
+      const ids = this._compareIds();
+      const a = candidates.find(photo => photo.id === ids?.[0]);
+      const b = candidates.find(photo => photo.id === ids?.[1]);
+      if (a === undefined || b === undefined || a.id === b.id) {
+        return [first, last];
+      }
+      return a.takenAt.localeCompare(b.takenAt) <= 0 ? [a, b] : [b, a];
+    },
   );
+
+  readonly compareA: Signal<ProgressPhoto | null> = computed(() => this.comparePair()?.[0] ?? null);
+  readonly compareB: Signal<ProgressPhoto | null> = computed(() => this.comparePair()?.[1] ?? null);
+
+  readonly canCompare: Signal<boolean> = computed(() => this.comparePair() !== null);
 
   readonly viewState: Signal<ViewState> = this.assessments.viewState;
 
@@ -161,8 +190,32 @@ export class ProgressFacade {
   }
 
   selectCompare(a: string | null, b: string | null): void {
-    this._compareA.set(a);
-    this._compareB.set(b);
+    this._compareIds.set(a === null || b === null ? null : [a, b]);
+  }
+
+  /** Cambia el angulo del comparador y vuelve a su par por defecto. */
+  selectCompareAngle(angle: PhotoAngle): void {
+    if (!this.comparableAngles().includes(angle)) {
+      return;
+    }
+    this._compareAngle.set(angle);
+    this._compareIds.set(null);
+  }
+
+  /**
+   * Reemplaza una de las dos fotos del comparador. Rechaza una foto de otro
+   * angulo o la misma que ya esta del otro lado.
+   */
+  replaceCompare(side: 'before' | 'after', photoId: string): boolean {
+    const before = this.compareA();
+    const after = this.compareB();
+    const photo = this.compareCandidates().find(item => item.id === photoId);
+    const other = side === 'before' ? after : before;
+    if (photo === undefined || other === null || other.id === photoId) {
+      return false;
+    }
+    this._compareIds.set([photo.id, other.id]);
+    return true;
   }
 
   /** Agrega una foto ya convertida a data-URL por la pagina. */
@@ -202,13 +255,6 @@ export class ProgressFacade {
         error: () => resolve(false),
       });
     });
-  }
-
-  private findPhoto(photoId: string | null): ProgressPhoto | null {
-    if (photoId === null) {
-      return null;
-    }
-    return (this.photos.data() ?? []).find(photo => photo.id === photoId) ?? null;
   }
 
   private toSeries(pick: (assessment: Assessment) => number): ProgressPoint[] {

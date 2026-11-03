@@ -15,6 +15,8 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./ui/auth/forgot-password/forgot-password.page').then(m => m.ForgotPasswordPage),
   },
+  // Forma corta del enlace de invitacion, la que se comparte y va en el QR.
+  { path: 'i/:token', redirectTo: 'invite/:token' },
   {
     path: 'invite/:token',
     // Con sesion activa la invitacion no se muestra: aceptarla sobrescribiria

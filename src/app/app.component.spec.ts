@@ -16,7 +16,7 @@ describe('AppComponent', () => {
     const fixture = TestBed.createComponent(AppComponent);
 
     expect(fixture.componentInstance).toBeInstanceOf(AppComponent);
-    expect(fixture.nativeElement.querySelector('router-outlet')).toBeTruthy();
+    expect((fixture.nativeElement as HTMLElement).querySelector('router-outlet')).toBeTruthy();
   });
 
   it('appConfig registra el router y los adapters de datos', () => {

@@ -6,7 +6,9 @@ import { domainError } from '@app/domain/shared/model/app-error';
 import { toIsoDate } from '@app/domain/shared/model/date';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
 import { WorkoutSession, WorkoutStatus } from '@app/domain/workouts/model/workout-session.model';
-import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
+import { WORKOUTS_PORT, WorkoutsPort } from '@app/domain/workouts/port/workouts.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { WorkoutFacade } from './workout.facade';
 
@@ -42,8 +44,8 @@ const SESSIONS: WorkoutSession[] = [
 ];
 
 describe('WorkoutFacade', () => {
-  let listByStudent: jest.Mock;
-  let complete: jest.Mock;
+  let listByStudent: MockOf<WorkoutsPort['listByStudent']>;
+  let complete: MockOf<WorkoutsPort['complete']>;
   let profileId: string | null;
 
   const build = (): WorkoutFacade => {
@@ -57,10 +59,10 @@ describe('WorkoutFacade', () => {
           useValue: {
             listByStudent,
             complete,
-            getById: jest.fn(),
-            start: jest.fn(),
-            markExercise: jest.fn(),
-            logSet: jest.fn(),
+            getById: fn<WorkoutsPort['getById']>(),
+            start: fn<WorkoutsPort['start']>(),
+            markExercise: fn<WorkoutsPort['markExercise']>(),
+            logSet: fn<WorkoutsPort['logSet']>(),
           },
         },
       ],
@@ -69,8 +71,8 @@ describe('WorkoutFacade', () => {
   };
 
   beforeEach(() => {
-    listByStudent = jest.fn().mockReturnValue(of(SESSIONS));
-    complete = jest.fn();
+    listByStudent = fn<WorkoutsPort['listByStudent']>().mockReturnValue(of(SESSIONS));
+    complete = fn<WorkoutsPort['complete']>();
     profileId = 'std-001';
   });
 

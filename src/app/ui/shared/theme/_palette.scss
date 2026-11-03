@@ -35,6 +35,7 @@
 
   // ── Text ──
   --nq-text: #1a2b2a;
+  --nq-text-rgb: 26, 43, 42;
   --nq-text-secondary: #5a706d;
   // 4.73:1 sobre `--nq-surface`, que es el fondo real de las pantallas del
   // alumno y no el blanco puro. El #94a8a5 anterior daba 2.50:1; medido
@@ -81,7 +82,17 @@
   --nq-tab-bottom: 16px;
   --nq-safe-bottom: calc(var(--nq-tab-height) + var(--nq-tab-bottom) + 16px);
   --nq-page-px: 20px;
+  // Boton flotante de "agregar": 56px y 16px de aire sobre el tab bar.
+  --nq-fab-size: 56px;
+  --nq-fab-space: calc(var(--nq-fab-size) + 16px);
+  // Aire sobre el contenido de una pestana. El shell ya suma el safe-area
+  // superior: con mas, el primer vistazo en un iPhone con notch se ve hundido.
+  --nq-page-pt: 8px;
 
   // ── Typography ──
   --nq-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  // Minimo para campos de texto: por debajo de 16px iOS amplia la pagina al
+  // enfocarlos. No depende del `maximum-scale=1` del viewport, que sigue ahi
+  // porque la app no admite zoom.
+  --nq-font-input: 16px;
 }

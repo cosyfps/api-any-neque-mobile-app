@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, Router, provideRouter } from '@angular/router';
 import { Subject } from 'rxjs';
 
+import { fn } from '@testing/typed-mock';
+
 import { StudentLayoutPage } from './student-layout.page';
 
 describe('StudentLayoutPage', () => {
@@ -18,7 +20,7 @@ describe('StudentLayoutPage', () => {
     const routerStub = {
       events: events.asObservable(),
       url: initialUrl,
-      navigate: jest.fn().mockResolvedValue(true),
+      navigate: fn<Router['navigate']>().mockResolvedValue(true),
     } as unknown as Router;
 
     TestBed.configureTestingModule({

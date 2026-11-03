@@ -2,12 +2,19 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
 import { TrainerInvitationFacade } from '@app/application/trainers/trainer-invitation.facade';
-import { INVITATION_PORT, InvitationDetails } from '@app/domain/auth/port/invitation.port';
+import {
+  INVITATION_PORT,
+  InvitationPort,
+  InvitationDetails,
+} from '@app/domain/auth/port/invitation.port';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+import { PUBLIC_APP_URL } from '@app/domain/shared/port/public-url.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { InvitationPanelComponent } from './invitation-panel.component';
 
-const share = jest.fn();
+const share = fn<(...args: unknown[]) => Promise<void>>();
 jest.mock('@capacitor/share', () => ({ Share: { share: (...args: unknown[]) => share(...args) } }));
 
 const AHORA = new Date('2026-09-20T10:00:00.000Z');
@@ -18,8 +25,8 @@ const invitacion = (
 ): InvitationDetails => ({
   token: 'inv-abc',
   studentId: 'std-009',
-  studentName: 'Ana Rojas',
-  email: 'ana@neque.cl',
+  studentName: 'Alejandra Acosta',
+  email: 'alejandra@neque.cl',
   trainerName: 'Kelvin Moreno',
   expiresAt: new Date(AHORA.getTime() + horas * 60 * 60 * 1000).toISOString(),
   status,
@@ -28,20 +35,21 @@ const invitacion = (
 describe('InvitationPanelComponent', () => {
   let fixture: ComponentFixture<InvitationPanelComponent>;
   let panel: InvitationPanelComponent;
-  let revoke: jest.Mock;
-  let create: jest.Mock;
+  let revoke: MockOf<InvitationPort['revoke']>;
+  let create: MockOf<InvitationPort['create']>;
 
   // Los `input()` senal no se pueden asignar sobre una instancia suelta:
   // este componente se prueba renderizado, como el resto de ui/shared.
   const crear = (vigente: InvitationDetails | null = invitacion()): void => {
-    revoke = jest.fn().mockReturnValue(of(undefined));
-    create = jest.fn().mockReturnValue(of(invitacion()));
+    revoke = fn<InvitationPort['revoke']>().mockReturnValue(of(undefined));
+    create = fn<InvitationPort['create']>().mockReturnValue(of(invitacion()));
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [InvitationPanelComponent],
       providers: [
         TrainerInvitationFacade,
+        { provide: PUBLIC_APP_URL, useValue: 'https://neque.vercel.app' },
         { provide: CLOCK, useValue: { now: () => AHORA } },
         {
           provide: INVITATION_PORT,
@@ -63,7 +71,7 @@ describe('InvitationPanelComponent', () => {
     it('muestra el enlace', () => {
       const texto = (fixture.nativeElement as HTMLElement).textContent ?? '';
 
-      expect(texto).toContain('/invite/inv-abc');
+      expect(texto).toContain('https://neque.vercel.app/i/inv-abc');
     });
 
     it('anuncia la vigencia en horas', () => {
@@ -142,22 +150,22 @@ describe('InvitationPanelComponent', () => {
 
   describe('copy()', () => {
     it('deja el enlace en el portapapeles y avisa', async () => {
-      const writeText = jest.fn().mockResolvedValue(undefined);
+      const writeText = fn<Clipboard['writeText']>().mockResolvedValue(undefined);
       Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
       await panel.copy();
 
-      expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/invite/inv-abc`);
+      expect(writeText).toHaveBeenCalledWith('https://neque.vercel.app/i/inv-abc');
       expect(panel.copied()).toBe(true);
     });
   });
 
   describe('share()', () => {
-    let writeText: jest.Mock;
+    let writeText: MockOf<Clipboard['writeText']>;
 
     beforeEach(() => {
       share.mockReset().mockResolvedValue(undefined);
-      writeText = jest.fn().mockResolvedValue(undefined);
+      writeText = fn<Clipboard['writeText']>().mockResolvedValue(undefined);
       Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     });
 
@@ -165,16 +173,15 @@ describe('InvitationPanelComponent', () => {
       await panel.share();
 
       expect(share).toHaveBeenCalledWith(
-        expect.objectContaining({ url: `${window.location.origin}/invite/inv-abc` }),
+        expect.objectContaining({ url: 'https://neque.vercel.app/i/inv-abc' }),
       );
     });
 
     it('nombra al alumno en el mensaje', async () => {
       await panel.share();
 
-      expect(share.mock.calls[0]?.[0]).toMatchObject({
-        text: expect.stringContaining('Ana Rojas'),
-      });
+      const options = share.mock.calls[0]?.[0] as { text?: string } | undefined;
+      expect(options?.text).toContain('Alejandra Acosta');
     });
 
     // En web la hoja puede no existir o el usuario puede cancelarla: el

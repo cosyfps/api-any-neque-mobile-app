@@ -3,10 +3,15 @@ import { of, throwError } from 'rxjs';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
 import { AppNotification } from '@app/domain/notifications/model/notification.model';
-import { NOTIFICATIONS_PORT } from '@app/domain/notifications/port/notifications.port';
+import {
+  NOTIFICATIONS_PORT,
+  NotificationsPort,
+} from '@app/domain/notifications/port/notifications.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { addDays, toIsoDate } from '@app/domain/shared/model/date';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { NotificationsFacade } from './notifications.facade';
 
@@ -32,9 +37,9 @@ const ITEMS: AppNotification[] = [
 ];
 
 describe('NotificationsFacade', () => {
-  let listByUser: jest.Mock;
-  let markRead: jest.Mock;
-  let markAllRead: jest.Mock;
+  let listByUser: MockOf<NotificationsPort['listByUser']>;
+  let markRead: MockOf<NotificationsPort['markRead']>;
+  let markAllRead: MockOf<NotificationsPort['markAllRead']>;
   let userId: string | null;
 
   const build = (): NotificationsFacade => {
@@ -53,9 +58,9 @@ describe('NotificationsFacade', () => {
   };
 
   beforeEach(() => {
-    listByUser = jest.fn().mockReturnValue(of(ITEMS));
-    markRead = jest.fn();
-    markAllRead = jest.fn().mockReturnValue(of(undefined));
+    listByUser = fn<NotificationsPort['listByUser']>().mockReturnValue(of(ITEMS));
+    markRead = fn<NotificationsPort['markRead']>();
+    markAllRead = fn<NotificationsPort['markAllRead']>().mockReturnValue(of(undefined));
     userId = 'usr-1';
   });
 

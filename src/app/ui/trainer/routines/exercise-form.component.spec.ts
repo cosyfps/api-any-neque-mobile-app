@@ -2,6 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ExerciseInput } from '@app/domain/routines/model/exercise.model';
 
+import { fn } from '@testing/typed-mock';
+
 import { ExerciseFormComponent } from './exercise-form.component';
 
 type Emitido = Omit<ExerciseInput, 'ownerTrainerId'>;
@@ -119,7 +121,7 @@ describe('ExerciseFormComponent', () => {
 
   describe('cancelled', () => {
     it('avisa al pulsar cancelar', () => {
-      const cancelado = jest.fn();
+      const cancelado = fn<() => void>();
       form.cancelled.subscribe(cancelado);
 
       const boton = (fixture.nativeElement as HTMLElement).querySelector(

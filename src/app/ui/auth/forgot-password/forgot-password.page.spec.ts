@@ -4,10 +4,15 @@ import { Router, provideRouter } from '@angular/router';
 import { Subject, of, throwError } from 'rxjs';
 
 import { AuthSession, PasswordResetTicket } from '@app/domain/auth/model/auth-user.model';
-import { AUTH_PORT } from '@app/domain/auth/port/auth.port';
-import { SESSION_STORAGE_PORT } from '@app/domain/auth/port/session-storage.port';
+import { AUTH_PORT, AuthPort } from '@app/domain/auth/port/auth.port';
+import {
+  SESSION_STORAGE_PORT,
+  SessionStoragePort,
+} from '@app/domain/auth/port/session-storage.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { ForgotPasswordPage } from './forgot-password.page';
 
@@ -16,7 +21,7 @@ const STUDENT_SESSION: AuthSession = {
     id: 'usr-1',
     email: 'kelvin@duocuc.cl',
     role: 'student',
-    displayName: 'Ana Rojas',
+    displayName: 'Alejandra Acosta',
     avatarUrl: null,
     profileId: 'std-001',
   },
@@ -30,9 +35,9 @@ describe('ForgotPasswordPage', () => {
   let page: ForgotPasswordPage;
   let router: Router;
   let inputs: HTMLInputElement[];
-  let requestPasswordReset: jest.Mock;
-  let verifyOtp: jest.Mock;
-  let resetPassword: jest.Mock;
+  let requestPasswordReset: MockOf<AuthPort['requestPasswordReset']>;
+  let verifyOtp: MockOf<AuthPort['verifyOtp']>;
+  let resetPassword: MockOf<AuthPort['resetPassword']>;
 
   /** Sustituye el @ViewChildren('otpInput') por inputs reales de jsdom. */
   const attachOtpInputs = (): void => {
@@ -53,9 +58,9 @@ describe('ForgotPasswordPage', () => {
   };
 
   beforeEach(() => {
-    requestPasswordReset = jest.fn().mockReturnValue(of(undefined));
-    verifyOtp = jest.fn().mockReturnValue(of(TICKET));
-    resetPassword = jest.fn().mockReturnValue(of(STUDENT_SESSION));
+    requestPasswordReset = fn<AuthPort['requestPasswordReset']>().mockReturnValue(of(undefined));
+    verifyOtp = fn<AuthPort['verifyOtp']>().mockReturnValue(of(TICKET));
+    resetPassword = fn<AuthPort['resetPassword']>().mockReturnValue(of(STUDENT_SESSION));
 
     TestBed.configureTestingModule({
       providers: [
@@ -73,7 +78,11 @@ describe('ForgotPasswordPage', () => {
         },
         {
           provide: SESSION_STORAGE_PORT,
-          useValue: { read: () => null, write: jest.fn(), clear: jest.fn() },
+          useValue: {
+            read: () => null,
+            write: fn<SessionStoragePort['write']>(),
+            clear: fn<SessionStoragePort['clear']>(),
+          },
         },
       ],
     });
@@ -252,7 +261,7 @@ describe('ForgotPasswordPage', () => {
   describe('pegado del OTP', () => {
     const pasteEvent = (text: string): ClipboardEvent =>
       ({
-        preventDefault: jest.fn(),
+        preventDefault: fn<Event['preventDefault']>(),
         clipboardData: { getData: () => text },
       }) as unknown as ClipboardEvent;
 
@@ -293,7 +302,7 @@ describe('ForgotPasswordPage', () => {
     });
 
     it('entra en verificacion con el codigo completo', () => {
-      verifyOtp.mockReturnValue(new Subject<AuthSession>());
+      verifyOtp.mockReturnValue(new Subject<PasswordResetTicket>());
       page.otpValues.set(['1', '2', '3', '4', '5', '6']);
 
       page.onVerifyOtp();

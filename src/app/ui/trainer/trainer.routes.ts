@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
-import { provideTrainerMockData } from '@app/infrastructure/trainer-providers';
+import { provideTrainerData } from '@app/infrastructure/trainer-providers';
 
 /**
  * Rutas del entrenador.
@@ -12,7 +12,7 @@ import { provideTrainerMockData } from '@app/infrastructure/trainer-providers';
 export const TRAINER_ROUTES: Routes = [
   {
     path: '',
-    providers: [provideTrainerMockData()],
+    providers: [provideTrainerData()],
     children: [
       {
         path: '',
@@ -39,6 +39,14 @@ export const TRAINER_ROUTES: Routes = [
             path: 'routines',
             loadComponent: () =>
               import('./routines/trainer-routines.page').then(m => m.TrainerRoutinesPage),
+          },
+          {
+            // Fuera de las pestanas pero dentro del shell, como en el alumno.
+            path: 'notifications',
+            loadComponent: () =>
+              import('../shared/pages/notifications/notifications.page').then(
+                m => m.NotificationsPage,
+              ),
           },
           {
             path: 'profile',

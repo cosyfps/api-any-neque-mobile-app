@@ -1,11 +1,13 @@
 import { DestroyRef, Injectable, Signal, computed, inject, signal } from '@angular/core';
 
+import { measureOf, usesKg } from '@app/domain/routines/model/prescription';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
 import {
   WorkoutExerciseLog,
   WorkoutSession,
+  isResolved,
 } from '@app/domain/workouts/model/workout-session.model';
-import { WorkoutSetInput } from '@app/domain/workouts/model/workout-set.model';
+import { SkipReason, WorkoutSetInput } from '@app/domain/workouts/model/workout-set.model';
 import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
 
 import { AsyncState, ViewState, asyncState } from '../shared/async-state';
@@ -34,9 +36,12 @@ export class WorkoutRunnerFacade {
   private readonly _restRemaining = signal(0);
   private readonly _startedAt = signal<number | null>(null);
   private readonly _elapsedSeconds = signal(0);
+  private readonly _workRemaining = signal<number | null>(null);
+  private readonly _workRunning = signal(false);
 
   private restTimer: ReturnType<typeof setInterval> | null = null;
   private elapsedTimer: ReturnType<typeof setInterval> | null = null;
+  private workTimer: ReturnType<typeof setInterval> | null = null;
 
   readonly session: AsyncState<WorkoutSession> = asyncState<WorkoutSession>();
 
@@ -44,6 +49,9 @@ export class WorkoutRunnerFacade {
   readonly exerciseIndex: Signal<number> = this._exerciseIndex.asReadonly();
   readonly restRemaining: Signal<number> = this._restRemaining.asReadonly();
   readonly elapsedSeconds: Signal<number> = this._elapsedSeconds.asReadonly();
+  /** Segundos que le quedan a la serie por tiempo; null si no se inicio. */
+  readonly workRemaining: Signal<number | null> = this._workRemaining.asReadonly();
+  readonly workRunning: Signal<boolean> = this._workRunning.asReadonly();
 
   readonly exercises: Signal<readonly WorkoutExerciseLog[]> = computed(
     () => this.session.data()?.exercises ?? [],
@@ -62,14 +70,13 @@ export class WorkoutRunnerFacade {
     () => this._exerciseIndex() >= this.exercises().length - 1,
   );
 
-  /** Avance global de la sesion, entre 0 y 1. */
+  /** Avance global de la sesion, entre 0 y 1. Lo saltado tambien avanza. */
   readonly totalProgress: Signal<number> = computed(() => {
     const all = this.exercises();
     if (all.length === 0) {
       return 0;
     }
-    const done = all.filter(exercise => exercise.done).length;
-    return done / all.length;
+    return all.filter(isResolved).length / all.length;
   });
 
   readonly restTotal: Signal<number> = computed(() => this.currentExercise()?.restSeconds ?? 0);
@@ -80,6 +87,7 @@ export class WorkoutRunnerFacade {
     this.destroyRef.onDestroy(() => {
       this.clearRestTimer();
       this.clearElapsedTimer();
+      this.clearWork();
       this.session.destroy();
     });
   }
@@ -100,7 +108,7 @@ export class WorkoutRunnerFacade {
       return;
     }
 
-    const firstPending = current.exercises.findIndex(exercise => !exercise.done);
+    const firstPending = current.exercises.findIndex(exercise => !isResolved(exercise));
     this._exerciseIndex.set(firstPending === -1 ? 0 : firstPending);
     this._setIndex.set(0);
     this._phase.set('exercise');
@@ -120,41 +128,103 @@ export class WorkoutRunnerFacade {
    * `reps` y `weightKg` en `null` significan "tal como se prescribio": es el
    * caso normal, y evita que confirmar sin tocar nada cueste mas de un toque.
    */
-  completeSet(reps: number | null = null, weightKg: number | null = null): void {
+  completeSet(
+    reps: number | null = null,
+    weightKg: number | null = null,
+    durationSeconds: number | null = null,
+  ): void {
     const exercise = this.currentExercise();
     const current = this.session.data();
     if (exercise === null || current === null) {
       return;
     }
 
-    const nextSetIndex = this._setIndex() + 1;
-    // La decision se toma ANTES de persistir: la respuesta del puerto
-    // reemplaza la sesion y moveria `isLastExercise()` bajo nuestros pies.
-    const wasLastExercise = this.isLastExercise();
-
+    const porTiempo = measureOf(exercise) === 'time';
     const serie: WorkoutSetInput = {
       setNumber: this._setIndex() + 1,
-      reps: reps ?? exercise.targetReps,
-      weightKg: weightKg ?? exercise.weightKg,
+      reps: porTiempo ? null : (reps ?? exercise.targetReps),
+      weightKg: usesKg(exercise) ? (weightKg ?? exercise.weightKg) : null,
+      durationSeconds: porTiempo ? (durationSeconds ?? exercise.durationSeconds ?? null) : null,
     };
 
-    if (nextSetIndex < exercise.targetSets) {
-      this._setIndex.set(nextSetIndex);
-      this.persistSet(current.id, exercise.routineExerciseId, serie);
-      this.beginRest(exercise.restSeconds);
+    this.registrarYAvanzar(current.id, exercise, serie, true);
+  }
+
+  /**
+   * Salta la serie en curso. No hay descanso despues: si no se hizo, no hay
+   * de que recuperarse.
+   */
+  skipSet(reason: SkipReason | null = null): void {
+    const exercise = this.currentExercise();
+    const current = this.session.data();
+    if (exercise === null || current === null) {
       return;
     }
 
-    this.persistSet(current.id, exercise.routineExerciseId, serie);
+    this.registrarYAvanzar(
+      current.id,
+      exercise,
+      {
+        setNumber: this._setIndex() + 1,
+        reps: null,
+        weightKg: null,
+        skipped: true,
+        skipReason: reason,
+      },
+      false,
+    );
+  }
+
+  /** Salta las series que le quedan al ejercicio y pasa al siguiente. */
+  skipExercise(reason: SkipReason | null = null): void {
+    const exercise = this.currentExercise();
+    const current = this.session.data();
+    if (exercise === null || current === null) {
+      return;
+    }
+
+    const wasLastExercise = this.isLastExercise();
+    this.clearWork();
+    this.clearRestTimer();
+    this.port.skipExercise(current.id, exercise.routineExerciseId, reason).subscribe({
+      next: updated => this.session.set(updated),
+      error: () => undefined,
+    });
 
     if (wasLastExercise) {
       this.finishToSummary();
       return;
     }
-
     this._exerciseIndex.update(index => index + 1);
     this._setIndex.set(0);
-    this.beginRest(exercise.restSeconds);
+    this._phase.set('exercise');
+  }
+
+  /**
+   * Cuenta regresiva de una serie por tiempo: inicia, o pausa si ya corre.
+   * Reanudar sigue desde donde quedo; al llegar a cero se detiene sola.
+   */
+  toggleWork(seconds: number): void {
+    if (this._workRunning()) {
+      this.pauseWork();
+      return;
+    }
+    const pendiente = this._workRemaining();
+    this._workRemaining.set(pendiente === null || pendiente <= 0 ? seconds : pendiente);
+    this._workRunning.set(true);
+
+    this.workTimer = setInterval(() => {
+      const next = (this._workRemaining() ?? 0) - 1;
+      this._workRemaining.set(Math.max(0, next));
+      if (next <= 0) {
+        this.pauseWork();
+      }
+    }, TICK_MS);
+  }
+
+  /** Vuelve la cuenta regresiva al inicio, detenida. */
+  resetWork(): void {
+    this.clearWork();
   }
 
   /** Suma 15 segundos al descanso en curso. */
@@ -181,6 +251,7 @@ export class WorkoutRunnerFacade {
       return;
     }
     this.clearRestTimer();
+    this.clearWork();
     this._exerciseIndex.update(index => index - 1);
     this._setIndex.set(0);
     this._phase.set('exercise');
@@ -193,6 +264,7 @@ export class WorkoutRunnerFacade {
       return;
     }
     this.clearRestTimer();
+    this.clearWork();
     this._exerciseIndex.update(index => index + 1);
     this._setIndex.set(0);
     this._phase.set('exercise');
@@ -228,7 +300,64 @@ export class WorkoutRunnerFacade {
   private finishToSummary(): void {
     this.clearRestTimer();
     this.clearElapsedTimer();
+    this.clearWork();
     this._phase.set('summary');
+  }
+
+  /**
+   * Registra la serie y mueve el runner: a la siguiente serie, al siguiente
+   * ejercicio o al resumen.
+   *
+   * La decision se toma ANTES de persistir: la respuesta del puerto reemplaza
+   * la sesion y moveria `isLastExercise()` bajo nuestros pies.
+   */
+  private registrarYAvanzar(
+    sessionId: string,
+    exercise: WorkoutExerciseLog,
+    serie: WorkoutSetInput,
+    descansar: boolean,
+  ): void {
+    const nextSetIndex = this._setIndex() + 1;
+    const wasLastExercise = this.isLastExercise();
+    this.clearWork();
+    this.persistSet(sessionId, exercise.routineExerciseId, serie);
+
+    if (nextSetIndex < exercise.targetSets) {
+      this._setIndex.set(nextSetIndex);
+      this.despuesDeSerie(exercise.restSeconds, descansar);
+      return;
+    }
+
+    if (wasLastExercise) {
+      this.finishToSummary();
+      return;
+    }
+
+    this._exerciseIndex.update(index => index + 1);
+    this._setIndex.set(0);
+    this.despuesDeSerie(exercise.restSeconds, descansar);
+  }
+
+  private despuesDeSerie(restSeconds: number, descansar: boolean): void {
+    if (descansar) {
+      this.beginRest(restSeconds);
+      return;
+    }
+    this.clearRestTimer();
+    this._phase.set('exercise');
+  }
+
+  private pauseWork(): void {
+    if (this.workTimer !== null) {
+      clearInterval(this.workTimer);
+      this.workTimer = null;
+    }
+    this._workRunning.set(false);
+  }
+
+  private clearWork(): void {
+    this.pauseWork();
+    this._workRemaining.set(null);
   }
 
   private persistSet(sessionId: string, routineExerciseId: string, set: WorkoutSetInput): void {

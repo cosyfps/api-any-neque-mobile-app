@@ -4,9 +4,9 @@ const student: Student = {
   id: 'std-001',
   trainerId: 'trn-001',
   trainerName: 'Kelvin Moreno',
-  firstName: 'Ana',
-  lastName: 'Rojas',
-  email: 'ana@neque.cl',
+  firstName: 'Alejandra',
+  lastName: 'Acosta',
+  email: 'alejandra@neque.cl',
   phone: null,
   avatarUrl: null,
   status: 'active',
@@ -19,17 +19,17 @@ const student: Student = {
 describe('student model', () => {
   describe('fullName()', () => {
     it('une nombre y apellido', () => {
-      expect(fullName(student)).toBe('Ana Rojas');
+      expect(fullName(student)).toBe('Alejandra Acosta');
     });
 
     it('no deja espacios sobrantes sin apellido', () => {
-      expect(fullName({ ...student, lastName: '' })).toBe('Ana');
+      expect(fullName({ ...student, lastName: '' })).toBe('Alejandra');
     });
   });
 
   describe('initials()', () => {
     it('toma la inicial de cada campo en mayuscula', () => {
-      expect(initials(student)).toBe('AR');
+      expect(initials(student)).toBe('AA');
     });
 
     it('devuelve una sola letra sin apellido', () => {

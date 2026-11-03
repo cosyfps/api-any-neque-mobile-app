@@ -4,27 +4,33 @@ import { Observable } from 'rxjs';
 import { Id } from '@app/domain/shared/model/ids';
 
 import { Exercise, ExerciseInput } from '../model/exercise.model';
-import { Routine, RoutineInput } from '../model/routine.model';
+import { Routine, RoutineAssignment, RoutineInput } from '../model/routine.model';
 
 export interface RoutinesPort {
-  /** Rutina vigente del alumno. Null si todavia no tiene una asignada. */
+  /** Rutina que hace el alumno. Null si todavia no tiene una asignada. */
   getActiveForStudent(studentId: Id): Observable<Routine | null>;
-  listByStudent(studentId: Id): Observable<Routine[]>;
   listByTrainer(trainerId: Id): Observable<Routine[]>;
   getById(routineId: Id): Observable<Routine>;
 
-  /** Crea la rutina en borrador, sin asignar. */
+  /** Crea la rutina como plantilla, sin alumnos. */
   create(input: RoutineInput): Observable<Routine>;
+  /** Cambia la plantilla. Sus alumnos siguen asignados y ven el cambio. */
   update(routineId: Id, changes: RoutineInput): Observable<Routine>;
   /**
-   * Activa la rutina para su alumno y archiva la anterior.
+   * Reemplaza la lista de alumnos de la rutina.
    *
-   * Va en una sola operacion a proposito: solo puede haber un plan semanal
-   * activo por alumno, y hacerlo en dos pasos deja un hueco donde hay dos o
-   * ninguno.
+   * Un alumno hace una sola rutina: el que llega desde otra sale de aquella
+   * en la misma operacion. En dos pasos quedaria un hueco donde el alumno
+   * tiene dos rutinas o ninguna.
    */
-  assign(routineId: Id): Observable<Routine>;
-  archive(routineId: Id): Observable<Routine>;
+  setAssignments(routineId: Id, assignments: readonly RoutineAssignment[]): Observable<Routine>;
+  /**
+   * Elimina la plantilla y libera a sus alumnos, que quedan sin rutina.
+   *
+   * Las sesiones que ya entrenaron con ella no se tocan: el BFF la marca con
+   * `deletedAt` en vez de borrar la fila, asi el historial sigue resolviendo.
+   */
+  remove(routineId: Id): Observable<void>;
 }
 
 export const ROUTINES_PORT = new InjectionToken<RoutinesPort>('RoutinesPort');

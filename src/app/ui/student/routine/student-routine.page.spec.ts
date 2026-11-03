@@ -5,11 +5,13 @@ import { of } from 'rxjs';
 import { SessionFacade } from '@app/application/auth/session.facade';
 import { StudentRoutineFacade } from '@app/application/routines/student-routine.facade';
 import { Routine, RoutineExercise } from '@app/domain/routines/model/routine.model';
-import { ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
+import { ROUTINES_PORT, RoutinesPort } from '@app/domain/routines/port/routines.port';
 import { toIsoDate } from '@app/domain/shared/model/date';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
 import { WorkoutSession } from '@app/domain/workouts/model/workout-session.model';
-import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
+import { WORKOUTS_PORT, WorkoutsPort } from '@app/domain/workouts/port/workouts.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { StudentRoutinePage } from './student-routine.page';
 
@@ -30,13 +32,10 @@ const EXERCISE: RoutineExercise = {
 
 const ROUTINE: Routine = {
   id: 'rtn-001',
-  studentId: 'std-001',
   trainerId: 'trn-001',
   name: 'Hipertrofia',
   goal: 'Masa muscular',
-  startDate: '2026-09-01T00:00:00.000Z',
-  endDate: null,
-  status: 'active',
+  assignments: [{ studentId: 'std-001', startDate: '2026-09-01T00:00:00.000Z', endDate: null }],
   days: [
     {
       id: 'day-004',
@@ -83,8 +82,8 @@ const sessionWith = (
 describe('StudentRoutinePage', () => {
   let page: StudentRoutinePage;
   let router: Router;
-  let markExercise: jest.Mock;
-  let complete: jest.Mock;
+  let markExercise: MockOf<WorkoutsPort['markExercise']>;
+  let complete: MockOf<WorkoutsPort['complete']>;
 
   const createPage = (session = sessionWith(false)): StudentRoutinePage => {
     TestBed.resetTestingModule();
@@ -98,8 +97,8 @@ describe('StudentRoutinePage', () => {
           provide: ROUTINES_PORT,
           useValue: {
             getActiveForStudent: () => of(ROUTINE),
-            listByStudent: jest.fn(),
-            getById: jest.fn(),
+            listByTrainer: fn<RoutinesPort['listByTrainer']>(),
+            getById: fn<RoutinesPort['getById']>(),
           },
         },
         {
@@ -108,9 +107,9 @@ describe('StudentRoutinePage', () => {
             listByStudent: () => of([session]),
             markExercise,
             complete,
-            getById: jest.fn(),
-            start: jest.fn(),
-            logSet: jest.fn(),
+            getById: fn<WorkoutsPort['getById']>(),
+            start: fn<WorkoutsPort['start']>(),
+            logSet: fn<WorkoutsPort['logSet']>(),
           },
         },
       ],
@@ -121,8 +120,8 @@ describe('StudentRoutinePage', () => {
   };
 
   beforeEach(() => {
-    markExercise = jest.fn().mockReturnValue(of(sessionWith(true)));
-    complete = jest.fn().mockReturnValue(of(sessionWith(true, 'completed')));
+    markExercise = fn<WorkoutsPort['markExercise']>().mockReturnValue(of(sessionWith(true)));
+    complete = fn<WorkoutsPort['complete']>().mockReturnValue(of(sessionWith(true, 'completed')));
     page = createPage();
   });
 
@@ -233,6 +232,97 @@ describe('StudentRoutinePage', () => {
       page.dismissCelebration();
 
       expect(page.showCelebration()).toBe(false);
+    });
+  });
+
+  describe('celebracion una sola vez', () => {
+    // Marcar el ultimo ejercicio completa la sesion: se celebra.
+    it('toggle() que completa la sesion celebra', async () => {
+      markExercise.mockReturnValue(of(sessionWith(true, 'completed')));
+
+      await page.toggle(EXERCISE);
+
+      expect(page.showCelebration()).toBe(true);
+    });
+
+    it('desmarcar y volver a marcar no repite la celebracion', async () => {
+      markExercise.mockReturnValue(of(sessionWith(true, 'completed')));
+      await page.toggle(EXERCISE);
+      page.dismissCelebration();
+
+      markExercise.mockReturnValue(of(sessionWith(false, 'in_progress')));
+      await page.toggle(EXERCISE);
+      markExercise.mockReturnValue(of(sessionWith(true, 'completed')));
+      await page.toggle(EXERCISE);
+
+      expect(page.showCelebration()).toBe(false);
+    });
+
+    it('marcar sin completar la sesion no celebra', async () => {
+      markExercise.mockReturnValue(of(sessionWith(true, 'in_progress')));
+
+      await page.toggle(EXERCISE);
+
+      expect(page.showCelebration()).toBe(false);
+    });
+  });
+
+  describe('banner de sesion completada', () => {
+    it('sin saltos invita a sumar la semana', () => {
+      page = createPage(sessionWith(true, 'completed'));
+
+      expect(page.doneSubtitle()).toBe('Sumaste una sesión a tu semana.');
+    });
+
+    it('con saltos dice cuantos', () => {
+      const base = sessionWith(false, 'completed');
+      page = createPage({
+        ...base,
+        exercises: base.exercises.map(item => ({ ...item, skipped: true })),
+      });
+
+      expect(page.doneSubtitle()).toBe('1 ejercicio saltado.');
+    });
+  });
+
+  describe('ejercicio saltado', () => {
+    const saltada = (skipReason: 'pain' | null): WorkoutSession => {
+      const base = sessionWith(false, 'in_progress');
+      return {
+        ...base,
+        exercises: base.exercises.map(item => ({ ...item, skipped: true, skipReason })),
+      };
+    };
+
+    it('muestra el motivo', () => {
+      page = createPage(saltada('pain'));
+
+      expect(page.skipLabel('rex-009')).toBe('Saltado · Molestia o dolor');
+    });
+
+    it('sin motivo solo dice saltado', () => {
+      page = createPage(saltada(null));
+
+      expect(page.skipLabel('rex-009')).toBe('Saltado');
+    });
+
+    it('no marca un ejercicio que no se salto', () => {
+      expect(page.skipLabel('rex-009')).toBeNull();
+    });
+  });
+
+  describe('prescripcion()', () => {
+    it.each([
+      [{ weightKg: 30 }, '4 × 8 · 30 kg'],
+      [{ weightKg: null }, '4 × 8 · Peso corporal'],
+      [{ weightKg: 10, load: 'weighted_bodyweight' as const }, '4 × 8 · peso extra · 10kg'],
+      [
+        { weightKg: null, measure: 'time' as const, durationSeconds: 45, sets: 3 },
+        '3 × 45 s · Peso corporal',
+      ],
+      [{ weightKg: null, load: 'weight' as const }, '4 × 8'],
+    ])('%o → %s', (cambios, texto) => {
+      expect(page.prescripcion({ ...EXERCISE, ...cambios })).toBe(texto);
     });
   });
 

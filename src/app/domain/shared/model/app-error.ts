@@ -2,15 +2,18 @@
 export type DomainErrorCode =
   | 'not_found'
   | 'unauthorized'
+  | 'forbidden'
   | 'invalid_credentials'
+  | 'too_many_attempts'
   | 'invalid_invitation'
   | 'conflict'
+  | 'validation'
   | 'network'
   | 'unknown';
 
 /**
  * Error de dominio. Los adapters traducen cualquier fallo de su tecnologia
- * (HTTP, storage, mock) a esta forma, de modo que la capa de aplicacion
+ * (HTTP, storage) a esta forma, de modo que la capa de aplicacion
  * nunca dependa del transporte.
  */
 export class DomainError extends Error {
@@ -28,9 +31,12 @@ export class DomainError extends Error {
 const DEFAULT_MESSAGES: Record<DomainErrorCode, string> = {
   not_found: 'No encontramos lo que buscabas.',
   unauthorized: 'Tu sesión expiró. Vuelve a ingresar.',
+  forbidden: 'Tu cuenta no tiene acceso a esta sección.',
   invalid_credentials: 'Correo o contraseña incorrectos.',
+  too_many_attempts: 'Demasiados intentos fallidos. Espera unos minutos e intenta de nuevo.',
   invalid_invitation: 'Esta invitación no es válida o ya fue utilizada.',
   conflict: 'Ya existe un registro con esos datos.',
+  validation: 'Revisa los datos ingresados.',
   network: 'No pudimos conectarnos. Revisa tu conexión.',
   unknown: 'Algo salió mal. Intenta de nuevo.',
 };

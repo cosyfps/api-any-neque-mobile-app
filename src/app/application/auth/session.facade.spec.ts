@@ -2,13 +2,15 @@ import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
 import { AuthSession } from '@app/domain/auth/model/auth-user.model';
-import { AUTH_PORT } from '@app/domain/auth/port/auth.port';
+import { AUTH_PORT, AuthPort } from '@app/domain/auth/port/auth.port';
 import {
   SESSION_STORAGE_PORT,
   SessionStoragePort,
 } from '@app/domain/auth/port/session-storage.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { SessionFacade } from './session.facade';
 
@@ -19,7 +21,7 @@ const sessionFor = (role: 'trainer' | 'student', expiresAt: string): AuthSession
     id: `usr-${role}`,
     email: `${role}@neque.cl`,
     role,
-    displayName: role === 'trainer' ? 'Kelvin Moreno' : 'Ana Rojas',
+    displayName: role === 'trainer' ? 'Kelvin Moreno' : 'Alejandra Acosta',
     avatarUrl: null,
     profileId: role === 'trainer' ? 'trn-001' : 'std-001',
   },
@@ -32,8 +34,8 @@ const VALID_TRAINER = sessionFor('trainer', '2026-09-24T10:00:00.000Z');
 const EXPIRED = sessionFor('student', '2026-09-10T10:00:00.000Z');
 
 describe('SessionFacade', () => {
-  let login: jest.Mock;
-  let signOut: jest.Mock;
+  let login: MockOf<AuthPort['login']>;
+  let signOut: MockOf<AuthPort['signOut']>;
   let storage: jest.Mocked<SessionStoragePort>;
 
   const build = (): SessionFacade => {
@@ -57,9 +59,13 @@ describe('SessionFacade', () => {
   };
 
   beforeEach(() => {
-    login = jest.fn().mockReturnValue(of(VALID_STUDENT));
-    signOut = jest.fn().mockReturnValue(of(undefined));
-    storage = { read: jest.fn().mockReturnValue(null), write: jest.fn(), clear: jest.fn() };
+    login = fn<AuthPort['login']>().mockReturnValue(of(VALID_STUDENT));
+    signOut = fn<AuthPort['signOut']>().mockReturnValue(of(undefined));
+    storage = {
+      read: fn<SessionStoragePort['read']>().mockReturnValue(null),
+      write: fn<SessionStoragePort['write']>(),
+      clear: fn<SessionStoragePort['clear']>(),
+    };
   });
 
   describe('estado inicial', () => {
@@ -131,11 +137,11 @@ describe('SessionFacade', () => {
     it('publica la sesion, la persiste y devuelve el home del rol', async () => {
       const facade = build();
 
-      const route = await facade.login({ email: 'ana@neque.cl', password: 'x' });
+      const route = await facade.login({ email: 'alejandra@neque.cl', password: 'x' });
 
       expect(route).toBe('/student/home');
       expect(facade.isAuthenticated()).toBe(true);
-      expect(facade.displayName()).toBe('Ana Rojas');
+      expect(facade.displayName()).toBe('Alejandra Acosta');
       expect(storage.write).toHaveBeenCalledWith(VALID_STUDENT);
       expect(facade.status()).toBe('idle');
     });
@@ -151,7 +157,7 @@ describe('SessionFacade', () => {
       login.mockReturnValue(throwError(() => domainError('invalid_credentials')));
       const facade = build();
 
-      const route = await facade.login({ email: 'ana@neque.cl', password: 'mala' });
+      const route = await facade.login({ email: 'alejandra@neque.cl', password: 'mala' });
 
       expect(route).toBeNull();
       expect(facade.isAuthenticated()).toBe(false);
@@ -163,10 +169,10 @@ describe('SessionFacade', () => {
     it('limpia el error de un intento previo', async () => {
       login.mockReturnValue(throwError(() => domainError('invalid_credentials')));
       const facade = build();
-      await facade.login({ email: 'ana@neque.cl', password: 'mala' });
+      await facade.login({ email: 'alejandra@neque.cl', password: 'mala' });
 
       login.mockReturnValue(of(VALID_STUDENT));
-      await facade.login({ email: 'ana@neque.cl', password: 'buena' });
+      await facade.login({ email: 'alejandra@neque.cl', password: 'buena' });
 
       expect(facade.loginError()).toBeNull();
       expect(facade.status()).toBe('idle');
@@ -188,7 +194,7 @@ describe('SessionFacade', () => {
   describe('signOut()', () => {
     it('limpia la sesion y el storage', async () => {
       const facade = build();
-      await facade.login({ email: 'ana@neque.cl', password: 'x' });
+      await facade.login({ email: 'alejandra@neque.cl', password: 'x' });
 
       await facade.signOut();
 
@@ -199,7 +205,7 @@ describe('SessionFacade', () => {
     it('limpia igual aunque el backend falle', async () => {
       signOut.mockReturnValue(throwError(() => domainError('network')));
       const facade = build();
-      await facade.login({ email: 'ana@neque.cl', password: 'x' });
+      await facade.login({ email: 'alejandra@neque.cl', password: 'x' });
 
       await facade.signOut();
 
@@ -212,7 +218,7 @@ describe('SessionFacade', () => {
     it('descarta el error y vuelve a idle', async () => {
       login.mockReturnValue(throwError(() => domainError('invalid_credentials')));
       const facade = build();
-      await facade.login({ email: 'ana@neque.cl', password: 'mala' });
+      await facade.login({ email: 'alejandra@neque.cl', password: 'mala' });
 
       facade.clearError();
 

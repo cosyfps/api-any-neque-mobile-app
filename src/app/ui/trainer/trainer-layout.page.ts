@@ -1,8 +1,10 @@
 import { Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
-import { LucideDumbbell, LucideHouse, LucideUser, LucideUsers } from '@lucide/angular';
+import { LucideDumbbell, LucideHouse, LucidePlus, LucideUser, LucideUsers } from '@lucide/angular';
 import { filter, map, scan } from 'rxjs/operators';
+
+import { FabRegistry } from '@shared/navigation/fab';
 
 interface TrainerTab {
   readonly path: string;
@@ -26,12 +28,25 @@ function tabFor(url: string): string {
 @Component({
   selector: 'app-trainer-layout',
   standalone: true,
-  imports: [RouterOutlet, LucideHouse, LucideUsers, LucideDumbbell, LucideUser],
+  imports: [RouterOutlet, LucideHouse, LucideUsers, LucideDumbbell, LucideUser, LucidePlus],
   template: `
     <div class="layout">
       <div class="layout-content">
         <router-outlet />
       </div>
+
+      <!-- Fuera de .layout-content: dentro del scroll, iOS lo desplazaba
+           con la lista. Lo aporta la pantalla activa via useFab(). -->
+      @if (fab.action(); as action) {
+        <button
+          class="nq-fab"
+          type="button"
+          [attr.aria-label]="action.label()"
+          (click)="action.run()"
+        >
+          <svg lucidePlus [size]="24" [strokeWidth]="2"></svg>
+        </button>
+      }
 
       <nav class="tab-bar" aria-label="Navegación principal">
         @for (tab of tabs; track tab.path) {
@@ -67,6 +82,7 @@ function tabFor(url: string): string {
 })
 export class TrainerLayoutPage {
   readonly tabs = TABS;
+  readonly fab = inject(FabRegistry);
 
   private readonly router = inject(Router);
 

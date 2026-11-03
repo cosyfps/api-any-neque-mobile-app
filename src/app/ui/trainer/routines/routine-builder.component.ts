@@ -8,13 +8,21 @@ import {
   MuscleGroup,
 } from '@app/domain/routines/model/exercise.model';
 import {
+  EXERCISE_LOAD_LABEL,
+  EXERCISE_MEASURE_LABEL,
+  ExerciseLoad,
+  ExerciseMeasure,
+  loadOf,
+  measureOf,
+  usesKg,
+} from '@app/domain/routines/model/prescription';
+import {
   Routine,
   RoutineDayInput,
   RoutineExerciseInput,
   RoutineInput,
 } from '@app/domain/routines/model/routine.model';
 import { Weekday } from '@app/domain/shared/model/date';
-import { Student, fullName } from '@app/domain/students/model/student.model';
 
 /** Etiquetas de los dias ISO, en el orden en que se muestran. */
 const DIAS: readonly { value: Weekday; label: string }[] = [
@@ -33,6 +41,22 @@ const GRUPOS = Object.entries(MUSCLE_GROUP_LABEL).map(([value, label]) => ({
 }));
 
 const MINUTOS_POR_DEFECTO = 50;
+
+const CARGAS = (Object.keys(EXERCISE_LOAD_LABEL) as ExerciseLoad[]).map(value => ({
+  value,
+  label: EXERCISE_LOAD_LABEL[value],
+}));
+
+const MEDIDAS = (Object.keys(EXERCISE_MEASURE_LABEL) as ExerciseMeasure[]).map(value => ({
+  value,
+  label: EXERCISE_MEASURE_LABEL[value],
+}));
+
+/** Duracion con que nace una serie por tiempo, en segundos. */
+const SEGUNDOS_POR_DEFECTO = 60;
+
+/** Tope de una serie por tiempo: dos horas. */
+const SEGUNDOS_MAXIMOS = 7200;
 
 /**
  * Constructor de rutinas.
@@ -70,34 +94,6 @@ const MINUTOS_POR_DEFECTO = 50;
         </div>
       </div>
 
-      <div class="field">
-        <label class="nq-field-label" [attr.for]="id('alumno')">Alumno *</label>
-        <div class="nq-field-input">
-          <select [attr.id]="id('alumno')" formControlName="studentId">
-            <option value="">Selecciona un alumno</option>
-            @for (student of students(); track student.id) {
-              <option [value]="student.id">{{ nombreDe(student) }}</option>
-            }
-          </select>
-        </div>
-      </div>
-
-      <div class="row-2">
-        <div class="field">
-          <label class="nq-field-label" [attr.for]="id('inicio')">Inicio *</label>
-          <div class="nq-field-input">
-            <input [attr.id]="id('inicio')" formControlName="startDate" type="date" />
-          </div>
-        </div>
-
-        <div class="field">
-          <label class="nq-field-label" [attr.for]="id('fin')">Fin</label>
-          <div class="nq-field-input">
-            <input [attr.id]="id('fin')" formControlName="endDate" type="date" />
-          </div>
-        </div>
-      </div>
-
       <section class="days">
         <div class="days-head">
           <h3 class="days-title">Días ({{ days().length }})</h3>
@@ -111,13 +107,13 @@ const MINUTOS_POR_DEFECTO = 50;
           <p class="hint">Una rutina sin días no se puede asignar. Agrega al menos uno.</p>
         }
 
-        @for (day of days(); track $index) {
+        @for (day of days(); track d; let d = $index) {
           <div class="day">
             <button
               class="day-head"
               type="button"
-              [attr.aria-expanded]="openDay() === $index"
-              (click)="toggleDay($index)"
+              [attr.aria-expanded]="openDay() === d"
+              (click)="toggleDay(d)"
             >
               <span class="day-title">
                 {{ etiquetaDia(day.weekday) }} · {{ day.title || 'Sin título' }}
@@ -125,23 +121,23 @@ const MINUTOS_POR_DEFECTO = 50;
               <span class="day-meta">{{ day.exercises.length }} ej.</span>
               <svg
                 class="day-chevron"
-                [class.open]="openDay() === $index"
+                [class.open]="openDay() === d"
                 lucideChevronDown
                 [size]="18"
                 [strokeWidth]="2"
               ></svg>
             </button>
 
-            @if (openDay() === $index) {
+            @if (openDay() === d) {
               <div class="day-body">
                 <div class="row-2">
                   <div class="field">
-                    <label class="nq-field-label" [attr.for]="id('dia-' + $index)">Día</label>
+                    <label class="nq-field-label" [attr.for]="id('dia-' + d)">Día</label>
                     <div class="nq-field-input">
                       <select
-                        [attr.id]="id('dia-' + $index)"
+                        [attr.id]="id('dia-' + d)"
                         [value]="day.weekday"
-                        (change)="setWeekday($index, $event)"
+                        (change)="setWeekday(d, $event)"
                       >
                         @for (opcion of dias; track opcion.value) {
                           <option [value]="opcion.value">{{ opcion.label }}</option>
@@ -151,12 +147,12 @@ const MINUTOS_POR_DEFECTO = 50;
                   </div>
 
                   <div class="field">
-                    <label class="nq-field-label" [attr.for]="id('foco-' + $index)">Foco</label>
+                    <label class="nq-field-label" [attr.for]="id('foco-' + d)">Foco</label>
                     <div class="nq-field-input">
                       <select
-                        [attr.id]="id('foco-' + $index)"
+                        [attr.id]="id('foco-' + d)"
                         [value]="day.focus"
-                        (change)="setFocus($index, $event)"
+                        (change)="setFocus(d, $event)"
                       >
                         @for (grupo of grupos; track grupo.value) {
                           <option [value]="grupo.value">{{ grupo.label }}</option>
@@ -168,30 +164,28 @@ const MINUTOS_POR_DEFECTO = 50;
 
                 <div class="row-2">
                   <div class="field">
-                    <label class="nq-field-label" [attr.for]="id('titulo-' + $index)">Título</label>
+                    <label class="nq-field-label" [attr.for]="id('titulo-' + d)">Título</label>
                     <div class="nq-field-input">
                       <input
-                        [attr.id]="id('titulo-' + $index)"
+                        [attr.id]="id('titulo-' + d)"
                         [value]="day.title"
                         placeholder="Tren inferior"
-                        (input)="setTitle($index, $event)"
+                        (input)="setTitle(d, $event)"
                       />
                     </div>
                   </div>
 
                   <div class="field">
-                    <label class="nq-field-label" [attr.for]="id('minutos-' + $index)">
-                      Minutos
-                    </label>
+                    <label class="nq-field-label" [attr.for]="id('minutos-' + d)"> Minutos </label>
                     <div class="nq-field-input">
                       <input
-                        [attr.id]="id('minutos-' + $index)"
+                        [attr.id]="id('minutos-' + d)"
                         type="number"
                         inputmode="numeric"
                         min="10"
                         max="180"
                         [value]="day.estimatedMinutes"
-                        (input)="setMinutes($index, $event)"
+                        (input)="setMinutes(d, $event)"
                       />
                     </div>
                   </div>
@@ -212,6 +206,54 @@ const MINUTOS_POR_DEFECTO = 50;
                         </button>
                       </div>
 
+                      <!-- Carga y medida deciden que ve el alumno: una lagartija no
+                           lleva kg y una plancha se cuenta en segundos. -->
+                      <div class="kind-row">
+                        <div class="kind">
+                          <label class="kind-label" [attr.for]="id('carga-' + d + '-' + $index)">
+                            Carga
+                          </label>
+                          <div class="nq-field-input">
+                            <select
+                              [attr.id]="id('carga-' + d + '-' + $index)"
+                              (change)="setLoad(day, $index, $event)"
+                            >
+                              <!-- [selected] por opcion y no [value] en el select:
+                                   el value se aplica antes de que el @for cree las
+                                   opciones y el select quedaba en la primera. -->
+                              @for (opcion of cargas; track opcion.value) {
+                                <option
+                                  [value]="opcion.value"
+                                  [selected]="opcion.value === cargaDe(exercise)"
+                                >
+                                  {{ opcion.label }}
+                                </option>
+                              }
+                            </select>
+                          </div>
+                        </div>
+                        <div class="kind">
+                          <label class="kind-label" [attr.for]="id('medida-' + d + '-' + $index)">
+                            Se mide en
+                          </label>
+                          <div class="nq-field-input">
+                            <select
+                              [attr.id]="id('medida-' + d + '-' + $index)"
+                              (change)="setMeasure(day, $index, $event)"
+                            >
+                              @for (opcion of medidas; track opcion.value) {
+                                <option
+                                  [value]="opcion.value"
+                                  [selected]="opcion.value === medidaDe(exercise)"
+                                >
+                                  {{ opcion.label }}
+                                </option>
+                              }
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
                       <div class="prescription">
                         <label class="presc">
                           <input
@@ -224,29 +266,58 @@ const MINUTOS_POR_DEFECTO = 50;
                           />
                           <span>series</span>
                         </label>
-                        <label class="presc">
-                          <input
-                            type="number"
-                            inputmode="numeric"
-                            min="1"
-                            max="100"
-                            [value]="exercise.reps"
-                            (input)="setPrescription(day, $index, 'reps', $event)"
-                          />
-                          <span>reps</span>
-                        </label>
-                        <label class="presc">
-                          <input
-                            type="number"
-                            inputmode="decimal"
-                            min="0"
-                            max="500"
-                            step="0.5"
-                            [value]="exercise.weightKg"
-                            (input)="setPrescription(day, $index, 'weightKg', $event)"
-                          />
-                          <span>kg</span>
-                        </label>
+                        @if (medidaDe(exercise) === 'time') {
+                          <label class="presc">
+                            <input
+                              type="number"
+                              inputmode="numeric"
+                              min="0"
+                              max="120"
+                              [value]="minutos(exercise)"
+                              (input)="setDuration(day, $index, 'min', $event)"
+                            />
+                            <span>min</span>
+                          </label>
+                          <label class="presc">
+                            <input
+                              type="number"
+                              inputmode="numeric"
+                              min="0"
+                              max="59"
+                              step="5"
+                              [value]="segundos(exercise)"
+                              (input)="setDuration(day, $index, 'seg', $event)"
+                            />
+                            <span>seg</span>
+                          </label>
+                        } @else {
+                          <label class="presc">
+                            <input
+                              type="number"
+                              inputmode="numeric"
+                              min="1"
+                              max="100"
+                              [value]="exercise.reps"
+                              (input)="setPrescription(day, $index, 'reps', $event)"
+                            />
+                            <span>reps</span>
+                          </label>
+                        }
+                        @if (usaKg(exercise)) {
+                          <!-- Texto con teclado decimal: un type="number" en
+                               Safari descarta la coma del teclado en espanol. -->
+                          <label class="presc">
+                            <input
+                              type="text"
+                              inputmode="decimal"
+                              [value]="kgTexto(exercise)"
+                              (input)="setPrescription(day, $index, 'weightKg', $event)"
+                            />
+                            <span>{{
+                              cargaDe(exercise) === 'weighted_bodyweight' ? 'extra kg' : 'kg'
+                            }}</span>
+                          </label>
+                        }
                         <label class="presc">
                           <input
                             type="number"
@@ -264,12 +335,12 @@ const MINUTOS_POR_DEFECTO = 50;
                   }
 
                   <div class="field">
-                    <label class="nq-field-label" [attr.for]="id('ejercicio-' + $index)">
+                    <label class="nq-field-label" [attr.for]="id('ejercicio-' + d)">
                       Agregar ejercicio
                     </label>
                     <div class="nq-field-input">
                       <select
-                        [attr.id]="id('ejercicio-' + $index)"
+                        [attr.id]="id('ejercicio-' + d)"
                         value=""
                         (change)="addExercise(day, $event)"
                       >
@@ -293,7 +364,7 @@ const MINUTOS_POR_DEFECTO = 50;
                   </div>
                 </div>
 
-                <button class="remove-day" type="button" (click)="removeDay($index)">
+                <button class="remove-day" type="button" (click)="removeDay(d)">
                   Quitar este día
                 </button>
               </div>
@@ -310,7 +381,7 @@ const MINUTOS_POR_DEFECTO = 50;
         <p class="nq-field-error submit-error" role="alert">{{ error }}</p>
       }
 
-      <div class="form-actions">
+      <div class="form-actions nq-sheet-actions">
         <button class="nq-btn nq-btn-secondary" type="button" (click)="cancelled.emit()">
           Cancelar
         </button>
@@ -323,7 +394,6 @@ const MINUTOS_POR_DEFECTO = 50;
   styleUrl: './routine-builder.component.scss',
 })
 export class RoutineBuilderComponent {
-  readonly students = input<readonly Student[]>([]);
   readonly publicExercises = input<readonly Exercise[]>([]);
   readonly ownExercises = input<readonly Exercise[]>([]);
   readonly routine = input<Routine | null>(null);
@@ -336,6 +406,8 @@ export class RoutineBuilderComponent {
 
   readonly dias = DIAS;
   readonly grupos = GRUPOS;
+  readonly cargas = CARGAS;
+  readonly medidas = MEDIDAS;
 
   readonly days = signal<RoutineDayInput[]>([]);
   readonly openDay = signal<number | null>(null);
@@ -343,9 +415,6 @@ export class RoutineBuilderComponent {
   readonly form = inject(FormBuilder).nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(80)]],
     goal: ['', [Validators.required, Validators.maxLength(120)]],
-    studentId: ['', Validators.required],
-    startDate: ['', Validators.required],
-    endDate: [''],
   });
 
   readonly validationError = computed(() => {
@@ -353,7 +422,7 @@ export class RoutineBuilderComponent {
       return null;
     }
     if (this.form.invalid) {
-      return 'Completa nombre, objetivo, alumno y fecha de inicio.';
+      return 'Completa nombre y objetivo.';
     }
     if (this.days().length === 0) {
       return 'Agrega al menos un día de entrenamiento.';
@@ -375,17 +444,18 @@ export class RoutineBuilderComponent {
     return `${this.uid}-${campo}`;
   }
 
-  nombreDe(student: Student): string {
-    return fullName(student);
-  }
-
   etiquetaDia(weekday: Weekday): string {
     return DIAS.find(item => item.value === weekday)?.label ?? '';
   }
 
-  /** Carga la rutina a editar, o deja el constructor en blanco. */
-  reset(): void {
-    const routine = this.routine();
+  /**
+   * Carga la rutina a editar, o deja el constructor en blanco.
+   *
+   * Se le puede pasar la rutina: quien lo abre la cambia y llama aqui en el
+   * mismo paso, antes de que el input la reciba. Sin el argumento, editar
+   * abria el constructor vacio.
+   */
+  reset(routine: Routine | null = this.routine()): void {
     this.intentado.set(false);
     this.openDay.set(null);
     this.days.set(
@@ -403,15 +473,15 @@ export class RoutineBuilderComponent {
           restSeconds: exercise.restSeconds,
           weightKg: exercise.weightKg,
           notes: exercise.notes,
+          load: loadOf(exercise),
+          measure: measureOf(exercise),
+          durationSeconds: exercise.durationSeconds ?? null,
         })),
       })),
     );
     this.form.reset({
       name: routine?.name ?? '',
       goal: routine?.goal ?? '',
-      studentId: routine?.studentId ?? '',
-      startDate: this.soloFecha(routine?.startDate ?? ''),
-      endDate: this.soloFecha(routine?.endDate ?? ''),
     });
   }
 
@@ -479,6 +549,8 @@ export class RoutineBuilderComponent {
     }
 
     const index = this.days().indexOf(day);
+    // El catalogo sugiere como se hace; el entrenador lo cambia si quiere.
+    const medida = exercise.defaultMeasure ?? 'reps';
     const nuevo: RoutineExerciseInput = {
       exerciseId: exercise.id,
       name: exercise.name,
@@ -488,6 +560,9 @@ export class RoutineBuilderComponent {
       restSeconds: 60,
       weightKg: null,
       notes: null,
+      load: exercise.defaultLoad ?? 'weight',
+      measure: medida,
+      durationSeconds: medida === 'time' ? SEGUNDOS_POR_DEFECTO : null,
     };
     this.patchDay(index, { exercises: [...day.exercises, nuevo] });
   }
@@ -507,10 +582,11 @@ export class RoutineBuilderComponent {
     campo: 'sets' | 'reps' | 'weightKg' | 'restSeconds',
     event: Event,
   ): void {
-    const raw = (event.target as HTMLInputElement).value.trim();
+    const raw = (event.target as HTMLInputElement).value.trim().replace(',', '.');
     const parsed = Number(raw);
     // Solo la carga admite "sin dato": series, reps y descanso siempre valen.
-    const value = raw === '' || !Number.isFinite(parsed) ? null : parsed;
+    // Un negativo no es un dato: se ignora igual que un texto.
+    const value = raw === '' || !Number.isFinite(parsed) || parsed < 0 ? null : parsed;
 
     const index = this.days().indexOf(day);
     this.patchDay(index, {
@@ -522,6 +598,70 @@ export class RoutineBuilderComponent {
     });
   }
 
+  cargaDe(exercise: RoutineExerciseInput): ExerciseLoad {
+    return loadOf(exercise);
+  }
+
+  medidaDe(exercise: RoutineExerciseInput): ExerciseMeasure {
+    return measureOf(exercise);
+  }
+
+  usaKg(exercise: RoutineExerciseInput): boolean {
+    return usesKg(exercise);
+  }
+
+  /** Los kg con coma decimal, como los escribe el entrenador. */
+  kgTexto(exercise: RoutineExerciseInput): string {
+    return exercise.weightKg === null ? '' : String(exercise.weightKg).replace('.', ',');
+  }
+
+  minutos(exercise: RoutineExerciseInput): number {
+    return Math.floor((exercise.durationSeconds ?? 0) / 60);
+  }
+
+  segundos(exercise: RoutineExerciseInput): number {
+    return (exercise.durationSeconds ?? 0) % 60;
+  }
+
+  /** Peso corporal no lleva kg: al elegirlo se borran para no mostrarlos. */
+  setLoad(day: RoutineDayInput, exerciseIndex: number, event: Event): void {
+    const load = (event.target as HTMLSelectElement).value as ExerciseLoad;
+    this.patchExercise(day, exerciseIndex, item => ({
+      ...item,
+      load,
+      weightKg: load === 'bodyweight' ? null : item.weightKg,
+    }));
+  }
+
+  setMeasure(day: RoutineDayInput, exerciseIndex: number, event: Event): void {
+    const measure = (event.target as HTMLSelectElement).value as ExerciseMeasure;
+    this.patchExercise(day, exerciseIndex, item => ({
+      ...item,
+      measure,
+      durationSeconds:
+        measure === 'time' ? (item.durationSeconds ?? SEGUNDOS_POR_DEFECTO) : item.durationSeconds,
+    }));
+  }
+
+  /** Minutos o segundos de una serie por tiempo; el total nunca baja de 5 s. */
+  setDuration(
+    day: RoutineDayInput,
+    exerciseIndex: number,
+    parte: 'min' | 'seg',
+    event: Event,
+  ): void {
+    const parsed = Number((event.target as HTMLInputElement).value.trim());
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return;
+    }
+    this.patchExercise(day, exerciseIndex, item => {
+      const minutos = parte === 'min' ? Math.floor(parsed) : this.minutos(item);
+      const segundos = parte === 'seg' ? Math.min(59, Math.floor(parsed)) : this.segundos(item);
+      const total = Math.min(SEGUNDOS_MAXIMOS, Math.max(5, minutos * 60 + segundos));
+      return { ...item, durationSeconds: total };
+    });
+  }
+
   onSubmit(): void {
     this.intentado.set(true);
     if (this.validationError() !== null) {
@@ -530,11 +670,8 @@ export class RoutineBuilderComponent {
 
     const raw = this.form.getRawValue();
     this.submitted.emit({
-      studentId: raw.studentId,
       name: raw.name.trim(),
       goal: raw.goal.trim(),
-      startDate: new Date(`${raw.startDate}T00:00:00`).toISOString(),
-      endDate: raw.endDate === '' ? null : new Date(`${raw.endDate}T00:00:00`).toISOString(),
       days: this.days(),
     });
   }
@@ -544,14 +681,20 @@ export class RoutineBuilderComponent {
     return new Set(usados).size !== usados.length;
   }
 
+  private patchExercise(
+    day: RoutineDayInput,
+    exerciseIndex: number,
+    cambio: (item: RoutineExerciseInput) => RoutineExerciseInput,
+  ): void {
+    const index = this.days().indexOf(day);
+    this.patchDay(index, {
+      exercises: day.exercises.map((item, i) => (i === exerciseIndex ? cambio(item) : item)),
+    });
+  }
+
   private patchDay(index: number, cambios: Partial<RoutineDayInput>): void {
     this.days.update(actual =>
       actual.map((day, i) => (i === index ? { ...day, ...cambios } : day)),
     );
-  }
-
-  /** `<input type="date">` solo entiende `yyyy-MM-dd`. */
-  private soloFecha(iso: string): string {
-    return iso === '' ? '' : (iso.split('T')[0] ?? '');
   }
 }

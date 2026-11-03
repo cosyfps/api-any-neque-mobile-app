@@ -3,12 +3,14 @@ import { of, throwError } from 'rxjs';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
 import { Routine } from '@app/domain/routines/model/routine.model';
-import { ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
+import { ROUTINES_PORT, RoutinesPort } from '@app/domain/routines/port/routines.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { toIsoDate } from '@app/domain/shared/model/date';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
 import { WorkoutSession } from '@app/domain/workouts/model/workout-session.model';
-import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
+import { WORKOUTS_PORT, WorkoutsPort } from '@app/domain/workouts/port/workouts.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { StudentRoutineFacade } from './student-routine.facade';
 
@@ -17,13 +19,10 @@ const NOW = new Date(2026, 8, 17, 10, 0, 0);
 
 const ROUTINE: Routine = {
   id: 'rtn-001',
-  studentId: 'std-001',
   trainerId: 'trn-001',
   name: 'Hipertrofia',
   goal: 'Masa muscular',
-  startDate: '2026-09-01T00:00:00.000Z',
-  endDate: null,
-  status: 'active',
+  assignments: [{ studentId: 'std-001', startDate: '2026-09-01T00:00:00.000Z', endDate: null }],
   days: [
     {
       id: 'day-001',
@@ -120,10 +119,10 @@ const todaySession = (done: boolean[]): WorkoutSession => ({
 });
 
 describe('StudentRoutineFacade', () => {
-  let getActiveForStudent: jest.Mock;
-  let listByStudent: jest.Mock;
-  let markExercise: jest.Mock;
-  let complete: jest.Mock;
+  let getActiveForStudent: MockOf<RoutinesPort['getActiveForStudent']>;
+  let listByStudent: MockOf<WorkoutsPort['listByStudent']>;
+  let markExercise: MockOf<WorkoutsPort['markExercise']>;
+  let complete: MockOf<WorkoutsPort['complete']>;
   let profileId: string | null;
 
   const build = (): StudentRoutineFacade => {
@@ -134,7 +133,11 @@ describe('StudentRoutineFacade', () => {
         { provide: SessionFacade, useValue: { profileId: () => profileId } },
         {
           provide: ROUTINES_PORT,
-          useValue: { getActiveForStudent, listByStudent: jest.fn(), getById: jest.fn() },
+          useValue: {
+            getActiveForStudent,
+            listByTrainer: fn<RoutinesPort['listByTrainer']>(),
+            getById: fn<RoutinesPort['getById']>(),
+          },
         },
         {
           provide: WORKOUTS_PORT,
@@ -142,9 +145,9 @@ describe('StudentRoutineFacade', () => {
             listByStudent,
             markExercise,
             complete,
-            getById: jest.fn(),
-            start: jest.fn(),
-            logSet: jest.fn(),
+            getById: fn<WorkoutsPort['getById']>(),
+            start: fn<WorkoutsPort['start']>(),
+            logSet: fn<WorkoutsPort['logSet']>(),
           },
         },
       ],
@@ -153,10 +156,12 @@ describe('StudentRoutineFacade', () => {
   };
 
   beforeEach(() => {
-    getActiveForStudent = jest.fn().mockReturnValue(of(ROUTINE));
-    listByStudent = jest.fn().mockReturnValue(of([todaySession([false, false])]));
-    markExercise = jest.fn();
-    complete = jest.fn();
+    getActiveForStudent = fn<RoutinesPort['getActiveForStudent']>().mockReturnValue(of(ROUTINE));
+    listByStudent = fn<WorkoutsPort['listByStudent']>().mockReturnValue(
+      of([todaySession([false, false])]),
+    );
+    markExercise = fn<WorkoutsPort['markExercise']>();
+    complete = fn<WorkoutsPort['complete']>();
     profileId = 'std-001';
   });
 

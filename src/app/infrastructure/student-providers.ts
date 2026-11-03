@@ -12,29 +12,31 @@ import { EXERCISE_CATALOG_PORT, ROUTINES_PORT } from '@app/domain/routines/port/
 import { SCHEDULE_PORT } from '@app/domain/schedule/port/schedule.port';
 import { ASSESSMENTS_PORT } from '@app/domain/students/port/assessments.port';
 import { STUDENTS_PORT } from '@app/domain/students/port/students.port';
+import { TRAINERS_PORT } from '@app/domain/trainers/port/trainers.port';
 import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
 
-import { NotificationsMockAdapter } from './notifications/notifications.mock-adapter';
-import { ProgressPhotosMockAdapter } from './progress/progress-photos.mock-adapter';
-import { ExerciseCatalogMockAdapter, RoutinesMockAdapter } from './routines/routines.mock-adapter';
-import { ScheduleMockAdapter } from './schedule/schedule.mock-adapter';
-import { AssessmentsMockAdapter } from './students/assessments.mock-adapter';
-import { StudentsMockAdapter } from './students/students.mock-adapter';
-import { WorkoutsMockAdapter } from './workouts/workouts.mock-adapter';
+import {
+  NotificationsHttpAdapter,
+  ProgressPhotosHttpAdapter,
+  ScheduleHttpAdapter,
+} from './engagement.http-adapters';
+import { ExerciseCatalogHttpAdapter, RoutinesHttpAdapter } from './routines/routines.http-adapter';
+import {
+  AssessmentsHttpAdapter,
+  StudentsHttpAdapter,
+  TrainersHttpAdapter,
+} from './students/students.http-adapter';
+import { WorkoutsHttpAdapter } from './workouts/workouts.http-adapter';
 
 /**
- * Puertos y adapters que solo usa el shell del alumno.
+ * Puertos del shell del alumno contra el BFF.
  *
- * Se registran en `providers` de la ruta `/student` para que el codigo y las
- * semillas viajen en ese chunk lazy y no engorden el bundle inicial.
- *
- * Al conectar el BFF, esta funcion se reemplaza por `provideStudentHttpAdapters()`
- * y ningun archivo de domain, application o ui cambia.
+ * Se registran en `providers` de la ruta `/student` para que viajen en ese
+ * chunk lazy. Las facades viven en este injector y no en el raiz: dependen
+ * de los puertos de abajo, que solo existen dentro de /student.
  */
-export function provideStudentMockData(): Provider[] {
+export function provideStudentData(): Provider[] {
   return [
-    // Las facades viven en este injector y no en el raiz: dependen de los
-    // puertos de abajo, que solo existen dentro de /student.
     StudentProfileFacade,
     WorkoutFacade,
     StudentRoutineFacade,
@@ -42,22 +44,14 @@ export function provideStudentMockData(): Provider[] {
     ScheduleFacade,
     NotificationsFacade,
 
-    StudentsMockAdapter,
-    AssessmentsMockAdapter,
-    RoutinesMockAdapter,
-    ExerciseCatalogMockAdapter,
-    WorkoutsMockAdapter,
-    ProgressPhotosMockAdapter,
-    ScheduleMockAdapter,
-    NotificationsMockAdapter,
-
-    { provide: STUDENTS_PORT, useExisting: StudentsMockAdapter },
-    { provide: ASSESSMENTS_PORT, useExisting: AssessmentsMockAdapter },
-    { provide: ROUTINES_PORT, useExisting: RoutinesMockAdapter },
-    { provide: EXERCISE_CATALOG_PORT, useExisting: ExerciseCatalogMockAdapter },
-    { provide: WORKOUTS_PORT, useExisting: WorkoutsMockAdapter },
-    { provide: PROGRESS_PHOTOS_PORT, useExisting: ProgressPhotosMockAdapter },
-    { provide: SCHEDULE_PORT, useExisting: ScheduleMockAdapter },
-    { provide: NOTIFICATIONS_PORT, useExisting: NotificationsMockAdapter },
+    { provide: STUDENTS_PORT, useClass: StudentsHttpAdapter },
+    { provide: TRAINERS_PORT, useClass: TrainersHttpAdapter },
+    { provide: ASSESSMENTS_PORT, useClass: AssessmentsHttpAdapter },
+    { provide: ROUTINES_PORT, useClass: RoutinesHttpAdapter },
+    { provide: EXERCISE_CATALOG_PORT, useClass: ExerciseCatalogHttpAdapter },
+    { provide: WORKOUTS_PORT, useClass: WorkoutsHttpAdapter },
+    { provide: PROGRESS_PHOTOS_PORT, useClass: ProgressPhotosHttpAdapter },
+    { provide: SCHEDULE_PORT, useClass: ScheduleHttpAdapter },
+    { provide: NOTIFICATIONS_PORT, useClass: NotificationsHttpAdapter },
   ];
 }

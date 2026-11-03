@@ -1,26 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { Exercise } from '@app/domain/routines/model/exercise.model';
-import { Routine, RoutineDayInput, RoutineInput } from '@app/domain/routines/model/routine.model';
-import { Student } from '@app/domain/students/model/student.model';
+import {
+  Routine,
+  RoutineDayInput,
+  RoutineExerciseInput,
+  RoutineInput,
+} from '@app/domain/routines/model/routine.model';
 
 import { RoutineBuilderComponent } from './routine-builder.component';
-
-const ALUMNO: Student = {
-  id: 'std-001',
-  trainerId: 'trn-001',
-  trainerName: 'Kelvin Moreno',
-  firstName: 'Ana',
-  lastName: 'Rojas',
-  email: 'ana@neque.cl',
-  phone: null,
-  avatarUrl: null,
-  status: 'active',
-  birthDate: null,
-  heightCm: null,
-  goal: null,
-  joinedAt: '2026-01-10T00:00:00.000Z',
-};
 
 const PUBLICO: Exercise = {
   id: 'ex-001',
@@ -34,15 +22,26 @@ const PUBLICO: Exercise = {
 
 const PROPIO: Exercise = { ...PUBLICO, id: 'ex-900', name: 'Búlgara', ownerTrainerId: 'trn-001' };
 
+const PLANCHA: Exercise = {
+  ...PUBLICO,
+  id: 'ex-014',
+  name: 'Plancha',
+  defaultLoad: 'bodyweight',
+  defaultMeasure: 'time',
+};
+
 const RUTINA: Routine = {
   id: 'rtn-001',
-  studentId: 'std-001',
   trainerId: 'trn-001',
   name: 'Hipertrofia',
   goal: 'Ganar masa',
-  startDate: '2026-09-01T00:00:00.000Z',
-  endDate: '2026-12-01T00:00:00.000Z',
-  status: 'active',
+  assignments: [
+    {
+      studentId: 'std-001',
+      startDate: '2026-09-01T00:00:00.000Z',
+      endDate: '2026-12-01T00:00:00.000Z',
+    },
+  ],
   days: [
     {
       id: 'day-001',
@@ -81,8 +80,7 @@ describe('RoutineBuilderComponent', () => {
 
     fixture = TestBed.createComponent(RoutineBuilderComponent);
     fixture.componentRef.setInput('routine', routine);
-    fixture.componentRef.setInput('students', [ALUMNO]);
-    fixture.componentRef.setInput('publicExercises', [PUBLICO]);
+    fixture.componentRef.setInput('publicExercises', [PUBLICO, PLANCHA]);
     fixture.componentRef.setInput('ownExercises', [PROPIO]);
     builder = fixture.componentInstance;
     builder.submitted.subscribe(value => (emitido = value));
@@ -105,8 +103,6 @@ describe('RoutineBuilderComponent', () => {
     builder.form.patchValue({
       name: 'Hipertrofia',
       goal: 'Ganar masa',
-      studentId: 'std-001',
-      startDate: '2026-09-01',
     });
   };
 
@@ -289,27 +285,113 @@ describe('RoutineBuilderComponent', () => {
     });
   });
 
-  describe('emision', () => {
-    it('convierte las fechas a ISO', () => {
-      llenarCabecera();
-      builder.form.controls.endDate.setValue('2026-12-01');
-      builder.addDay();
+  describe('carga y medida', () => {
+    const ejercicio = (): RoutineExerciseInput => {
+      const value = builder.days()[0]?.exercises[0];
+      if (value === undefined) {
+        throw new Error('sin ejercicio');
+      }
+      return value;
+    };
+
+    beforeEach(() => builder.addDay());
+
+    it('un ejercicio sin sugerencia nace con peso y repeticiones', () => {
       builder.addExercise(dia(0), seleccionar('ex-001'));
 
-      builder.onSubmit();
-
-      expect(emitido?.startDate).toContain('2026-09-01');
-      expect(emitido?.endDate).toContain('2026-12-01');
+      expect(ejercicio()).toMatchObject({ load: 'weight', measure: 'reps', durationSeconds: null });
     });
 
-    it('una vigencia sin fin viaja en null', () => {
+    it('usa la sugerencia del catalogo', () => {
+      builder.addExercise(dia(0), seleccionar('ex-014'));
+
+      expect(ejercicio()).toMatchObject({
+        load: 'bodyweight',
+        measure: 'time',
+        durationSeconds: 60,
+      });
+      expect(builder.usaKg(ejercicio())).toBe(false);
+    });
+
+    it('elegir peso corporal borra los kg', () => {
+      builder.addExercise(dia(0), seleccionar('ex-001'));
+      builder.setPrescription(dia(0), 0, 'weightKg', seleccionar('20'));
+
+      builder.setLoad(dia(0), 0, seleccionar('bodyweight'));
+
+      expect(ejercicio()).toMatchObject({ load: 'bodyweight', weightKg: null });
+    });
+
+    it('con peso extra conserva los kg', () => {
+      builder.addExercise(dia(0), seleccionar('ex-001'));
+      builder.setPrescription(dia(0), 0, 'weightKg', seleccionar('10'));
+
+      builder.setLoad(dia(0), 0, seleccionar('weighted_bodyweight'));
+
+      expect(ejercicio()).toMatchObject({ load: 'weighted_bodyweight', weightKg: 10 });
+    });
+
+    it('pasar a tiempo propone un minuto', () => {
+      builder.addExercise(dia(0), seleccionar('ex-001'));
+
+      builder.setMeasure(dia(0), 0, seleccionar('time'));
+
+      expect(ejercicio()).toMatchObject({ measure: 'time', durationSeconds: 60 });
+    });
+
+    it('arma la duracion con minutos y segundos', () => {
+      builder.addExercise(dia(0), seleccionar('ex-014'));
+
+      builder.setDuration(dia(0), 0, 'min', seleccionar('15'));
+      builder.setDuration(dia(0), 0, 'seg', seleccionar('30'));
+
+      expect(ejercicio().durationSeconds).toBe(930);
+      expect(builder.minutos(ejercicio())).toBe(15);
+      expect(builder.segundos(ejercicio())).toBe(30);
+    });
+
+    it('la duracion no baja de 5 segundos ni acepta negativos', () => {
+      builder.addExercise(dia(0), seleccionar('ex-014'));
+
+      builder.setDuration(dia(0), 0, 'min', seleccionar('0'));
+      builder.setDuration(dia(0), 0, 'seg', seleccionar('0'));
+      expect(ejercicio().durationSeconds).toBe(5);
+
+      builder.setDuration(dia(0), 0, 'seg', seleccionar('-10'));
+      expect(ejercicio().durationSeconds).toBe(5);
+    });
+
+    // El teclado decimal de iOS en espanol trae coma.
+    it('acepta kg con coma y los muestra con coma', () => {
+      builder.addExercise(dia(0), seleccionar('ex-001'));
+
+      builder.setPrescription(dia(0), 0, 'weightKg', seleccionar('32,5'));
+
+      expect(ejercicio().weightKg).toBe(32.5);
+      expect(builder.kgTexto(ejercicio())).toBe('32,5');
+    });
+
+    it('ignora kg negativos', () => {
+      builder.addExercise(dia(0), seleccionar('ex-001'));
+
+      builder.setPrescription(dia(0), 0, 'weightKg', seleccionar('-4'));
+
+      expect(ejercicio().weightKg).toBeNull();
+    });
+  });
+
+  describe('emision', () => {
+    // Los alumnos y sus fechas se eligen al asignar, no al disenar la rutina.
+    it('emite la plantilla sin alumnos ni fechas', () => {
       llenarCabecera();
       builder.addDay();
       builder.addExercise(dia(0), seleccionar('ex-001'));
 
       builder.onSubmit();
 
-      expect(emitido?.endDate).toBeNull();
+      expect(emitido).not.toHaveProperty('studentId');
+      expect(emitido).not.toHaveProperty('startDate');
+      expect(emitido).not.toHaveProperty('assignments');
     });
 
     it('recorta nombre y objetivo', () => {
@@ -324,16 +406,32 @@ describe('RoutineBuilderComponent', () => {
     });
   });
 
+  // La pagina cambia la rutina y llama a reset() en el mismo paso, antes de
+  // que el input la reciba: sin pasarsela, editar abria el constructor vacio.
+  it('reset(rutina) carga la rutina aunque el input aun no la tenga', () => {
+    builder.reset(RUTINA);
+
+    expect(builder.days()).toHaveLength(1);
+    expect(builder.form.getRawValue().name).toBe('Hipertrofia');
+  });
+
+  it('reset(null) deja el constructor en blanco', () => {
+    crear(RUTINA);
+
+    builder.reset(null);
+
+    expect(builder.days()).toEqual([]);
+  });
+
   describe('edicion de una rutina existente', () => {
     beforeEach(() => crear(RUTINA));
 
-    it('precarga la cabecera con la fecha en formato de campo', () => {
-      expect(builder.form.getRawValue()).toMatchObject({
-        name: 'Hipertrofia',
-        studentId: 'std-001',
-        startDate: '2026-09-01',
-        endDate: '2026-12-01',
-      });
+    it('conserva carga y medida de cada ejercicio', () => {
+      expect(builder.days()[0]?.exercises[0]).toMatchObject({ load: 'weight', measure: 'reps' });
+    });
+
+    it('precarga nombre y objetivo', () => {
+      expect(builder.form.getRawValue()).toEqual({ name: 'Hipertrofia', goal: RUTINA.goal });
     });
 
     it('precarga los dias con sus ejercicios', () => {
@@ -355,12 +453,6 @@ describe('RoutineBuilderComponent', () => {
       crear();
 
       expect(builder.id('nombre')).not.toBe(primero);
-    });
-  });
-
-  describe('nombreDe()', () => {
-    it('arma el nombre completo del alumno', () => {
-      expect(builder.nombreDe(ALUMNO)).toBe('Ana Rojas');
     });
   });
 });

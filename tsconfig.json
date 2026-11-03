@@ -21,7 +21,8 @@
     "paths": {
       "@app/*": ["./src/app/*"],
       "@env/*": ["./src/environments/*"],
-      "@shared/*": ["./src/app/ui/shared/*"]
+      "@shared/*": ["./src/app/ui/shared/*"],
+      "@testing/*": ["./src/testing/*"]
     }
   },
   "angularCompilerOptions": {
@@ -29,5 +30,6 @@
     "strictInjectionParameters": true,
     "strictInputAccessModifiers": true,
     "strictTemplates": true
-  }
+  },
+  "exclude": ["server", "scripts", "out-tsc", "node_modules", "dist"]
 }

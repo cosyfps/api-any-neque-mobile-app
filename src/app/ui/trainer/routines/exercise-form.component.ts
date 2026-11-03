@@ -82,7 +82,7 @@ const GRUPOS = Object.entries(MUSCLE_GROUP_LABEL).map(([value, label]) => ({
 
       <p class="hint">Solo tú verás este ejercicio en tu catálogo.</p>
 
-      <div class="form-actions">
+      <div class="form-actions nq-sheet-actions">
         <button class="nq-btn nq-btn-secondary" type="button" (click)="cancelled.emit()">
           Cancelar
         </button>

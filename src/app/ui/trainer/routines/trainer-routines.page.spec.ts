@@ -2,13 +2,24 @@ import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
-import { TrainerRoutinesFacade } from '@app/application/trainers/trainer-routines.facade';
+import {
+  RoutineRow,
+  TrainerRoutinesFacade,
+} from '@app/application/trainers/trainer-routines.facade';
 import { Exercise } from '@app/domain/routines/model/exercise.model';
-import { Routine } from '@app/domain/routines/model/routine.model';
-import { EXERCISE_CATALOG_PORT, ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
+import { Routine, RoutineAssignment } from '@app/domain/routines/model/routine.model';
+import {
+  EXERCISE_CATALOG_PORT,
+  ExerciseCatalogPort,
+  ROUTINES_PORT,
+  RoutinesPort,
+} from '@app/domain/routines/port/routines.port';
 import { domainError } from '@app/domain/shared/model/app-error';
+import { CLOCK } from '@app/domain/shared/port/clock.port';
 import { Student } from '@app/domain/students/model/student.model';
 import { STUDENTS_PORT } from '@app/domain/students/port/students.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { TrainerRoutinesPage } from './trainer-routines.page';
 
@@ -17,7 +28,7 @@ const alumno = (id: string, firstName: string, status: Student['status'] = 'acti
   trainerId: 'trn-001',
   trainerName: 'Kelvin Moreno',
   firstName,
-  lastName: 'Rojas',
+  lastName: 'Acosta',
   email: `${id}@neque.cl`,
   phone: null,
   avatarUrl: null,
@@ -28,18 +39,20 @@ const alumno = (id: string, firstName: string, status: Student['status'] = 'acti
   joinedAt: '2026-01-10T00:00:00.000Z',
 });
 
-const rutina = (id: string, name: string, status: Routine['status'], studentId = 'std-001') =>
-  ({
-    id,
-    studentId,
-    trainerId: 'trn-001',
-    name,
-    goal: 'Ganar masa',
-    startDate: '2026-09-01T00:00:00.000Z',
-    endDate: null,
-    status,
-    days: [],
-  }) as Routine;
+const asignacion = (studentId: string): RoutineAssignment => ({
+  studentId,
+  startDate: '2026-09-01T00:00:00.000Z',
+  endDate: null,
+});
+
+const rutina = (id: string, name: string, alumnos: string[] = []): Routine => ({
+  id,
+  trainerId: 'trn-001',
+  name,
+  goal: 'Ganar masa',
+  days: [],
+  assignments: alumnos.map(asignacion),
+});
 
 const ejercicio = (id: string, name: string, owner: string | null): Exercise => ({
   id,
@@ -52,21 +65,18 @@ const ejercicio = (id: string, name: string, owner: string | null): Exercise => 
 });
 
 const ENTRADA = {
-  studentId: 'std-001',
   name: 'Hipertrofia',
   goal: 'Ganar masa',
-  startDate: '2026-09-01T00:00:00.000Z',
-  endDate: null,
   days: [],
 };
 
 describe('TrainerRoutinesPage', () => {
   let page: TrainerRoutinesPage;
-  let create: jest.Mock;
-  let update: jest.Mock;
-  let assign: jest.Mock;
-  let archive: jest.Mock;
-  let createExercise: jest.Mock;
+  let create: MockOf<RoutinesPort['create']>;
+  let update: MockOf<RoutinesPort['update']>;
+  let setAssignments: MockOf<RoutinesPort['setAssignments']>;
+  let remove: MockOf<RoutinesPort['remove']>;
+  let createExercise: MockOf<ExerciseCatalogPort['create']>;
 
   const createPage = (
     opciones: {
@@ -77,8 +87,8 @@ describe('TrainerRoutinesPage', () => {
     } = {},
   ): TrainerRoutinesPage => {
     const {
-      rutinas = [rutina('rtn-001', 'Hipertrofia', 'active')],
-      cartera = [alumno('std-001', 'Ana'), alumno('std-002', 'Diego', 'suspended')],
+      rutinas = [rutina('rtn-001', 'Hipertrofia', ['std-001'])],
+      cartera = [alumno('std-001', 'Alejandra'), alumno('std-002', 'Diego', 'suspended')],
       ejercicios = [
         ejercicio('ex-001', 'Sentadilla', null),
         ejercicio('ex-900', 'Búlgara', 'trn-001'),
@@ -86,11 +96,17 @@ describe('TrainerRoutinesPage', () => {
       falla = false,
     } = opciones;
 
-    create = jest.fn().mockReturnValue(of(rutina('rtn-nueva', 'Nueva', 'active')));
-    update = jest.fn().mockReturnValue(of(rutina('rtn-001', 'Editada', 'active')));
-    assign = jest.fn().mockReturnValue(of(rutina('rtn-001', 'Hipertrofia', 'active')));
-    archive = jest.fn().mockReturnValue(of(rutina('rtn-001', 'Hipertrofia', 'archived')));
-    createExercise = jest.fn().mockReturnValue(of(ejercicio('ex-901', 'Zancada', 'trn-001')));
+    create = fn<RoutinesPort['create']>().mockReturnValue(of(rutina('rtn-nueva', 'Nueva')));
+    update = fn<RoutinesPort['update']>().mockReturnValue(
+      of(rutina('rtn-001', 'Editada', ['std-001'])),
+    );
+    setAssignments = fn<RoutinesPort['setAssignments']>().mockReturnValue(
+      of(rutina('rtn-001', 'Hipertrofia', ['std-001'])),
+    );
+    remove = fn<RoutinesPort['remove']>().mockReturnValue(of(undefined));
+    createExercise = fn<ExerciseCatalogPort['create']>().mockReturnValue(
+      of(ejercicio('ex-901', 'Zancada', 'trn-001')),
+    );
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
@@ -98,14 +114,15 @@ describe('TrainerRoutinesPage', () => {
         // La pagina la declara en sus `providers`; aqui hay que darla a mano.
         TrainerRoutinesFacade,
         { provide: SessionFacade, useValue: { profileId: () => 'trn-001' } },
+        { provide: CLOCK, useValue: { now: () => new Date(2026, 8, 26, 10) } },
         {
           provide: ROUTINES_PORT,
           useValue: {
             listByTrainer: () => (falla ? throwError(() => new Error('boom')) : of(rutinas)),
             create,
             update,
-            assign,
-            archive,
+            setAssignments,
+            remove,
           },
         },
         { provide: STUDENTS_PORT, useValue: { listByTrainer: () => of(cartera) } },
@@ -123,34 +140,36 @@ describe('TrainerRoutinesPage', () => {
   });
 
   describe('biblioteca', () => {
-    it('resuelve el nombre del alumno de cada rutina', () => {
-      expect(page.facade.visible()[0]).toMatchObject({ studentName: 'Ana Rojas' });
+    it('resuelve los nombres de los alumnos de cada rutina', () => {
+      page = createPage({ rutinas: [rutina('rtn-001', 'Masa', ['std-001', 'std-002'])] });
+
+      expect(page.facade.visible()[0]?.studentNames).toEqual(['Alejandra Acosta', 'Diego Acosta']);
     });
 
     it('avisa cuando el alumno ya no esta en la cartera', () => {
-      page = createPage({ rutinas: [rutina('rtn-001', 'Vieja', 'active', 'std-999')] });
+      page = createPage({ rutinas: [rutina('rtn-001', 'Vieja', ['std-999'])] });
 
-      expect(page.facade.visible()[0]?.studentName).toBe('Alumno desconocido');
+      expect(page.facade.visible()[0]?.studentNames).toEqual(['Alumno desconocido']);
     });
 
-    it('muestra las activas por defecto', () => {
-      expect(page.facade.filter()).toBe('active');
-      expect(page.facade.activeCount()).toBe(1);
+    it('muestra las asignadas por defecto', () => {
+      expect(page.facade.filter()).toBe('assigned');
+      expect(page.facade.assignedCount()).toBe(1);
     });
 
-    it('cambia a las archivadas', () => {
+    it('cambia a las que esperan alumnos', () => {
       page = createPage({
-        rutinas: [rutina('rtn-001', 'A', 'active'), rutina('rtn-002', 'B', 'archived')],
+        rutinas: [rutina('rtn-001', 'A', ['std-001']), rutina('rtn-002', 'B')],
       });
 
-      page.facade.selectFilter('archived');
+      page.facade.selectFilter('unassigned');
 
       expect(page.facade.visible().map(row => row.routine.id)).toEqual(['rtn-002']);
     });
 
-    // Una biblioteca con rutinas pero ninguna archivada muestra ese vacio.
+    // Una biblioteca con rutinas pero ninguna libre muestra ese vacio.
     it('la pestana sin rutinas queda en empty', () => {
-      page.facade.selectFilter('archived');
+      page.facade.selectFilter('unassigned');
 
       expect(page.facade.viewState()).toBe('empty');
       expect(page.emptyTitle()).toBe('Nada sin asignar');
@@ -170,10 +189,16 @@ describe('TrainerRoutinesPage', () => {
     });
   });
 
-  describe('selector de alumno', () => {
-    // A un alumno suspendido no se le puede asignar una rutina.
-    it('solo ofrece alumnos activos', () => {
-      expect(page.facade.assignableStudents().map(item => item.id)).toEqual(['std-001']);
+  describe('textos de la tarjeta', () => {
+    it('cuenta los alumnos', () => {
+      expect(page.alumnos(0)).toBe('Sin alumnos');
+      expect(page.alumnos(1)).toBe('1 alumno');
+      expect(page.alumnos(3)).toBe('3 alumnos');
+    });
+
+    it('sabe si la rutina tiene alumnos', () => {
+      expect(page.asignada(rutina('rtn-001', 'A', ['std-001']))).toBe(true);
+      expect(page.asignada(rutina('rtn-002', 'B'))).toBe(false);
     });
   });
 
@@ -211,7 +236,7 @@ describe('TrainerRoutinesPage', () => {
     });
 
     it('editar abre el constructor con la rutina', () => {
-      const actual = rutina('rtn-001', 'Hipertrofia', 'active');
+      const actual = rutina('rtn-001', 'Hipertrofia', ['std-001']);
 
       page.openEdit(actual);
 
@@ -228,18 +253,35 @@ describe('TrainerRoutinesPage', () => {
       expect(page.building()).toBe(false);
     });
 
-    // Una rutina nace sin asignar: sin el salto de pestana el entrenador la
+    // Una rutina nace sin alumnos: sin el salto de pestana el entrenador la
     // guarda y no la ve por ninguna parte.
     it('tras crear salta a la pestana donde queda', async () => {
       page.openCreate();
 
       await page.saveRoutine(ENTRADA);
 
-      expect(page.facade.filter()).toBe('archived');
+      expect(page.facade.filter()).toBe('unassigned');
+    });
+
+    it('tras crear abre la hoja para asignarla', async () => {
+      page = createPage({ rutinas: [rutina('rtn-nueva', 'Nueva')] });
+      page.openCreate();
+
+      await page.saveRoutine(ENTRADA);
+
+      expect(page.assigning()?.id).toBe('rtn-nueva');
+    });
+
+    it('tras editar no abre la hoja de asignar', async () => {
+      page.openEdit(rutina('rtn-001', 'Hipertrofia', ['std-001']));
+
+      await page.saveRoutine(ENTRADA);
+
+      expect(page.assigning()).toBeNull();
     });
 
     it('guardar una existente la actualiza', async () => {
-      page.openEdit(rutina('rtn-001', 'Hipertrofia', 'active'));
+      page.openEdit(rutina('rtn-001', 'Hipertrofia', ['std-001']));
 
       await page.saveRoutine(ENTRADA);
 
@@ -266,24 +308,140 @@ describe('TrainerRoutinesPage', () => {
     });
   });
 
-  describe('asignar y archivar', () => {
-    // Activar y archivar la anterior va en una sola operacion del puerto.
-    it('asignar llama al puerto con la rutina', async () => {
-      await page.assign('rtn-001');
+  describe('eliminar rutina', () => {
+    const fila = (): RoutineRow => {
+      const row = page.facade.visible()[0];
+      if (row === undefined) {
+        throw new Error('sin filas');
+      }
+      return row;
+    };
 
-      expect(assign).toHaveBeenCalledWith('rtn-001');
+    it('askRemove() abre la confirmacion con esa rutina', () => {
+      page.askRemove(fila());
+
+      expect(page.removing()?.routine.id).toBe('rtn-001');
     });
 
-    it('archivar llama al puerto con la rutina', async () => {
-      await page.archive('rtn-001');
+    it('avisa que sus alumnos quedan sin rutina', () => {
+      page.askRemove(fila());
 
-      expect(archive).toHaveBeenCalledWith('rtn-001');
+      expect(page.removeWarning()).toBe(
+        'Alejandra Acosta quedará sin rutina. No se puede deshacer.',
+      );
     });
 
-    it('relee la biblioteca tras asignar', async () => {
-      await page.assign('rtn-001');
+    it('junta varios nombres con coma y "y"', () => {
+      page = createPage({
+        rutinas: [rutina('rtn-001', 'Hipertrofia', ['std-001', 'std-002', 'std-003'])],
+        cartera: [alumno('std-001', 'Ana'), alumno('std-002', 'Luis'), alumno('std-003', 'Sofía')],
+      });
 
-      expect(page.facade.rows.data()).toHaveLength(1);
+      page.askRemove(fila());
+
+      expect(page.removeWarning()).toBe(
+        'Ana Acosta, Luis Acosta y Sofía Acosta quedarán sin rutina. No se puede deshacer.',
+      );
+    });
+
+    it('sin alumnos solo avisa que no se puede deshacer', () => {
+      page = createPage({ rutinas: [rutina('rtn-009', 'Libre')] });
+      page.facade.selectFilter('unassigned');
+
+      page.askRemove(fila());
+
+      expect(page.removeWarning()).toBe('No se puede deshacer.');
+    });
+
+    it('confirmRemove() elimina y cierra la confirmacion', async () => {
+      page.askRemove(fila());
+
+      await page.confirmRemove();
+
+      expect(remove).toHaveBeenCalledWith('rtn-001');
+      expect(page.removing()).toBeNull();
+    });
+
+    it('si falla deja la confirmacion abierta con el error', async () => {
+      remove.mockReturnValue(throwError(() => domainError('network')));
+      page.askRemove(fila());
+
+      await page.confirmRemove();
+
+      expect(page.removing()).not.toBeNull();
+      expect(page.facade.actionError()?.code).toBe('network');
+    });
+
+    it('cancelRemove() cierra sin eliminar', async () => {
+      page.askRemove(fila());
+
+      page.cancelRemove();
+      await page.confirmRemove();
+
+      expect(page.removing()).toBeNull();
+      expect(remove).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('asignar alumnos', () => {
+    const hipertrofia = rutina('rtn-001', 'Hipertrofia', ['std-001']);
+
+    it('la hoja nace cerrada', () => {
+      expect(page.assigning()).toBeNull();
+      expect(page.assignOptions()).toEqual([]);
+    });
+
+    it('abrirla carga las opciones de esa rutina', () => {
+      page.openAssign(hipertrofia);
+
+      expect(page.assigning()).toBe(hipertrofia);
+      expect(page.assignOptions().map(item => item.student.id)).toEqual(['std-001']);
+    });
+
+    it('propone hoy como inicio, en fecha local', () => {
+      expect(page.today).toBe('2026-09-26');
+    });
+
+    it('guardar manda la lista completa y cierra', async () => {
+      page.openAssign(hipertrofia);
+      const lista = [asignacion('std-001')];
+
+      await page.saveAssignments(lista);
+
+      expect(setAssignments).toHaveBeenCalledWith('rtn-001', lista);
+      expect(page.assigning()).toBeNull();
+      expect(page.facade.filter()).toBe('assigned');
+    });
+
+    it('quitar a todos la lleva a sin asignar', async () => {
+      page.openAssign(hipertrofia);
+
+      await page.saveAssignments([]);
+
+      expect(page.facade.filter()).toBe('unassigned');
+    });
+
+    it('un rechazo deja la hoja abierta', async () => {
+      page.openAssign(hipertrofia);
+      setAssignments.mockReturnValue(throwError(() => domainError('conflict')));
+
+      await page.saveAssignments([]);
+
+      expect(page.assigning()).toBe(hipertrofia);
+    });
+
+    it('sin hoja abierta no llama al puerto', async () => {
+      await page.saveAssignments([]);
+
+      expect(setAssignments).not.toHaveBeenCalled();
+    });
+
+    it('cerrar la oculta', () => {
+      page.openAssign(hipertrofia);
+
+      page.closeAssign();
+
+      expect(page.assigning()).toBeNull();
     });
   });
 

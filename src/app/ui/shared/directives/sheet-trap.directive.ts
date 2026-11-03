@@ -12,6 +12,9 @@ import {
 /** Arrastre a partir del cual soltar cierra el sheet. */
 const UMBRAL_CIERRE_PX = 96;
 
+/** Unicas zonas desde las que el dedo arrastra el sheet en vez de desplazarlo. */
+const ZONA_ARRASTRE = '.nq-sheet-handle, .nq-sheet-title';
+
 /** Lo que el navegador considera enfocable dentro del sheet. */
 const FOCUSABLE = [
   'button:not([disabled])',
@@ -65,6 +68,9 @@ export class SheetTrapDirective {
   readonly arrastrando = signal(false);
 
   constructor() {
+    // Enfocable por codigo pero fuera del orden de tabulacion: al abrir, el
+    // foco cae en el sheet y no en su primer control.
+    this.host.nativeElement.tabIndex = -1;
     inject(DestroyRef).onDestroy(() => this.clearFocusTimer());
   }
 
@@ -77,15 +83,26 @@ export class SheetTrapDirective {
     // `setTimeout` y no un microtask: el foco no entra en un elemento que
     // todavia esta en `visibility: hidden`, y la clase `.open` se aplica al
     // pintar, despues de este setter.
-    this.focusTimer = setTimeout(() => this.focusables()[0]?.focus(), 0);
+    //
+    // El foco va al sheet y no a su primer campo: en un movil enfocar un
+    // input abre el teclado, que tapa el formulario antes de que se vea.
+    // `Tab` desde aqui entra al primer control igual.
+    this.focusTimer = setTimeout(() => this.host.nativeElement.focus(), 0);
   }
 
   alEmpezar(event: TouchEvent): void {
     const toque = event.touches[0];
-    // Solo desde el asa o la cabecera: desde el cuerpo el dedo podria estar
-    // desplazando el contenido del sheet.
+    // Solo desde el asa o el titulo, y con el sheet arriba del todo. Antes
+    // arrancaba desde cualquier punto que no fuera un control: al desplazar
+    // un formulario largo hacia arriba el gesto se leia como "cerrar" y el
+    // formulario se perdia con lo escrito.
     const origen = event.target as HTMLElement | null;
-    if (toque === undefined || origen === null || origen.closest('button, input, a') !== null) {
+    if (
+      toque === undefined ||
+      origen === null ||
+      origen.closest(ZONA_ARRASTRE) === null ||
+      this.host.nativeElement.scrollTop > 0
+    ) {
       this.inicioY = null;
       return;
     }
@@ -135,7 +152,7 @@ export class SheetTrapDirective {
     }
 
     const active = document.activeElement;
-    if (event.shiftKey && active === first) {
+    if (event.shiftKey && (active === first || active === this.host.nativeElement)) {
       event.preventDefault();
       last.focus();
     } else if (!event.shiftKey && active === last) {

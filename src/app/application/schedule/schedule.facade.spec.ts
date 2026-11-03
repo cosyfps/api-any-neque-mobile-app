@@ -3,10 +3,12 @@ import { of, throwError } from 'rxjs';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
 import { ScheduledSession } from '@app/domain/schedule/model/scheduled-session.model';
-import { SCHEDULE_PORT } from '@app/domain/schedule/port/schedule.port';
+import { SCHEDULE_PORT, SchedulePort } from '@app/domain/schedule/port/schedule.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { toIsoDate } from '@app/domain/shared/model/date';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { ScheduleFacade } from './schedule.facade';
 
@@ -40,9 +42,9 @@ const SESSIONS: ScheduledSession[] = [
 ];
 
 describe('ScheduleFacade', () => {
-  let listByStudent: jest.Mock;
-  let confirm: jest.Mock;
-  let cancel: jest.Mock;
+  let listByStudent: MockOf<SchedulePort['listByStudent']>;
+  let confirm: MockOf<SchedulePort['confirm']>;
+  let cancel: MockOf<SchedulePort['cancel']>;
   let profileId: string | null;
 
   const build = (): ScheduleFacade => {
@@ -58,9 +60,9 @@ describe('ScheduleFacade', () => {
   };
 
   beforeEach(() => {
-    listByStudent = jest.fn().mockReturnValue(of(SESSIONS));
-    confirm = jest.fn();
-    cancel = jest.fn();
+    listByStudent = fn<SchedulePort['listByStudent']>().mockReturnValue(of(SESSIONS));
+    confirm = fn<SchedulePort['confirm']>();
+    cancel = fn<SchedulePort['cancel']>();
     profileId = 'std-001';
   });
 

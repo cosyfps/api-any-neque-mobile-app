@@ -24,7 +24,8 @@ describe('notification model', () => {
   });
 
   it('cada tipo tiene etiqueta en espanol', () => {
-    expect(Object.keys(NOTIFICATION_KIND_LABEL)).toHaveLength(4);
+    expect(Object.keys(NOTIFICATION_KIND_LABEL)).toHaveLength(6);
+    expect(NOTIFICATION_KIND_LABEL.alert).toBe('Alerta');
     expect(NOTIFICATION_KIND_LABEL.session).toBe('Sesión');
   });
 });

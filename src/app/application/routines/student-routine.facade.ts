@@ -5,7 +5,11 @@ import { Routine, RoutineDay, dayForWeekday } from '@app/domain/routines/model/r
 import { ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
 import { Weekday, isSameDay, isoWeekday, parseIsoDate } from '@app/domain/shared/model/date';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
-import { WorkoutSession, sessionProgress } from '@app/domain/workouts/model/workout-session.model';
+import {
+  WorkoutSession,
+  sessionProgress,
+  skippedExercises,
+} from '@app/domain/workouts/model/workout-session.model';
 import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
 
 import { AsyncState, ViewState, asyncState } from '../shared/async-state';
@@ -70,6 +74,15 @@ export class StudentRoutineFacade {
     () => this.selectedSession()?.status === 'completed',
   );
 
+  /** Ejercicios saltados enteros en la sesion del dia seleccionado. */
+  readonly daySkipped: Signal<number> = computed(() => {
+    const session = this.selectedSession();
+    return session === null ? 0 : skippedExercises(session);
+  });
+
+  /** Sesiones ya celebradas: desmarcar y volver a marcar no repite el festejo. */
+  private readonly celebradas = new Set<string>();
+
   readonly viewState: Signal<ViewState> = this.routine.viewState;
 
   load(): void {
@@ -125,6 +138,19 @@ export class StudentRoutineFacade {
         error: () => resolve(false),
       });
     });
+  }
+
+  /**
+   * True la primera vez que la sesion seleccionada queda completada.
+   * La celebracion es un premio, no algo que se repite a voluntad.
+   */
+  claimCelebration(): boolean {
+    const session = this.selectedSession();
+    if (session === null || session.status !== 'completed' || this.celebradas.has(session.id)) {
+      return false;
+    }
+    this.celebradas.add(session.id);
+    return true;
   }
 
   private replace(updated: WorkoutSession): void {

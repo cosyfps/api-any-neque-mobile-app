@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "ng serve --proxy-config proxy.conf.json",
     "build": "ng build",
     "build:prod": "ng build --configuration production",
     "test": "jest --passWithNoTests",
@@ -14,10 +14,13 @@
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,html,scss,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,html,scss,json,md}\"",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json",
     "cap:sync": "npx cap sync",
     "cap:build": "ng build --configuration production && npx cap copy",
-    "prepare": "husky"
+    "prepare": "husky",
+    "dev:api": "tsx watch --tsconfig tsconfig.server.json server/dev.ts",
+    "build:vercel": "node scripts/build-vercel.mjs",
+    "create:trainer": "tsx --tsconfig tsconfig.server.json server/scripts/create-trainer.ts"
   },
   "dependencies": {
     "@angular/animations": "^17.0.0",
@@ -35,10 +38,15 @@
     "@capacitor/push-notifications": "^6.0.0",
     "@capacitor/screen-orientation": "^6.0.4",
     "@capacitor/share": "^6.0.0",
+    "@hono/node-server": "^1.19.18",
     "@lucide/angular": "^1.20.0",
+    "@supabase/supabase-js": "^2.118.0",
+    "hono": "^4.13.16",
+    "jose": "^5.10.0",
     "qrcode": "^1.5.4",
     "rxjs": "~7.8.0",
     "tslib": "^2.6.0",
+    "zod": "^3.25.76",
     "zone.js": "~0.14.0"
   },
   "devDependencies": {
@@ -54,6 +62,7 @@
     "@types/qrcode": "^1.5.6",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "esbuild": "^0.24.2",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.29.0",
@@ -64,6 +73,7 @@
     "lint-staged": "^15.0.0",
     "prettier": "^3.2.0",
     "ts-jest": "^29.1.0",
+    "tsx": "^4.23.15",
     "typescript": "~5.3.0"
   },
   "jest": {
@@ -78,7 +88,8 @@
       "^ionicons/components/(.*)$": "<rootDir>/node_modules/ionicons/components/$1",
       "^@app/(.*)$": "<rootDir>/src/app/$1",
       "^@env/(.*)$": "<rootDir>/src/environments/$1",
-      "^@shared/(.*)$": "<rootDir>/src/app/ui/shared/$1"
+      "^@shared/(.*)$": "<rootDir>/src/app/ui/shared/$1",
+      "^@testing/(.*)$": "<rootDir>/src/testing/$1"
     },
     "testPathIgnorePatterns": [
       "/node_modules/",
@@ -87,10 +98,13 @@
     ],
     "collectCoverageFrom": [
       "src/**/*.ts",
+      "server/domain/**/*.ts",
+      "server/infrastructure/mappers.ts",
       "!src/**/*.module.ts",
       "!src/**/*.routes.ts",
       "!src/main.ts",
-      "!src/environments/**"
+      "!src/environments/**",
+      "!src/testing/**"
     ],
     "coverageThreshold": {
       "global": {

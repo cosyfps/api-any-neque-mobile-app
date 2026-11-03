@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { INVITATION_PORT, InvitationDetails } from '@app/domain/auth/port/invitation.port';
 import { DomainError, toDomainError } from '@app/domain/shared/model/app-error';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+import { PUBLIC_APP_URL } from '@app/domain/shared/port/public-url.port';
 
 const MS_POR_HORA = 60 * 60 * 1000;
 
@@ -19,6 +20,7 @@ const MS_POR_HORA = 60 * 60 * 1000;
 export class TrainerInvitationFacade {
   private readonly port = inject(INVITATION_PORT);
   private readonly clock = inject(CLOCK);
+  private readonly publicUrl = inject(PUBLIC_APP_URL);
 
   private readonly _invitation = signal<InvitationDetails | null>(null);
   private readonly _busy = signal(false);
@@ -28,10 +30,15 @@ export class TrainerInvitationFacade {
   readonly busy: Signal<boolean> = this._busy.asReadonly();
   readonly error: Signal<DomainError | null> = this._error.asReadonly();
 
-  /** Enlace que el entrenador comparte. Null si no hay invitacion vigente. */
+  /**
+   * Enlace que el entrenador comparte. Null si no hay invitacion vigente.
+   *
+   * `/i/` y no `/invite/`: mas corto en WhatsApp y un QR mas simple. La ruta
+   * corta redirige a la larga, que sigue funcionando.
+   */
   readonly link: Signal<string | null> = computed(() => {
     const value = this._invitation();
-    return value === null ? null : `${this.origin()}/invite/${value.token}`;
+    return value === null ? null : `${this.publicUrl}/i/${value.token}`;
   });
 
   /**
@@ -79,10 +86,5 @@ export class TrainerInvitationFacade {
         this._busy.set(false);
       },
     });
-  }
-
-  /** Aislado para poder probarlo sin depender del host del navegador. */
-  protected origin(): string {
-    return window.location.origin;
   }
 }

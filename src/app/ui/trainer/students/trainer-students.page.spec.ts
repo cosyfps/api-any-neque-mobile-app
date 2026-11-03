@@ -5,11 +5,14 @@ import { of, throwError } from 'rxjs';
 import { SessionFacade } from '@app/application/auth/session.facade';
 import { TrainerInvitationFacade } from '@app/application/trainers/trainer-invitation.facade';
 import { TrainerStudentsFacade } from '@app/application/trainers/trainer-students.facade';
-import { INVITATION_PORT } from '@app/domain/auth/port/invitation.port';
+import { INVITATION_PORT, InvitationPort } from '@app/domain/auth/port/invitation.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+import { PUBLIC_APP_URL } from '@app/domain/shared/port/public-url.port';
 import { Student } from '@app/domain/students/model/student.model';
-import { STUDENTS_PORT } from '@app/domain/students/port/students.port';
+import { STUDENTS_PORT, StudentsPort } from '@app/domain/students/port/students.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { TrainerStudentsPage } from './trainer-students.page';
 
@@ -23,7 +26,7 @@ const alumno = (
   trainerId: 'trn-001',
   trainerName: 'Kelvin Moreno',
   firstName,
-  lastName: 'Rojas',
+  lastName: 'Acosta',
   email: `${firstName.toLowerCase()}@neque.cl`,
   phone: null,
   avatarUrl: null,
@@ -34,7 +37,7 @@ const alumno = (
   joinedAt: '2026-01-10T00:00:00.000Z',
 });
 
-const CARTERA = [alumno('std-001', 'Ana'), alumno('std-003', 'Diego', 'suspended')];
+const CARTERA = [alumno('std-001', 'Alejandra'), alumno('std-003', 'Diego', 'suspended')];
 
 const AHORA = new Date('2026-09-20T10:00:00.000Z');
 
@@ -51,12 +54,12 @@ const INVITACION = {
 describe('TrainerStudentsPage', () => {
   let page: TrainerStudentsPage;
   let router: Router;
-  let create: jest.Mock;
-  let issue: jest.Mock;
+  let create: MockOf<StudentsPort['create']>;
+  let issue: MockOf<InvitationPort['create']>;
 
   const createPage = (cartera: Student[] = CARTERA): TrainerStudentsPage => {
-    create = jest.fn().mockReturnValue(of(alumno('std-009', 'Nueva')));
-    issue = jest.fn().mockReturnValue(of(INVITACION));
+    create = fn<StudentsPort['create']>().mockReturnValue(of(alumno('std-009', 'Nueva')));
+    issue = fn<InvitationPort['create']>().mockReturnValue(of(INVITACION));
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
@@ -64,6 +67,7 @@ describe('TrainerStudentsPage', () => {
         // La pagina las declara en sus `providers`; aqui hay que darlas a mano.
         TrainerStudentsFacade,
         TrainerInvitationFacade,
+        { provide: PUBLIC_APP_URL, useValue: 'https://neque.vercel.app' },
         { provide: SessionFacade, useValue: { profileId: () => 'trn-001' } },
         { provide: CLOCK, useValue: { now: () => AHORA } },
         { provide: STUDENTS_PORT, useValue: { listByTrainer: () => of(cartera), create } },
@@ -99,7 +103,7 @@ describe('TrainerStudentsPage', () => {
     });
 
     it('usa el plural con varios', () => {
-      page = createPage([alumno('std-001', 'Ana'), alumno('std-002', 'Camila')]);
+      page = createPage([alumno('std-001', 'Alejandra'), alumno('std-002', 'Camila')]);
 
       expect(page.resumen()).toBe('2 alumnos activos');
     });
@@ -109,9 +113,9 @@ describe('TrainerStudentsPage', () => {
     const evento = (value: string): Event => ({ target: { value } }) as unknown as Event;
 
     it('filtra con lo que se escribe', () => {
-      page.search(evento('ana'));
+      page.search(evento('alejandra'));
 
-      expect(page.facade.query()).toBe('ana');
+      expect(page.facade.query()).toBe('alejandra');
       expect(page.facade.visible()).toHaveLength(1);
     });
 
@@ -134,7 +138,7 @@ describe('TrainerStudentsPage', () => {
     });
 
     it('explica la pestana de suspendidos vacia', () => {
-      page = createPage([alumno('std-001', 'Ana')]);
+      page = createPage([alumno('std-001', 'Alejandra')]);
       page.facade.selectFilter('suspended');
 
       expect(page.vacioMensaje()).toContain('suspendidos');
@@ -158,10 +162,10 @@ describe('TrainerStudentsPage', () => {
 
   describe('helpers de plantilla', () => {
     it('arma el nombre completo y las iniciales', () => {
-      const student = alumno('std-001', 'Ana');
+      const student = alumno('std-001', 'Alejandra');
 
-      expect(page.nameOf(student)).toBe('Ana Rojas');
-      expect(page.initialsOf(student)).toBe('AR');
+      expect(page.nameOf(student)).toBe('Alejandra Acosta');
+      expect(page.initialsOf(student)).toBe('AA');
     });
   });
 

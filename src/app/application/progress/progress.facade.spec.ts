@@ -3,13 +3,18 @@ import { of, throwError } from 'rxjs';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
 import { ProgressPhoto } from '@app/domain/progress/model/progress-photo.model';
-import { PROGRESS_PHOTOS_PORT } from '@app/domain/progress/port/progress-photos.port';
+import {
+  PROGRESS_PHOTOS_PORT,
+  ProgressPhotosPort,
+} from '@app/domain/progress/port/progress-photos.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { toIsoDate } from '@app/domain/shared/model/date';
 import { Assessment } from '@app/domain/students/model/assessment.model';
-import { ASSESSMENTS_PORT } from '@app/domain/students/port/assessments.port';
+import { ASSESSMENTS_PORT, AssessmentsPort } from '@app/domain/students/port/assessments.port';
 import { WorkoutSession, WorkoutStatus } from '@app/domain/workouts/model/workout-session.model';
-import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
+import { WORKOUTS_PORT, WorkoutsPort } from '@app/domain/workouts/port/workouts.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { ProgressFacade } from './progress.facade';
 
@@ -70,11 +75,11 @@ const WORKOUTS: WorkoutSession[] = [
 ];
 
 describe('ProgressFacade', () => {
-  let listAssessments: jest.Mock;
-  let listPhotos: jest.Mock;
-  let listWorkouts: jest.Mock;
-  let addPhoto: jest.Mock;
-  let removePhoto: jest.Mock;
+  let listAssessments: MockOf<AssessmentsPort['listByStudent']>;
+  let listPhotos: MockOf<ProgressPhotosPort['listByStudent']>;
+  let listWorkouts: MockOf<WorkoutsPort['listByStudent']>;
+  let addPhoto: MockOf<ProgressPhotosPort['add']>;
+  let removePhoto: MockOf<ProgressPhotosPort['remove']>;
   let profileId: string | null;
 
   const build = (): ProgressFacade => {
@@ -86,8 +91,8 @@ describe('ProgressFacade', () => {
           provide: ASSESSMENTS_PORT,
           useValue: {
             listByStudent: listAssessments,
-            latestByStudent: jest.fn(),
-            create: jest.fn(),
+            latestByStudent: fn<AssessmentsPort['latestByStudent']>(),
+            create: fn<AssessmentsPort['create']>(),
           },
         },
         {
@@ -98,11 +103,11 @@ describe('ProgressFacade', () => {
           provide: WORKOUTS_PORT,
           useValue: {
             listByStudent: listWorkouts,
-            getById: jest.fn(),
-            start: jest.fn(),
-            markExercise: jest.fn(),
-            logSet: jest.fn(),
-            complete: jest.fn(),
+            getById: fn<WorkoutsPort['getById']>(),
+            start: fn<WorkoutsPort['start']>(),
+            markExercise: fn<WorkoutsPort['markExercise']>(),
+            logSet: fn<WorkoutsPort['logSet']>(),
+            complete: fn<WorkoutsPort['complete']>(),
           },
         },
       ],
@@ -117,11 +122,11 @@ describe('ProgressFacade', () => {
   };
 
   beforeEach(() => {
-    listAssessments = jest.fn().mockReturnValue(of(ASSESSMENTS));
-    listPhotos = jest.fn().mockReturnValue(of(PHOTOS));
-    listWorkouts = jest.fn().mockReturnValue(of(WORKOUTS));
-    addPhoto = jest.fn();
-    removePhoto = jest.fn().mockReturnValue(of(undefined));
+    listAssessments = fn<AssessmentsPort['listByStudent']>().mockReturnValue(of(ASSESSMENTS));
+    listPhotos = fn<ProgressPhotosPort['listByStudent']>().mockReturnValue(of(PHOTOS));
+    listWorkouts = fn<WorkoutsPort['listByStudent']>().mockReturnValue(of(WORKOUTS));
+    addPhoto = fn<ProgressPhotosPort['add']>();
+    removePhoto = fn<ProgressPhotosPort['remove']>().mockReturnValue(of(undefined));
     profileId = 'std-001';
   });
 
@@ -246,12 +251,93 @@ describe('ProgressFacade', () => {
       expect(facade.canCompare()).toBe(false);
     });
 
-    it('respeta una seleccion explicita', () => {
-      const facade = loaded();
+    describe('con varias fotos por angulo', () => {
+      const MANY: ProgressPhoto[] = [
+        photo('f1', '2026-03-05T09:00:00.000Z', 'front'),
+        photo('f2', '2026-06-04T09:00:00.000Z', 'front'),
+        photo('f3', '2026-09-07T09:00:00.000Z', 'front'),
+        photo('s1', '2026-03-05T09:01:00.000Z', 'side'),
+        photo('s2', '2026-09-07T09:01:00.000Z', 'side'),
+        photo('b1', '2026-09-07T09:02:00.000Z', 'back'),
+      ];
 
-      facade.selectCompare('p2', 'p3');
+      beforeEach(() => listPhotos.mockReturnValue(of(MANY)));
 
-      expect(facade.compareA()?.id).toBe('p2');
+      it('solo ofrece los angulos con dos fotos o mas', () => {
+        expect(loaded().comparableAngles()).toEqual(['front', 'side']);
+      });
+
+      it('los candidatos son del angulo actual, del mas antiguo al mas reciente', () => {
+        expect(
+          loaded()
+            .compareCandidates()
+            .map(p => p.id),
+        ).toEqual(['f1', 'f2', 'f3']);
+      });
+
+      it('respeta una seleccion explicita del mismo angulo', () => {
+        const facade = loaded();
+
+        facade.selectCompare('f2', 'f3');
+
+        expect(facade.compareA()?.id).toBe('f2');
+        expect(facade.compareB()?.id).toBe('f3');
+      });
+
+      it('ignora una seleccion que mezcla angulos', () => {
+        const facade = loaded();
+
+        facade.selectCompare('f2', 's2');
+
+        expect(facade.compareA()?.id).toBe('f1');
+        expect(facade.compareB()?.id).toBe('f3');
+      });
+
+      it('replaceCompare() cambia un lado y mantiene el orden cronologico', () => {
+        const facade = loaded();
+
+        expect(facade.replaceCompare('after', 'f2')).toBe(true);
+        expect([facade.compareA()?.id, facade.compareB()?.id]).toEqual(['f1', 'f2']);
+
+        // Una "anterior" mas reciente que la otra pasa a la derecha.
+        expect(facade.replaceCompare('before', 'f3')).toBe(true);
+        expect([facade.compareA()?.id, facade.compareB()?.id]).toEqual(['f2', 'f3']);
+      });
+
+      it('replaceCompare() rechaza otro angulo o la foto del otro lado', () => {
+        const facade = loaded();
+
+        expect(facade.replaceCompare('before', 's1')).toBe(false);
+        expect(facade.replaceCompare('before', 'f3')).toBe(false);
+        expect([facade.compareA()?.id, facade.compareB()?.id]).toEqual(['f1', 'f3']);
+      });
+
+      it('selectCompareAngle() cambia de angulo y vuelve al par por defecto', () => {
+        const facade = loaded();
+        facade.replaceCompare('after', 'f2');
+
+        facade.selectCompareAngle('side');
+
+        expect(facade.compareAngle()).toBe('side');
+        expect([facade.compareA()?.id, facade.compareB()?.id]).toEqual(['s1', 's2']);
+      });
+
+      it('selectCompareAngle() ignora un angulo con menos de dos fotos', () => {
+        const facade = loaded();
+
+        facade.selectCompareAngle('back');
+
+        expect(facade.compareAngle()).toBe('front');
+      });
+
+      it('si el angulo elegido deja de alcanzar, pasa al primero que si', () => {
+        const facade = loaded();
+        facade.selectCompareAngle('side');
+
+        facade.photos.set(MANY.filter(p => p.id !== 's2'));
+
+        expect(facade.compareAngle()).toBe('front');
+      });
     });
   });
 

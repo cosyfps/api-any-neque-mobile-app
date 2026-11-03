@@ -9,12 +9,15 @@ import { Routine } from '@app/domain/routines/model/routine.model';
 import { ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+import { PUBLIC_APP_URL } from '@app/domain/shared/port/public-url.port';
 import { Anamnesis } from '@app/domain/students/model/anamnesis.model';
 import { Assessment } from '@app/domain/students/model/assessment.model';
 import { Student } from '@app/domain/students/model/student.model';
-import { ANAMNESIS_PORT } from '@app/domain/students/port/anamnesis.port';
-import { ASSESSMENTS_PORT } from '@app/domain/students/port/assessments.port';
-import { STUDENTS_PORT } from '@app/domain/students/port/students.port';
+import { ANAMNESIS_PORT, AnamnesisPort } from '@app/domain/students/port/anamnesis.port';
+import { ASSESSMENTS_PORT, AssessmentsPort } from '@app/domain/students/port/assessments.port';
+import { STUDENTS_PORT, StudentsPort } from '@app/domain/students/port/students.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { StudentDetailPage } from './student-detail.page';
 
@@ -24,9 +27,9 @@ const ALUMNO: Student = {
   id: 'std-001',
   trainerId: 'trn-001',
   trainerName: 'Kelvin Moreno',
-  firstName: 'Ana',
-  lastName: 'Rojas',
-  email: 'ana@neque.cl',
+  firstName: 'Alejandra',
+  lastName: 'Acosta',
+  email: 'alejandra@neque.cl',
   phone: null,
   avatarUrl: null,
   status: 'active',
@@ -66,10 +69,11 @@ const evaluacion = (id: string, takenAt: string, weightKg: number): Assessment =
 describe('StudentDetailPage', () => {
   let page: StudentDetailPage;
   let router: Router;
-  let setStatus: jest.Mock;
-  let edit: jest.Mock;
-  let save: jest.Mock;
-  let createAssessment: jest.Mock;
+  let setStatus: MockOf<StudentsPort['setStatus']>;
+  let edit: MockOf<StudentsPort['edit']>;
+  let save: MockOf<AnamnesisPort['save']>;
+  let createAssessment: MockOf<AssessmentsPort['create']>;
+  let accionPedida: string | null;
 
   const createPage = (
     alumno: Student = ALUMNO,
@@ -77,14 +81,16 @@ describe('StudentDetailPage', () => {
     rutina: Routine | null = null,
     evaluaciones: Assessment[] = [],
   ): StudentDetailPage => {
-    save = jest.fn().mockImplementation(input => of({ ...ANAMNESIS, ...input }));
-    createAssessment = jest
-      .fn()
-      .mockImplementation(input =>
-        of({ ...input, id: 'asm-nueva', takenAt: '2026-09-20T10:00:00.000Z' }),
-      );
-    setStatus = jest.fn().mockImplementation((_id, status) => of({ ...alumno, status }));
-    edit = jest.fn().mockImplementation((_id, changes) => of({ ...alumno, ...changes }));
+    save = fn<AnamnesisPort['save']>().mockImplementation(input => of({ ...ANAMNESIS, ...input }));
+    createAssessment = fn<AssessmentsPort['create']>().mockImplementation(input =>
+      of({ ...input, id: 'asm-nueva', takenAt: '2026-09-20T10:00:00.000Z' }),
+    );
+    setStatus = fn<StudentsPort['setStatus']>().mockImplementation((_id, status) =>
+      of({ ...alumno, status }),
+    );
+    edit = fn<StudentsPort['edit']>().mockImplementation((_id, changes) =>
+      of({ ...alumno, ...changes }),
+    );
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
@@ -93,10 +99,16 @@ describe('StudentDetailPage', () => {
         // La pagina las declara en sus `providers`; aqui hay que darlas a mano.
         TrainerStudentDetailFacade,
         TrainerInvitationFacade,
+        { provide: PUBLIC_APP_URL, useValue: 'https://neque.vercel.app' },
         { provide: CLOCK, useValue: { now: () => AHORA } },
         {
           provide: ActivatedRoute,
-          useValue: { snapshot: { paramMap: { get: () => 'std-001' } } },
+          useValue: {
+            snapshot: {
+              paramMap: { get: () => 'std-001' },
+              queryParamMap: { get: () => accionPedida },
+            },
+          },
         },
         {
           provide: STUDENTS_PORT,
@@ -117,13 +129,56 @@ describe('StudentDetailPage', () => {
   };
 
   beforeEach(() => {
+    accionPedida = null;
     page = createPage();
+  });
+
+  // El inicio del entrenador llega con ?accion= para resolver un pendiente.
+  describe('accion pedida por el inicio', () => {
+    it('?accion=anamnesis abre la hoja de anamnesis al cargar', () => {
+      accionPedida = 'anamnesis';
+      page = createPage();
+      TestBed.flushEffects();
+
+      expect(page.editingAnamnesis()).toBe(true);
+      expect(page.addingAssessment()).toBe(false);
+    });
+
+    it('?accion=evaluacion abre la hoja de evaluacion al cargar', () => {
+      accionPedida = 'evaluacion';
+      page = createPage();
+      TestBed.flushEffects();
+
+      expect(page.addingAssessment()).toBe(true);
+    });
+
+    it('una accion desconocida no abre nada', () => {
+      accionPedida = 'borrar';
+      page = createPage();
+      TestBed.flushEffects();
+
+      expect(page.editingAnamnesis()).toBe(false);
+      expect(page.addingAssessment()).toBe(false);
+    });
+
+    // Cerrarla no la vuelve a abrir: la accion se atiende una sola vez.
+    it('se abre una sola vez', () => {
+      accionPedida = 'anamnesis';
+      page = createPage();
+      TestBed.flushEffects();
+
+      page.closeAnamnesis();
+      page.reload();
+      TestBed.flushEffects();
+
+      expect(page.editingAnamnesis()).toBe(false);
+    });
   });
 
   describe('carga inicial', () => {
     it('abre la ficha del parametro de ruta', () => {
       expect(page.facade.viewState()).toBe('success');
-      expect(page.facade.displayName()).toBe('Ana Rojas');
+      expect(page.facade.displayName()).toBe('Alejandra Acosta');
     });
 
     it('pide tambien la invitacion del alumno', () => {
@@ -169,10 +224,10 @@ describe('StudentDetailPage', () => {
     it('junta nombre, parentesco y telefono', () => {
       page = createPage(ALUMNO, {
         ...ANAMNESIS,
-        emergencyContact: { name: 'Luis Rojas', phone: '+56 9 2222', relation: 'Padre' },
+        emergencyContact: { name: 'Luis Acosta', phone: '+56 9 2222', relation: 'Padre' },
       });
 
-      expect(page.emergency()).toBe('Luis Rojas (Padre) · +56 9 2222');
+      expect(page.emergency()).toBe('Luis Acosta (Padre) · +56 9 2222');
     });
   });
 
@@ -205,9 +260,9 @@ describe('StudentDetailPage', () => {
 
   describe('editar datos', () => {
     const VALORES = {
-      firstName: 'Ana',
-      lastName: 'Rojas',
-      email: 'ana@neque.cl',
+      firstName: 'Alejandra',
+      lastName: 'Acosta',
+      email: 'alejandra@neque.cl',
       phone: '+56 9 3333 3333',
       birthDate: null,
       heightCm: 167,
@@ -231,8 +286,8 @@ describe('StudentDetailPage', () => {
       await page.saveEdit(VALORES);
 
       expect(edit).toHaveBeenCalledWith('std-001', {
-        firstName: 'Ana',
-        lastName: 'Rojas',
+        firstName: 'Alejandra',
+        lastName: 'Acosta',
         phone: '+56 9 3333 3333',
         birthDate: null,
         heightCm: 167,

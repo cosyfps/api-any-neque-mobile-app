@@ -1,5 +1,15 @@
 import { Id, IsoDateString } from '@app/domain/shared/model/ids';
 
+/** Por que el alumno salto una serie o un ejercicio. Lo lee el entrenador. */
+export type SkipReason = 'equipment_busy' | 'pain' | 'no_time' | 'other';
+
+export const SKIP_REASON_LABEL: Record<SkipReason, string> = {
+  equipment_busy: 'Máquina ocupada',
+  pain: 'Molestia o dolor',
+  no_time: 'Sin tiempo',
+  other: 'Otro motivo',
+};
+
 /**
  * Una serie tal como el alumno la ejecuto.
  *
@@ -13,6 +23,12 @@ export interface WorkoutSet {
   readonly reps: number | null;
   readonly weightKg: number | null;
   readonly completedAt: IsoDateString;
+  /** Segundos que duro, en un ejercicio que se mide por tiempo. */
+  readonly durationSeconds?: number | null;
+  /** La serie no se hizo: el alumno la salto. `reps` y `weightKg` van en null. */
+  readonly skipped?: boolean;
+  /** Motivo opcional del salto. */
+  readonly skipReason?: SkipReason | null;
 }
 
 /** Lo que el runner envia al cerrar una serie. */
@@ -20,11 +36,14 @@ export interface WorkoutSetInput {
   readonly setNumber: number;
   readonly reps: number | null;
   readonly weightKg: number | null;
+  readonly durationSeconds?: number | null;
+  readonly skipped?: boolean;
+  readonly skipReason?: SkipReason | null;
 }
 
 /** Volumen de una serie, en kg levantados. Null si falta un dato. */
 export function setVolumeKg(set: WorkoutSet): number | null {
-  if (set.reps === null || set.weightKg === null) {
+  if (set.skipped === true || set.reps === null || set.weightKg === null) {
     return null;
   }
   return set.reps * set.weightKg;

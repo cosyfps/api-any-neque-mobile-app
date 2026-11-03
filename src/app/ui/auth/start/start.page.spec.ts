@@ -3,19 +3,24 @@ import { Router, provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
 import { AuthSession } from '@app/domain/auth/model/auth-user.model';
-import { AUTH_PORT } from '@app/domain/auth/port/auth.port';
-import { SESSION_STORAGE_PORT } from '@app/domain/auth/port/session-storage.port';
+import { AUTH_PORT, AuthPort } from '@app/domain/auth/port/auth.port';
+import {
+  SESSION_STORAGE_PORT,
+  SessionStoragePort,
+} from '@app/domain/auth/port/session-storage.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { StartPage } from './start.page';
 
 const STUDENT_SESSION: AuthSession = {
   user: {
     id: 'usr-1',
-    email: 'ana@neque.cl',
+    email: 'alejandra@neque.cl',
     role: 'student',
-    displayName: 'Ana Rojas',
+    displayName: 'Alejandra Acosta',
     avatarUrl: null,
     profileId: 'std-001',
   },
@@ -26,12 +31,12 @@ const STUDENT_SESSION: AuthSession = {
 describe('StartPage', () => {
   let page: StartPage;
   let router: Router;
-  let login: jest.Mock;
+  let login: MockOf<AuthPort['login']>;
 
   const createPage = (): StartPage => TestBed.runInInjectionContext(() => new StartPage());
 
   beforeEach(() => {
-    login = jest.fn().mockReturnValue(of(STUDENT_SESSION));
+    login = fn<AuthPort['login']>().mockReturnValue(of(STUDENT_SESSION));
 
     TestBed.configureTestingModule({
       providers: [
@@ -48,7 +53,11 @@ describe('StartPage', () => {
         },
         {
           provide: SESSION_STORAGE_PORT,
-          useValue: { read: () => null, write: jest.fn(), clear: jest.fn() },
+          useValue: {
+            read: () => null,
+            write: fn<SessionStoragePort['write']>(),
+            clear: fn<SessionStoragePort['clear']>(),
+          },
         },
       ],
     });
@@ -96,43 +105,78 @@ describe('StartPage', () => {
 
       expect(page.emailError()).toBeNull();
     });
+
+    // La sugerencia del teclado de iOS deja un espacio al final del correo.
+    it('acepta espacios en los bordes y los recorta al perder el foco', () => {
+      page.form.controls.email.setValue('  kelvin@duocuc.cl ');
+      expect(page.form.controls.email.valid).toBe(true);
+
+      page.markEmailTouched();
+
+      expect(page.form.controls.email.value).toBe('kelvin@duocuc.cl');
+      expect(page.emailError()).toBeNull();
+    });
+
+    it('rechaza espacios dentro del correo', () => {
+      page.markEmailTouched();
+      page.form.controls.email.setValue('kelvin @duocuc.cl');
+
+      expect(page.emailError()).toBe('Ingresa un correo válido');
+    });
+  });
+
+  describe('focusPassword()', () => {
+    it('evita el envio implicito del Enter en el correo', () => {
+      const event = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+
+      page.focusPassword(event);
+
+      expect(event.defaultPrevented).toBe(true);
+    });
   });
 
   describe('validacion de password', () => {
-    it('no muestra error antes de tocar el campo', () => {
-      page.form.controls.password.setValue('');
-
-      expect(page.passwordError()).toBeNull();
+    it('oculta los requisitos antes de enfocar o tocar el campo', () => {
+      expect(page.showRequirements()).toBe(false);
     });
 
-    it('exige el campo cuando esta vacio y ya fue tocado', () => {
-      page.markPasswordTouched();
-      page.form.controls.password.setValue('');
+    it('muestra los requisitos mientras el campo tiene foco', () => {
+      page.passwordFocused.set(true);
 
-      expect(page.passwordError()).toBe('La contraseña es obligatoria');
+      expect(page.showRequirements()).toBe(true);
     });
 
-    it('exige un largo minimo de 8', () => {
+    it('los mantiene visibles al salir si la contrasena quedo incompleta', () => {
+      page.form.controls.password.setValue('abc');
       page.markPasswordTouched();
-      page.form.controls.password.setValue('corta');
 
-      expect(page.passwordError()).toBe('Debe tener al menos 8 caracteres');
+      expect(page.showRequirements()).toBe(true);
+      expect(page.passwordValid()).toBe(false);
     });
 
-    // El login no valida composicion: una contrasena antigua que no cumple
-    // las reglas vigentes debe poder usarse igual.
-    it('acepta una contrasena sin mayusculas, numeros ni simbolos', () => {
+    it('los oculta al salir si la contrasena cumple todo', () => {
+      page.form.controls.password.setValue('Abcdefg1!');
       page.markPasswordTouched();
-      page.form.controls.password.setValue('todominuscula');
 
-      expect(page.passwordError()).toBeNull();
+      expect(page.showRequirements()).toBe(false);
+      expect(page.passwordValid()).toBe(true);
+    });
+
+    it.each([
+      ['abcdefgh', [true, false, false, false]],
+      ['Abcdefgh', [true, true, false, false]],
+      ['Abcdefg1', [true, true, true, false]],
+      ['Abcdefg1!', [true, true, true, true]],
+    ])('evalua %s regla por regla', (value, expected) => {
+      page.form.controls.password.setValue(value);
+
+      expect(page.pwdRequirements().map(req => req.met)).toEqual(expected);
     });
 
     it('expone el valor actual de la contrasena', () => {
       page.form.controls.password.setValue('Abcdefg1!');
 
       expect(page.passwordValue()).toBe('Abcdefg1!');
-      expect(page.passwordFilled()).toBe(true);
     });
 
     it('marca el campo como tocado', () => {
@@ -152,7 +196,7 @@ describe('StartPage', () => {
       page.form.controls.password.setValue('Abcdefg1!');
       expect(page.formValid()).toBe(true);
 
-      page.form.controls.email.setValue('roto@');
+      page.form.controls.password.setValue('sinreglas');
       expect(page.formValid()).toBe(false);
     });
   });
@@ -163,12 +207,24 @@ describe('StartPage', () => {
       page.form.controls.password.setValue('Abcdefg1!');
     };
 
-    it('no hace nada si el formulario es invalido', async () => {
+    it('con el formulario invalido marca los campos y no envia', async () => {
       await page.onLogin();
 
       expect(page.isSubmitting()).toBe(false);
-      expect(page.emailTouched()).toBe(false);
+      expect(page.emailTouched()).toBe(true);
+      expect(page.passwordTouched()).toBe(true);
+      expect(page.emailError()).toBe('El correo es obligatorio');
+      expect(page.showRequirements()).toBe(true);
       expect(login).not.toHaveBeenCalled();
+    });
+
+    it('envia el correo en minusculas', async () => {
+      fillValidForm();
+      page.form.controls.email.setValue('Kelvin@DuocUC.cl');
+
+      await page.onLogin();
+
+      expect(login).toHaveBeenCalledWith({ email: 'kelvin@duocuc.cl', password: 'Abcdefg1!' });
     });
 
     it('marca ambos campos como tocados y llama al puerto', async () => {
@@ -182,6 +238,15 @@ describe('StartPage', () => {
         email: 'kelvin@duocuc.cl',
         password: 'Abcdefg1!',
       });
+    });
+
+    it('envia el correo sin espacios en los bordes', async () => {
+      fillValidForm();
+      page.form.controls.email.setValue('kelvin@duocuc.cl ');
+
+      await page.onLogin();
+
+      expect(login).toHaveBeenCalledWith({ email: 'kelvin@duocuc.cl', password: 'Abcdefg1!' });
     });
 
     it('navega al home del rol tras autenticarse', async () => {
@@ -228,6 +293,87 @@ describe('StartPage', () => {
 
         expect(page.loginError()).toBeNull();
       });
+    });
+  });
+
+  describe('requirementsSummary()', () => {
+    it('queda vacio sin foco en la contrasena', () => {
+      page.form.controls.password.setValue('Abc');
+
+      expect(page.requirementsSummary()).toBe('');
+    });
+
+    it('cuenta los requisitos cumplidos mientras se escribe', () => {
+      page.passwordFocused.set(true);
+      page.form.controls.password.setValue('Abcdefgh');
+
+      expect(page.requirementsSummary()).toBe('2 de 4 requisitos cumplidos');
+    });
+  });
+
+  describe('panel de ingreso', () => {
+    it('openLogin() abre el panel', () => {
+      page.openLogin();
+
+      expect(page.showLogin).toBe(true);
+    });
+
+    describe('onPanelTransitionEnd()', () => {
+      const panel = document.createElement('div');
+      const transition = (propertyName: string, target: EventTarget = panel): TransitionEvent =>
+        ({ propertyName, target, currentTarget: panel }) as unknown as TransitionEvent;
+
+      it('enfoca el correo al terminar de subir el panel', () => {
+        page.openLogin();
+
+        expect(() => page.onPanelTransitionEnd(transition('transform'))).not.toThrow();
+      });
+
+      it.each([
+        ['el panel esta cerrado', false, transition('transform')],
+        [
+          'la transicion es de un hijo',
+          true,
+          transition('transform', document.createElement('input')),
+        ],
+        ['la propiedad no es transform', true, transition('opacity')],
+      ])('no hace nada si %s', (_caso, abierto, event) => {
+        page.showLogin = abierto;
+        const focus = jest.spyOn(HTMLElement.prototype, 'focus');
+
+        page.onPanelTransitionEnd(event);
+
+        expect(focus).not.toHaveBeenCalled();
+        focus.mockRestore();
+      });
+    });
+
+    it('closeLogin() lo cierra, oculta la contrasena y descarta el error', async () => {
+      login.mockReturnValue(throwError(() => domainError('invalid_credentials')));
+      page.form.controls.email.setValue('kelvin@duocuc.cl');
+      page.form.controls.password.setValue('Abcdefg1!');
+      page.openLogin();
+      page.showPassword = true;
+      await page.onLogin();
+      expect(page.loginError()).not.toBeNull();
+
+      page.closeLogin();
+
+      expect(page.showLogin).toBe(false);
+      expect(page.showPassword).toBe(false);
+      expect(page.loginError()).toBeNull();
+    });
+
+    it('muestra el mensaje de bloqueo por intentos', async () => {
+      login.mockReturnValue(throwError(() => domainError('too_many_attempts')));
+      page.form.controls.email.setValue('kelvin@duocuc.cl');
+      page.form.controls.password.setValue('Abcdefg1!');
+
+      await page.onLogin();
+
+      expect(page.loginError()).toBe(
+        'Demasiados intentos fallidos. Espera unos minutos e intenta de nuevo.',
+      );
     });
   });
 

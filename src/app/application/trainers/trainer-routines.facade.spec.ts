@@ -3,42 +3,56 @@ import { of, throwError } from 'rxjs';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
 import { Exercise } from '@app/domain/routines/model/exercise.model';
-import { Routine } from '@app/domain/routines/model/routine.model';
-import { EXERCISE_CATALOG_PORT, ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
+import { Routine, RoutineAssignment } from '@app/domain/routines/model/routine.model';
+import {
+  EXERCISE_CATALOG_PORT,
+  ExerciseCatalogPort,
+  ROUTINES_PORT,
+  RoutinesPort,
+} from '@app/domain/routines/port/routines.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { Student } from '@app/domain/students/model/student.model';
 import { STUDENTS_PORT } from '@app/domain/students/port/students.port';
 
+import { fn, MockOf } from '@testing/typed-mock';
+
 import { TrainerRoutinesFacade } from './trainer-routines.facade';
 
-const alumno = (id: string, firstName: string, status: Student['status'] = 'active'): Student => ({
+const alumno = (
+  id: string,
+  firstName: string,
+  status: Student['status'] = 'active',
+  goal: string | null = null,
+): Student => ({
   id,
   trainerId: 'trn-001',
   trainerName: 'Kelvin Moreno',
   firstName,
-  lastName: 'Rojas',
+  lastName: 'Acosta',
   email: `${id}@neque.cl`,
   phone: null,
   avatarUrl: null,
   status,
   birthDate: null,
   heightCm: null,
-  goal: null,
+  goal,
   joinedAt: '2026-01-10T00:00:00.000Z',
 });
 
-const rutina = (id: string, name: string, status: Routine['status'], studentId = 'std-001') =>
-  ({
-    id,
-    studentId,
-    trainerId: 'trn-001',
-    name,
-    goal: 'Ganar masa',
-    startDate: '2026-09-01T00:00:00.000Z',
-    endDate: null,
-    status,
-    days: [],
-  }) as Routine;
+const asignacion = (studentId: string): RoutineAssignment => ({
+  studentId,
+  startDate: '2026-09-01T00:00:00.000Z',
+  endDate: null,
+});
+
+const rutina = (id: string, name: string, alumnos: string[] = []): Routine => ({
+  id,
+  trainerId: 'trn-001',
+  name,
+  goal: 'Ganar masa',
+  days: [],
+  assignments: alumnos.map(asignacion),
+});
 
 const ejercicio = (id: string, name: string, owner: string | null): Exercise => ({
   id,
@@ -51,37 +65,40 @@ const ejercicio = (id: string, name: string, owner: string | null): Exercise => 
 });
 
 const ENTRADA = {
-  studentId: 'std-001',
   name: 'Hipertrofia',
   goal: 'Ganar masa',
-  startDate: '2026-09-01T00:00:00.000Z',
-  endDate: null,
   days: [],
 };
 
 describe('TrainerRoutinesFacade', () => {
   let facade: TrainerRoutinesFacade;
-  let listByTrainer: jest.Mock;
-  let create: jest.Mock;
-  let update: jest.Mock;
-  let assign: jest.Mock;
-  let archive: jest.Mock;
-  let createExercise: jest.Mock;
+  let listByTrainer: MockOf<RoutinesPort['listByTrainer']>;
+  let create: MockOf<RoutinesPort['create']>;
+  let update: MockOf<RoutinesPort['update']>;
+  let setAssignments: MockOf<RoutinesPort['setAssignments']>;
+  let remove: MockOf<RoutinesPort['remove']>;
+  let createExercise: MockOf<ExerciseCatalogPort['create']>;
 
   const createFacade = (
     trainerId: string | null = 'trn-001',
     rutinas: Routine[] = [
-      rutina('rtn-002', 'Zeta', 'active'),
-      rutina('rtn-001', 'Alfa', 'active'),
-      rutina('rtn-003', 'Vieja', 'archived'),
+      rutina('rtn-002', 'Zeta', ['std-002']),
+      rutina('rtn-001', 'Alfa', ['std-001']),
+      rutina('rtn-003', 'Libre'),
     ],
   ): TrainerRoutinesFacade => {
-    listByTrainer = jest.fn().mockReturnValue(of(rutinas));
-    create = jest.fn().mockReturnValue(of(rutina('rtn-nueva', 'Nueva', 'active')));
-    update = jest.fn().mockReturnValue(of(rutina('rtn-001', 'Alfa', 'active')));
-    assign = jest.fn().mockReturnValue(of(rutina('rtn-003', 'Vieja', 'active')));
-    archive = jest.fn().mockReturnValue(of(rutina('rtn-001', 'Alfa', 'archived')));
-    createExercise = jest.fn().mockReturnValue(of(ejercicio('ex-901', 'Zancada', 'trn-001')));
+    listByTrainer = fn<RoutinesPort['listByTrainer']>().mockReturnValue(of(rutinas));
+    create = fn<RoutinesPort['create']>().mockReturnValue(of(rutina('rtn-nueva', 'Nueva')));
+    update = fn<RoutinesPort['update']>().mockReturnValue(
+      of(rutina('rtn-001', 'Alfa', ['std-001'])),
+    );
+    setAssignments = fn<RoutinesPort['setAssignments']>().mockReturnValue(
+      of(rutina('rtn-003', 'Libre', ['std-003'])),
+    );
+    remove = fn<RoutinesPort['remove']>().mockReturnValue(of(undefined));
+    createExercise = fn<ExerciseCatalogPort['create']>().mockReturnValue(
+      of(ejercicio('ex-901', 'Zancada', 'trn-001')),
+    );
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
@@ -90,13 +107,18 @@ describe('TrainerRoutinesFacade', () => {
         { provide: SessionFacade, useValue: { profileId: () => trainerId } },
         {
           provide: ROUTINES_PORT,
-          useValue: { listByTrainer, create, update, assign, archive },
+          useValue: { listByTrainer, create, update, setAssignments, remove },
         },
         {
           provide: STUDENTS_PORT,
           useValue: {
             listByTrainer: () =>
-              of([alumno('std-001', 'Ana'), alumno('std-002', 'Diego', 'suspended')]),
+              of([
+                alumno('std-001', 'Alejandra'),
+                alumno('std-002', 'Diego', 'suspended'),
+                alumno('std-003', 'Camila', 'active', 'Ganar masa muscular'),
+                alumno('std-004', 'Benjamín', 'suspended'),
+              ]),
           },
         },
         {
@@ -134,34 +156,65 @@ describe('TrainerRoutinesFacade', () => {
       expect(listByTrainer).not.toHaveBeenCalled();
     });
 
-    it('resuelve el nombre del alumno de cada rutina', () => {
-      expect(facade.visible()[0]?.studentName).toBe('Ana Rojas');
+    it('resuelve los nombres de los alumnos de cada rutina', () => {
+      expect(facade.visible()[0]?.studentNames).toEqual(['Alejandra Acosta']);
     });
   });
 
   describe('visible()', () => {
-    it('muestra las activas ordenadas por nombre', () => {
+    it('muestra las asignadas ordenadas por nombre', () => {
       expect(facade.visible().map(row => row.routine.id)).toEqual(['rtn-001', 'rtn-002']);
     });
 
-    it('cambia a las archivadas', () => {
-      facade.selectFilter('archived');
+    it('cambia a las que no tienen alumnos', () => {
+      facade.selectFilter('unassigned');
 
       expect(facade.visible().map(row => row.routine.id)).toEqual(['rtn-003']);
     });
   });
 
   describe('contadores', () => {
-    it('cuenta activas y archivadas por separado', () => {
-      expect(facade.activeCount()).toBe(2);
-      expect(facade.archivedCount()).toBe(1);
+    it('cuenta asignadas y sin alumnos por separado', () => {
+      expect(facade.assignedCount()).toBe(2);
+      expect(facade.unassignedCount()).toBe(1);
     });
   });
 
-  describe('assignableStudents()', () => {
+  describe('assignmentOptions()', () => {
+    const opciones = (routineId: string) => {
+      const routine = facade.rows.data()?.find(row => row.routine.id === routineId)?.routine;
+      return facade.assignmentOptions(routine as Routine);
+    };
+
+    it('pone primero a los de objetivo parecido', () => {
+      const lista = opciones('rtn-003');
+
+      expect(lista.map(item => item.student.id)).toEqual(['std-003', 'std-001']);
+      expect(lista[0]?.sameGoal).toBe(true);
+    });
+
     // A un alumno suspendido no se le puede asignar una rutina.
-    it('deja fuera a los suspendidos', () => {
-      expect(facade.assignableStudents().map(item => item.id)).toEqual(['std-001']);
+    it('deja fuera a los suspendidos que no la hacen', () => {
+      expect(opciones('rtn-003').some(item => item.student.id === 'std-004')).toBe(false);
+    });
+
+    // Si no apareciera, al guardar saldria de la rutina sin que nadie lo desmarque.
+    it('mantiene al suspendido que ya la hace', () => {
+      const diego = opciones('rtn-002').find(item => item.student.id === 'std-002');
+
+      expect(diego?.assignment?.studentId).toBe('std-002');
+    });
+
+    it('avisa que el alumno viene de otra rutina', () => {
+      const alejandra = opciones('rtn-003').find(item => item.student.id === 'std-001');
+
+      expect(alejandra?.otherRoutine).toBe('Alfa');
+    });
+
+    it('no avisa si el alumno ya hace esta misma rutina', () => {
+      const alejandra = opciones('rtn-001').find(item => item.student.id === 'std-001');
+
+      expect(alejandra?.otherRoutine).toBeNull();
     });
   });
 
@@ -214,32 +267,58 @@ describe('TrainerRoutinesFacade', () => {
     });
   });
 
-  describe('assign()', () => {
-    it('llama al puerto con la rutina', async () => {
-      expect(await facade.assign('rtn-003')).toBe(true);
-      expect(assign).toHaveBeenCalledWith('rtn-003');
+  describe('saveAssignments()', () => {
+    it('manda la lista completa al puerto', async () => {
+      const lista = [asignacion('std-003')];
+
+      expect(await facade.saveAssignments('rtn-003', lista)).toBe(true);
+      expect(setAssignments).toHaveBeenCalledWith('rtn-003', lista);
     });
 
-    // Asignar archiva otra rutina que no vuelve en la respuesta: parchear la
-    // lista en memoria la dejaria mintiendo.
+    // Mover a un alumno lo saca de otra rutina que no vuelve en la respuesta:
+    // parchear la lista en memoria la dejaria mintiendo.
     it('relee la biblioteca despues', async () => {
-      await facade.assign('rtn-003');
+      await facade.saveAssignments('rtn-003', []);
 
       expect(listByTrainer).toHaveBeenCalledTimes(2);
     });
 
     it('devuelve false si el puerto rechaza', async () => {
-      assign.mockReturnValue(throwError(() => domainError('conflict')));
+      setAssignments.mockReturnValue(throwError(() => domainError('conflict')));
 
-      expect(await facade.assign('rtn-003')).toBe(false);
+      expect(await facade.saveAssignments('rtn-003', [])).toBe(false);
       expect(facade.actionError()?.code).toBe('conflict');
     });
   });
 
-  describe('archive()', () => {
-    it('llama al puerto con la rutina', async () => {
-      expect(await facade.archive('rtn-001')).toBe(true);
-      expect(archive).toHaveBeenCalledWith('rtn-001');
+  describe('remove()', () => {
+    it('elimina y relee la biblioteca sin la rutina', async () => {
+      listByTrainer.mockReturnValue(
+        of([rutina('rtn-002', 'Zeta', ['std-002']), rutina('rtn-003', 'Libre')]),
+      );
+
+      expect(await facade.remove('rtn-001')).toBe(true);
+
+      expect(remove).toHaveBeenCalledWith('rtn-001');
+      expect(facade.rows.data()?.map(row => row.routine.id)).toEqual(['rtn-002', 'rtn-003']);
+      expect(facade.busy()).toBe(false);
+    });
+
+    it('expone el error y no toca la lista si el puerto rechaza', async () => {
+      remove.mockReturnValue(throwError(() => domainError('not_found')));
+
+      expect(await facade.remove('rtn-001')).toBe(false);
+
+      expect(facade.actionError()?.code).toBe('not_found');
+      expect(facade.rows.data()).toHaveLength(3);
+      expect(facade.busy()).toBe(false);
+    });
+
+    it('no hace nada sin entrenador en sesion', async () => {
+      facade = createFacade(null);
+
+      expect(await facade.remove('rtn-001')).toBe(false);
+      expect(remove).not.toHaveBeenCalled();
     });
   });
 

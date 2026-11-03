@@ -2,15 +2,17 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { Student } from '@app/domain/students/model/student.model';
 
+import { fn } from '@testing/typed-mock';
+
 import { StudentFormComponent, StudentFormValue } from './student-form.component';
 
 const ALUMNO: Student = {
   id: 'std-001',
   trainerId: 'trn-001',
   trainerName: 'Kelvin Moreno',
-  firstName: 'Ana',
-  lastName: 'Rojas',
-  email: 'ana@neque.cl',
+  firstName: 'Alejandra',
+  lastName: 'Acosta',
+  email: 'alejandra@neque.cl',
   phone: '+56 9 1111 1111',
   avatarUrl: null,
   status: 'active',
@@ -125,8 +127,8 @@ describe('StudentFormComponent', () => {
 
     it('precarga los datos del alumno', () => {
       expect(form.form.getRawValue()).toMatchObject({
-        firstName: 'Ana',
-        lastName: 'Rojas',
+        firstName: 'Alejandra',
+        lastName: 'Acosta',
         phone: '+56 9 1111 1111',
         heightCm: 165,
       });
@@ -144,7 +146,7 @@ describe('StudentFormComponent', () => {
 
       form.onSubmit();
 
-      expect(emitido).toMatchObject({ goal: 'Bajar grasa', email: 'ana@neque.cl' });
+      expect(emitido).toMatchObject({ goal: 'Bajar grasa', email: 'alejandra@neque.cl' });
     });
   });
 
@@ -180,7 +182,7 @@ describe('StudentFormComponent', () => {
 
   describe('cancelled', () => {
     it('avisa al pulsar cancelar', () => {
-      const cancelado = jest.fn();
+      const cancelado = fn<() => void>();
       form.cancelled.subscribe(cancelado);
 
       const boton = (fixture.nativeElement as HTMLElement).querySelector(

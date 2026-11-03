@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, Router, provideRouter } from '@angular/router';
 import { Subject } from 'rxjs';
 
+import { fn } from '@testing/typed-mock';
+
 import { TrainerLayoutPage } from './trainer-layout.page';
 
 describe('TrainerLayoutPage', () => {
@@ -18,7 +20,7 @@ describe('TrainerLayoutPage', () => {
     const routerStub = {
       events: events.asObservable(),
       url: initialUrl,
-      navigate: jest.fn().mockResolvedValue(true),
+      navigate: fn<Router['navigate']>().mockResolvedValue(true),
     } as unknown as Router;
 
     TestBed.resetTestingModule();
@@ -64,7 +66,7 @@ describe('TrainerLayoutPage', () => {
     });
 
     it('ignora los query params', () => {
-      navigateTo('/trainer/students?q=ana');
+      navigateTo('/trainer/students?q=alejandra');
 
       expect(page.isActive('/trainer/students')).toBe(true);
     });

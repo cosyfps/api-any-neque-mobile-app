@@ -4,6 +4,9 @@ import { LucideCheck, LucideCopy, LucideQrCode, LucideShare2 } from '@lucide/ang
 import { TrainerInvitationFacade } from '@app/application/trainers/trainer-invitation.facade';
 import { INVITATION_TTL_HOURS } from '@app/domain/auth/port/invitation.port';
 
+/** Solo el tipo: la libreria se carga con import dinamico al pedir el QR. */
+type QrCodeLib = typeof import('qrcode');
+
 /** Etiqueta en espanol de cada estado de la invitacion. */
 const ESTADO: Record<string, string> = {
   pending: 'Vigente',
@@ -218,7 +221,11 @@ export class InvitationPanelComponent {
       return;
     }
     try {
-      const QRCode = await import('qrcode');
+      // `qrcode` es CommonJS: en el build de produccion su chunk solo exporta
+      // `default`, y leer `toDataURL` del modulo daba undefined. En `ng serve`
+      // la interop lo expone suelto, por eso solo fallaba en la IPA.
+      const modulo = (await import('qrcode')) as QrCodeLib & { default?: QrCodeLib };
+      const QRCode = modulo.default ?? modulo;
       this.qrDataUrl.set(await QRCode.toDataURL(link, { margin: 1, width: 360 }));
     } catch {
       this.qrError.set('No pudimos generar el código.');

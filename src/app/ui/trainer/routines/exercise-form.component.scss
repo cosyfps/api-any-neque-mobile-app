@@ -15,7 +15,7 @@
   align-self: stretch;
   min-width: 0;
   font-family: var(--nq-font-family);
-  font-size: 15px;
+  font-size: var(--nq-font-input);
   color: var(--nq-text);
   background: transparent;
   border: none;
@@ -33,7 +33,7 @@
   flex: 1;
   min-width: 0;
   font-family: var(--nq-font-family);
-  font-size: 15px;
+  font-size: var(--nq-font-input);
   line-height: 1.5;
   color: var(--nq-text);
   resize: vertical;

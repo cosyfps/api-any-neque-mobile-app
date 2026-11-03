@@ -8,7 +8,7 @@ plantillas, configuración del repo), que se trabajan directo sobre `develop`
 Ñeque es una app de entrenadores personales, **invitation-only**: solo un entrenador crea
 cuentas de alumnos.
 
-**Estado a 2026-09-24.** El código sigue **arquitectura hexagonal por `{capa}/{feature}`**
+**Estado a 2026-09-27.** El código sigue **arquitectura hexagonal por `{capa}/{feature}`**
 y **las dos apps están completas y navegables** contra adapters mock.
 
 - **Alumno:** login por rol, invitación, home con IMC y progreso semanal, rutina con
@@ -19,6 +19,10 @@ y **las dos apps están completas y navegables** contra adapters mock.
   ejercicios propios e Inicio con conteos reales.
 
 La conexión al BFF es la Épica 10.
+
+Desde el 2026-09-25 la app se publica como **IPA** y se prueba en un iPhone 12 Pro. Lo
+que sale de cada prueba se registra en la **Épica 13**, una historia por release
+(0.0.1 → 0.0.4). La Épica 12, cierre de brechas contra el PRD, está planificada.
 
 > Nota de proceso: en las Épicas 7 y 8 se trabajó **una rama por historia** en vez de una
 > por ticket. Los tickets de una misma HU tocan los mismos archivos y no se podían aislar
@@ -524,10 +528,10 @@ las animaciones `nq-ani` del design system. Efecto secundario: el bundle inicial
 
 ### Cuentas y datos de prueba
 
-| Rol        | Correo            | Contraseña     |
-| ---------- | ----------------- | -------------- |
-| Entrenador | `kelvin@neque.cl` | `Entrenador1!` |
-| Alumno     | `ana@neque.cl`    | `Alumno1234!`  |
+| Rol        | Correo               | Contraseña     |
+| ---------- | -------------------- | -------------- |
+| Entrenador | `kelvin@neque.cl`    | `Entrenador1!` |
+| Alumno     | `alejandra@neque.cl` | `Alumno1234!`  |
 
 Código OTP del flujo de recuperación: `123456`. El historial de sesiones se genera
 relativo al reloj inyectado, así que el Home siempre muestra "hoy" y "próximos" con
@@ -650,16 +654,119 @@ en web y en nativo).
 > así que la app nunca se ocultaba y el aviso de rotar quedaba pintado debajo, fuera de
 > pantalla. La auditoría lo había dado por bueno leyendo el CSS.
 
-**Pendientes (6):** todos llevan una decisión de diseño detrás.
+**Cerrados en la tercera tanda (6), el 2026-09-24 en `f8607d8`:** los que llevaban una
+decisión de diseño detrás. La tanda no actualizó este backlog; se registró el 2026-09-27.
 
-| Hallazgo | Qué falta                                                        |
-| -------- | ---------------------------------------------------------------- |
-| T-7      | Traducir `StartPage` y `ForgotPasswordPage` al español.          |
-| T-8      | Normalizar la escala de espaciado y el piso tipográfico de 12px. |
-| T-11     | Pull-to-refresh en las listas.                                   |
-| T-14     | Migrar los `@Input()` con setter a `input()` de Angular 17.      |
-| PR-2     | Gesto de arrastre del bottom sheet, o retirar el asa.            |
-| P-6      | Comparador de fotos arrastrable, o corregir el ticket T-8.6.7.   |
+| Hallazgo | Resolución                                                                  | Después                                   |
+| -------- | --------------------------------------------------------------------------- | ----------------------------------------- |
+| T-7      | `StartPage` y `ForgotPasswordPage` en español.                              | —                                         |
+| T-8      | Escala 4/8/12/16/24/32/40/48 y piso de 12px en la app del alumno.           | La Épica 9 dejó un texto de 11px.         |
+| T-11     | Directiva de pull-to-refresh en las listas del alumno.                      | **Retirada** en la 0.0.3 (T-13.4.6).      |
+| T-14     | Componentes compartidos con `input()`; no queda ningún `@Input()` en `ui/`. | —                                         |
+| PR-2     | Arrastre hacia abajo del bottom sheet en `nqSheetTrap`.                     | Solo desde el asa en la 0.0.4 (T-13.5.2). |
+| P-6      | Comparador superpuesto con divisor arrastrable.                             | Solo desde la agarradera (T-13.5.8).      |
+
+## ÉPICA 12 — Cierre de brechas contra el PRD (planificada)
+
+> Plan en [`docs/planes/2026-09-25-epica-12-cierre-prd.md`](planes/2026-09-25-epica-12-cierre-prd.md),
+> con las 10 decisiones **pendientes de confirmar**. Cierra las cuatro funcionalidades
+> que el PRD v2.0 marca ✅ y el código no cumple, los `Must Have` pendientes del lado
+> móvil y la configuración de §7. Lo que depende del BFF se termina en la Épica 10.
+
+| Bloque              | Historias                                                                                                |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
+| A — antes del BFF   | HU-12.0 documentación · 12.1 configuración · 12.2 progresión de carga · 12.3 cancelación · 12.4 freemium |
+| B — fase 2          | HU-12.5 notas privadas · 12.6 plantillas · 12.7 plataformas nativas · 12.8 cámara · 12.9 push            |
+| C — requiere el BFF | HU-12.10 ejecución sin conexión                                                                          |
+
+**Lo que la Épica 13 ya cambió del plan:**
+
+- **T-12.9.4 adelantado:** desde la 0.0.4 `notificationRoute` recibe el rol y el
+  entrenador tiene sus notificaciones (T-13.5.7).
+- **HU-12.6 hay que revisarla:** la 0.0.3 convirtió la `Routine` en una plantilla con
+  asignaciones por alumno (T-13.3.1). La decisión 4 del plan, un `RoutineTemplate`
+  aparte, quedó superada.
+- **T-12.0.4 hecho en parte:** la Épica 12 queda registrada aquí y «Fuera de alcance» ya
+  está corregido.
+
+## ÉPICA 13 — QA en dispositivo (releases 0.0.x)
+
+> Registra en orden lo que salió de probar cada IPA en un iPhone 12 Pro. **Cada ticket es
+> un commit** de la release. Se registró después de los hechos, el 2026-09-27, a partir
+> del historial de git. Tickets en [`docs/tickets/epica-13/`](tickets/epica-13/).
+
+### HU-13.1 — Primera IPA · release 0.0.1 (2026-09-25)
+
+| Ticket   | Commit    | Qué hace                                         |
+| -------- | --------- | ------------------------------------------------ |
+| T-13.1.1 | `8ec9286` | Workflow de GitHub que genera un IPA sin firmar. |
+
+### HU-13.2 — QA de la IPA 0.0.1 · release 0.0.2 (2026-09-26)
+
+| Ticket   | Commit    | Qué hace                                                             |
+| -------- | --------- | -------------------------------------------------------------------- |
+| T-13.2.1 | `65cee2c` | `--nq-page-pt`: menos aire sobre las pantallas con pestañas.         |
+| T-13.2.2 | `72b6b55` | Tono teal en las pestañas, métricas y selector de serie de Progreso. |
+| T-13.2.3 | `19d1d6b` | Fotos de progreso también desde la galería (sin `capture`).          |
+| T-13.2.4 | `09eed9f` | El tab bar se oculta mientras hay un sheet abierto.                  |
+| T-13.2.5 | `a6d435a` | Abrir un formulario enfoca el sheet y no levanta el teclado.         |
+| T-13.2.6 | `bddfd92` | Botones en dos columnas sin texto partido.                           |
+| T-13.2.7 | `9229be8` | Botonera fija al pie en los cinco formularios largos.                |
+| T-13.2.8 | `50bf0ad` | El alumno semilla pasa a Alejandra Acosta.                           |
+
+### HU-13.3 — Rutinas compartidas · release 0.0.3 (2026-09-26)
+
+Rama: `feat/rutinas-compartidas`
+
+| Ticket   | Commit    | Qué hace                                                                  |
+| -------- | --------- | ------------------------------------------------------------------------- |
+| T-13.3.1 | `f4bffb8` | La rutina es una plantilla con `assignments` por alumno y fechas propias. |
+| T-13.3.2 | `9871287` | Opciones de asignación con sugerencia por objetivo.                       |
+| T-13.3.3 | `1b1eb88` | Hoja para asignar una rutina a varios alumnos.                            |
+
+### HU-13.4 — Login y ajustes en iPhone 12 Pro · release 0.0.3 (2026-09-27)
+
+Rama: `feat/rutinas-compartidas`, a continuación de la HU-13.3.
+
+| Ticket    | Commit    | Qué hace                                                                 |
+| --------- | --------- | ------------------------------------------------------------------------ |
+| T-13.4.1  | `a4ab98d` | Requisitos de contraseña y teclado iOS en el login.                      |
+| T-13.4.2  | `6cdb089` | Campos de 16px (`--nq-font-input`) contra el auto-zoom de iOS.           |
+| T-13.4.3  | `9cd1006` | Bloqueo de 5 minutos tras 5 intentos fallidos (`too_many_attempts`).     |
+| T-13.4.4  | `717d7fd` | Foco, envío y contador de requisitos; el botón queda siempre habilitado. |
+| T-13.4.5  | `93274f8` | Ícono y texto del error de ingreso alineados.                            |
+| T-13.4.6  | `2058470` | Se retira el pull-to-refresh.                                            |
+| T-13.4.7  | `c94b08d` | Sin selección de texto fuera de los campos.                              |
+| T-13.4.8  | `0be0734` | Comparador: fotos solo del mismo ángulo y fechas `dd/mm/aaaa`.           |
+| T-13.4.9  | `20653ac` | Aviso centrado cuando no hay fotos.                                      |
+| T-13.4.10 | `96d1dff` | Correcciones de la skill `auditoria-component` y viewport sin zoom.      |
+
+### HU-13.5 — Mejoras para la IPA 0.0.4 (2026-09-27)
+
+Rama: `release/0.0.4` — PR pendiente de merge.
+
+| Ticket   | Commit    | Qué hace                                                                                |
+| -------- | --------- | --------------------------------------------------------------------------------------- |
+| T-13.5.1 | `d072c1c` | Enlace público `/i/:token` (`PUBLIC_APP_URL`, `vercel.json`) y QR que se genera.        |
+| T-13.5.2 | `e8ad14e` | Botón flotante del shell, scroll en hojas y vacíos con `.nq-empty-inline`.              |
+| T-13.5.3 | `dc68a66` | Eliminar rutinas; carga (libre, corporal, peso extra) y medida (repeticiones o tiempo). |
+| T-13.5.4 | `9d0767d` | Runner: saltar con motivo, ejercicios por tiempo y "Sesión completada" en teal.         |
+| T-13.5.5 | `7f2f7cc` | Perfil vista A de alumno y entrenador, con cambio de contraseña.                        |
+| T-13.5.6 | `713fc1e` | Inicio del entrenador: indicadores, "Por atender" con acción directa, hoy y actividad.  |
+| T-13.5.7 | `89f6750` | Notificaciones del entrenador con campana, en una pantalla compartida por rol.          |
+| T-13.5.8 | `abab426` | El comparador solo se mueve desde la agarradera.                                        |
+
+### Decisiones que dejó la épica
+
+| Decisión                                    | Por qué                                                                  |
+| ------------------------------------------- | ------------------------------------------------------------------------ |
+| Viewport sin zoom y campos de 16px          | Regla global de `auditoria-component`; con 16px iOS no hace auto-zoom.   |
+| Sin pull-to-refresh                         | Su indicador aparecía en todas las páginas de la IPA.                    |
+| Sin selección de texto fuera de los campos  | Un toque largo sobre la interfaz se sentía de web.                       |
+| Botón de ingresar siempre habilitado        | Un botón deshabilitado no explica qué falta; valida al tocarlo.          |
+| La rutina es una plantilla con asignaciones | La misma rutina sirve a varios alumnos, cada uno con sus fechas.         |
+| El botón flotante lo pinta el shell         | Un `position: fixed` dentro del scroll de iOS se movía con el contenido. |
+| Alumno en riesgo                            | Adherencia bajo el 60 %, o 7+ días sin completar con sesiones agendadas. |
 
 ## Resumen
 
@@ -676,19 +783,24 @@ en web y en nativo).
 | **8 — App del Alumno**             | **9**     | **41**  | ✅                                    |
 | **9 — App del Entrenador**         | **13**    | **52**  | ✅                                    |
 | 10 — Conexión al BFF               | —         | —       | ⬜ reservada                          |
-| **11 — Correcciones de auditoría** | **7**     | **45**  | ✅ 39 hechos · 6 diferidos            |
+| **11 — Correcciones de auditoría** | **7**     | **45**  | ✅                                    |
+| 12 — Cierre de brechas del PRD     | 11        | 49      | ⬜ planificada                        |
+| **13 — QA en dispositivo**         | **5**     | **30**  | ✅ 22 publicados · 🔄 8 en PR         |
 
 **El número de épica identifica, no ordena.** La Épica 11 se ejecuta antes que la 9 y la
 10; la Épica 6 (release) queda al final, después de todas, pese a llevar un número menor.
 
-### Estado del código (2026-09-24)
+### Estado del código (2026-09-27, `release/0.0.4`)
 
 | Métrica                             | Valor                                                   |
 | ----------------------------------- | ------------------------------------------------------- |
-| Tests                               | 1174 en 75 suites                                       |
-| Cobertura                           | 98.16 / 88.85 / 97.90 / 98.09 (stmts/branch/func/lines) |
-| Bundle inicial                      | 259.33 kB — 48 % del budget de 500 kB                   |
+| Tests                               | 1474 en 86 suites                                       |
+| Cobertura                           | 97.81 / 86.95 / 97.14 / 97.78 (stmts/branch/func/lines) |
+| Bundle inicial                      | 273.46 kB — 55 % del budget de 500 kB                   |
 | `lint`, `typecheck`, `format:check` | limpios                                                 |
+
+Del 2026-09-24 al 2026-09-27: +300 tests y +14 kB de bundle por la Épica 13. La
+cobertura bajó 0,3 puntos en líneas y 1,9 en branches, siempre sobre el umbral del 80 %.
 
 > El bundle bajó de 494 kB a 259 kB al retirar Ionic en la Épica 9: de toda la
 > librería solo se usaba `<ion-content>` como contenedor con scroll, y traía 158 kB
@@ -884,6 +996,40 @@ depende la progresión de carga que ve el entrenador.
 | El QR entra por `import()` dinámico                    | La librería pesa más que la pantalla y solo la necesita quien toca «Ver código QR».                                 |
 | Los ejercicios propios son privados                    | `listForTrainer` devuelve el catálogo público más los del entrenador; nunca los de otro.                            |
 
+### Épica 11 — Correcciones de auditoría
+
+Se ejecutó **entre la 8 y la 9** (19 al 24 de septiembre). Se agrega aquí para no
+renumerar el tablero.
+
+| #   | Historia | Rama                                               | Estado |
+| --- | -------- | -------------------------------------------------- | ------ |
+| 83  | HU-11.0  | docs, directo sobre la rama de épica               | ✅     |
+| 84  | HU-11.1  | `fix/NEQUE-11.1-design-system-contraste-targets`   | ✅     |
+| 85  | HU-11.2  | `fix/NEQUE-11.2-bugs-bloqueantes`                  | ✅     |
+| 86  | HU-11.3  | `fix/NEQUE-11.3-scroll-start-runner`               | ✅     |
+| 87  | HU-11.4  | `fix/NEQUE-11.4-accesibilidad`                     | ✅     |
+| 88  | HU-11.5  | `feat/NEQUE-11.5-reset-password-step`              | ✅     |
+| 89  | HU-11.6  | `fix/NEQUE-11.6-hallazgos-diferidos` (tres tandas) | ✅     |
+
+### Épica 13 — QA en dispositivo
+
+| #   | Historia | Rama                       | Release | Estado |
+| --- | -------- | -------------------------- | ------- | ------ |
+| 90  | HU-13.1  | `develop`                  | 0.0.1   | ✅     |
+| 91  | HU-13.2  | `release/0.0.2`            | 0.0.2   | ✅     |
+| 92  | HU-13.3  | `feat/rutinas-compartidas` | 0.0.3   | ✅     |
+| 93  | HU-13.4  | `feat/rutinas-compartidas` | 0.0.3   | ✅     |
+| 94  | HU-13.5  | `release/0.0.4`            | 0.0.4   | 🔄     |
+
+#### Historial de releases
+
+| Release | Fecha      | PR        | Contenido                                                         |
+| ------- | ---------- | --------- | ----------------------------------------------------------------- |
+| 0.0.1   | 2026-09-25 | #11       | Épicas 0, 7, 8, 9 y 11 (PRs #9 y #10) y la primera IPA (HU-13.1). |
+| 0.0.2   | 2026-09-26 | #12       | QA de la IPA 0.0.1 (HU-13.2).                                     |
+| 0.0.3   | 2026-09-27 | #13       | Rutinas compartidas (HU-13.3) y login en iPhone (HU-13.4).        |
+| 0.0.4   | 2026-09-27 | pendiente | Mejoras para la IPA 0.0.4 (HU-13.5).                              |
+
 ---
 
 ## Componentes que se reutilizan tal cual
@@ -908,6 +1054,16 @@ depende la progresión de carga que ve el entrenador.
 - **UI compartida:** `authGuard` / `roleGuard` / `publicOnlyGuard`, `passwordRules()`,
   `chart-math.ts`, `NotFoundPage`.
 
+### Agregados en la Épica 13
+
+- **Componentes:** `<nq-profile-hero>`, `<nq-change-password-form>`, `<nq-stepper>`.
+- **Navegación:** `FabRegistry` / `useFab()` (botón flotante que pinta el shell) y la
+  pantalla de notificaciones compartida en `ui/shared/pages/notifications`.
+- **Dominio:** `prescription.ts` (carga y medida), `streak.ts`, `adherence.ts` y
+  `risk.ts` (`studentRisk()`, `riskLabel()`).
+- **Tokens:** `--nq-page-pt`, `--nq-font-input`, `--nq-fab-size`, `--nq-fab-space`.
+- **Clases:** `.nq-empty-inline`.
+
 ### Patrón de página
 
 Toda página nueva resuelve sus estados con un único `@switch` sobre la facade:
@@ -930,11 +1086,12 @@ input `[retry]` es `() => void` y `strictTemplates` no acepta un método desbind
 
 - **Pagos vía Flow.cl** — solo hay una URL declarada en `environments/` sin ningún
   consumidor; no se planifica una épica de pagos hasta confirmar la necesidad real.
-- **Push notifications** — `@capacitor/push-notifications` está instalado pero sin
-  ningún código que lo use.
-- **Compartir contenido** — `@capacitor/share` instalado, sin uso.
-- **Cámara** — `@capacitor/camera` instalado, sin uso (candidato a foto de perfil o
-  seguimiento de progreso de cliente a futuro, sin ticket todavía).
+- ~~**Push notifications**~~ — ya no está fuera de alcance: es `Must Have` en el PRD y
+  está planificado en la HU-12.9.
+- ~~**Compartir contenido**~~ — `@capacitor/share` ya se usa para compartir la
+  invitación (HU-9.5).
+- ~~**Cámara**~~ — ya no está fuera de alcance: está planificada en la HU-12.8. Hoy las
+  fotos entran por `<input type="file">`, que en iOS ofrece cámara o galería (T-13.2.3).
 - **Auth social o recuperación por SMS** — el alcance inferido de la Épica 1 asume
   únicamente email + contraseña + OTP por email.
 - **Analítica de uso.**

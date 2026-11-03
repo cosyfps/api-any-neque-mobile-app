@@ -4,8 +4,13 @@ import { of } from 'rxjs';
 
 import { AuthSession } from '@app/domain/auth/model/auth-user.model';
 import { AUTH_PORT } from '@app/domain/auth/port/auth.port';
-import { SESSION_STORAGE_PORT } from '@app/domain/auth/port/session-storage.port';
+import {
+  SESSION_STORAGE_PORT,
+  SessionStoragePort,
+} from '@app/domain/auth/port/session-storage.port';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+
+import { fn } from '@testing/typed-mock';
 
 import { NotFoundPage } from './not-found.page';
 
@@ -41,7 +46,11 @@ describe('NotFoundPage', () => {
         },
         {
           provide: SESSION_STORAGE_PORT,
-          useValue: { read: () => stored, write: jest.fn(), clear: jest.fn() },
+          useValue: {
+            read: () => stored,
+            write: fn<SessionStoragePort['write']>(),
+            clear: fn<SessionStoragePort['clear']>(),
+          },
         },
       ],
     });

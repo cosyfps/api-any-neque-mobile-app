@@ -233,6 +233,48 @@
   margin: 28px 0 0;
 }
 
+// El `svg { display: block }` global dejaba el icono en su propia linea,
+// encima del texto: el flex los pone lado a lado.
 .login-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   margin: 0 0 4px;
+  padding: 12px;
+  line-height: 1.4;
+  background: rgba(var(--nq-danger-rgb), 0.08);
+  border-radius: var(--nq-radius-md);
+
+  .nq-field-error-icon {
+    // Centra el icono de 14px con la primera linea de texto (13px × 1.4).
+    margin-top: 2px;
+  }
+}
+
+// Requisitos de contraseña: rojo pendiente, verde cumplido.
+.pwd-requirements {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--nq-danger);
+    transition: color 0.2s ease;
+
+    svg {
+      flex-shrink: 0;
+    }
+
+    &.met {
+      color: var(--nq-success);
+    }
+  }
 }

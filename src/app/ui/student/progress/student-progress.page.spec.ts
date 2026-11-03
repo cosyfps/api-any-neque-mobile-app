@@ -4,12 +4,17 @@ import { of, throwError } from 'rxjs';
 import { SessionFacade } from '@app/application/auth/session.facade';
 import { ProgressFacade } from '@app/application/progress/progress.facade';
 import { ProgressPhoto } from '@app/domain/progress/model/progress-photo.model';
-import { PROGRESS_PHOTOS_PORT } from '@app/domain/progress/port/progress-photos.port';
+import {
+  PROGRESS_PHOTOS_PORT,
+  ProgressPhotosPort,
+} from '@app/domain/progress/port/progress-photos.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
 import { Assessment } from '@app/domain/students/model/assessment.model';
-import { ASSESSMENTS_PORT } from '@app/domain/students/port/assessments.port';
-import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
+import { ASSESSMENTS_PORT, AssessmentsPort } from '@app/domain/students/port/assessments.port';
+import { WORKOUTS_PORT, WorkoutsPort } from '@app/domain/workouts/port/workouts.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { StudentProgressPage } from './student-progress.page';
 
@@ -43,12 +48,14 @@ const photo = (id: string, angle: ProgressPhoto['angle'], takenAt: string): Prog
 const PHOTOS = [
   photo('p1', 'front', '2026-03-05T09:00:00.000Z'),
   photo('p2', 'front', '2026-09-07T09:00:00.000Z'),
+  photo('p3', 'front', '2026-06-04T09:00:00.000Z'),
+  photo('s1', 'side', '2026-06-04T09:01:00.000Z'),
 ];
 
 describe('StudentProgressPage', () => {
   let page: StudentProgressPage;
-  let addPhoto: jest.Mock;
-  let removePhoto: jest.Mock;
+  let addPhoto: MockOf<ProgressPhotosPort['add']>;
+  let removePhoto: MockOf<ProgressPhotosPort['remove']>;
 
   const createPage = (): StudentProgressPage => {
     TestBed.resetTestingModule();
@@ -61,8 +68,8 @@ describe('StudentProgressPage', () => {
           provide: ASSESSMENTS_PORT,
           useValue: {
             listByStudent: () => of(ASSESSMENTS),
-            latestByStudent: jest.fn(),
-            create: jest.fn(),
+            latestByStudent: fn<AssessmentsPort['latestByStudent']>(),
+            create: fn<AssessmentsPort['create']>(),
           },
         },
         {
@@ -73,11 +80,11 @@ describe('StudentProgressPage', () => {
           provide: WORKOUTS_PORT,
           useValue: {
             listByStudent: () => of([]),
-            getById: jest.fn(),
-            start: jest.fn(),
-            markExercise: jest.fn(),
-            logSet: jest.fn(),
-            complete: jest.fn(),
+            getById: fn<WorkoutsPort['getById']>(),
+            start: fn<WorkoutsPort['start']>(),
+            markExercise: fn<WorkoutsPort['markExercise']>(),
+            logSet: fn<WorkoutsPort['logSet']>(),
+            complete: fn<WorkoutsPort['complete']>(),
           },
         },
       ],
@@ -86,8 +93,10 @@ describe('StudentProgressPage', () => {
   };
 
   beforeEach(() => {
-    addPhoto = jest.fn().mockReturnValue(of(photo('p3', 'back', '2026-11-01T09:00:00.000Z')));
-    removePhoto = jest.fn().mockReturnValue(of(undefined));
+    addPhoto = fn<ProgressPhotosPort['add']>().mockReturnValue(
+      of(photo('p3', 'back', '2026-11-01T09:00:00.000Z')),
+    );
+    removePhoto = fn<ProgressPhotosPort['remove']>().mockReturnValue(of(undefined));
     page = createPage();
   });
 
@@ -260,6 +269,12 @@ describe('StudentProgressPage', () => {
 
     const puntero = (x: number): PointerEvent => ({ clientX: x }) as PointerEvent;
 
+    /** Toma la agarradera y la arrastra hasta x. */
+    const arrastrarA = (x: number, caja = contenedor()): void => {
+      page.alTomarDivisor(puntero(200));
+      page.alArrastrarDivisor(puntero(x), caja);
+    };
+
     const tecla = (key: string): KeyboardEvent =>
       new KeyboardEvent('keydown', { key, cancelable: true });
 
@@ -267,21 +282,37 @@ describe('StudentProgressPage', () => {
       expect(page.divisor()).toBe(50);
     });
 
-    it('al tomarlo salta a donde se toco', () => {
-      page.alTomarDivisor(puntero(150), contenedor());
+    it('tomar la agarradera no la mueve', () => {
+      page.alTomarDivisor(puntero(150));
 
-      expect(page.divisor()).toBe(25);
+      expect(page.divisor()).toBe(50);
+    });
+
+    it('captura el puntero para no perder el arrastre fuera del circulo', () => {
+      const setPointerCapture = fn<Element['setPointerCapture']>();
+      page.alTomarDivisor({
+        pointerId: 7,
+        currentTarget: { setPointerCapture },
+      } as unknown as PointerEvent);
+
+      expect(setPointerCapture).toHaveBeenCalledWith(7);
+    });
+
+    it('sin tomarla, mover el puntero no hace nada', () => {
+      page.alArrastrarDivisor(puntero(260), contenedor());
+
+      expect(page.divisor()).toBe(50);
     });
 
     it('sigue al puntero mientras se arrastra', () => {
-      page.alTomarDivisor(puntero(150), contenedor());
+      arrastrarA(150);
       page.alArrastrarDivisor(puntero(260), contenedor());
 
       expect(page.divisor()).toBe(80);
     });
 
     it('deja de seguir al soltar', () => {
-      page.alTomarDivisor(puntero(200), contenedor());
+      page.alTomarDivisor(puntero(200));
       page.alSoltarDivisor();
       page.alArrastrarDivisor(puntero(300), contenedor());
 
@@ -289,10 +320,10 @@ describe('StudentProgressPage', () => {
     });
 
     it('recorta fuera de los bordes', () => {
-      page.alTomarDivisor(puntero(0), contenedor());
+      arrastrarA(0);
       expect(page.divisor()).toBe(0);
 
-      page.alTomarDivisor(puntero(9999), contenedor());
+      arrastrarA(9999);
       expect(page.divisor()).toBe(100);
     });
 
@@ -301,7 +332,7 @@ describe('StudentProgressPage', () => {
         getBoundingClientRect: () => ({ left: 0, width: 0 }),
       } as unknown as HTMLElement;
 
-      page.alTomarDivisor(puntero(50), vacio);
+      arrastrarA(50, vacio);
 
       expect(page.divisor()).toBe(50);
     });
@@ -330,6 +361,70 @@ describe('StudentProgressPage', () => {
 
     it('describe la posicion para el lector de pantalla', () => {
       expect(page.divisorTexto()).toContain('50%');
+    });
+  });
+
+  describe('photosEmpty()', () => {
+    it('es falso en la pestaña de mediciones', () => {
+      expect(page.photosEmpty()).toBe(false);
+    });
+
+    it('es falso en fotos si hay fotos', () => {
+      page.tab.set('photos');
+
+      expect(page.photosEmpty()).toBe(false);
+    });
+
+    it('es verdadero en fotos sin ninguna foto', () => {
+      page.tab.set('photos');
+      page.facade.photos.set([]);
+
+      expect(page.photosEmpty()).toBe(true);
+    });
+  });
+
+  describe('selector de fotos del comparador', () => {
+    it('formatShortDate() usa dd/mm/aaaa con ceros a la izquierda', () => {
+      expect(page.formatShortDate('2026-03-05T09:00:00.000Z')).toBe('05/03/2026');
+      expect(page.formatShortDate('2026-09-27T12:00:00.000Z')).toBe('27/09/2026');
+    });
+
+    it('arranca cerrado', () => {
+      expect(page.pickerSide()).toBeNull();
+    });
+
+    it('lista solo fotos del angulo actual, de la mas reciente a la mas antigua', () => {
+      page.openPicker('before');
+
+      expect(page.pickerOptions().map(o => o.photo.id)).toEqual(['p2', 'p3', 'p1']);
+    });
+
+    it('marca la foto actual del lado y bloquea la del otro lado', () => {
+      page.openPicker('before');
+
+      const byId = Object.fromEntries(page.pickerOptions().map(o => [o.photo.id, o]));
+      expect(byId['p1']?.current).toBe(true);
+      expect(byId['p2']?.inUse).toBe(true);
+      expect(byId['p3']?.inUse).toBe(false);
+    });
+
+    it('pick() reemplaza la foto de ese lado y cierra la hoja', () => {
+      page.openPicker('before');
+
+      page.pick('p3');
+
+      expect(page.facade.compareA()?.id).toBe('p3');
+      expect(page.facade.compareB()?.id).toBe('p2');
+      expect(page.pickerSide()).toBeNull();
+    });
+
+    it('closePicker() cierra sin cambiar el par', () => {
+      page.openPicker('after');
+
+      page.closePicker();
+
+      expect(page.pickerSide()).toBeNull();
+      expect(page.facade.compareB()?.id).toBe('p2');
     });
   });
 

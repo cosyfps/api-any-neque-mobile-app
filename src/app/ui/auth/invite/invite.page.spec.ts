@@ -6,10 +6,19 @@ import { InvitationFacade } from '@app/application/auth/invitation.facade';
 import { SessionFacade } from '@app/application/auth/session.facade';
 import { AuthSession } from '@app/domain/auth/model/auth-user.model';
 import { AUTH_PORT } from '@app/domain/auth/port/auth.port';
-import { INVITATION_PORT, InvitationDetails } from '@app/domain/auth/port/invitation.port';
-import { SESSION_STORAGE_PORT } from '@app/domain/auth/port/session-storage.port';
+import {
+  INVITATION_PORT,
+  InvitationPort,
+  InvitationDetails,
+} from '@app/domain/auth/port/invitation.port';
+import {
+  SESSION_STORAGE_PORT,
+  SessionStoragePort,
+} from '@app/domain/auth/port/session-storage.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { InvitePage } from './invite.page';
 
@@ -41,8 +50,8 @@ const SESSION: AuthSession = {
 describe('InvitePage', () => {
   let page: InvitePage;
   let router: Router;
-  let resolveInvitation: jest.Mock;
-  let accept: jest.Mock;
+  let resolveInvitation: MockOf<InvitationPort['resolve']>;
+  let accept: MockOf<InvitationPort['accept']>;
 
   const createPage = (token = 'inv-valida'): InvitePage => {
     TestBed.resetTestingModule();
@@ -67,7 +76,11 @@ describe('InvitePage', () => {
         },
         {
           provide: SESSION_STORAGE_PORT,
-          useValue: { read: () => null, write: jest.fn(), clear: jest.fn() },
+          useValue: {
+            read: () => null,
+            write: fn<SessionStoragePort['write']>(),
+            clear: fn<SessionStoragePort['clear']>(),
+          },
         },
         SessionFacade,
       ],
@@ -78,8 +91,8 @@ describe('InvitePage', () => {
   };
 
   beforeEach(() => {
-    resolveInvitation = jest.fn().mockReturnValue(of(INVITATION));
-    accept = jest.fn().mockReturnValue(of(SESSION));
+    resolveInvitation = fn<InvitationPort['resolve']>().mockReturnValue(of(INVITATION));
+    accept = fn<InvitationPort['accept']>().mockReturnValue(of(SESSION));
     page = createPage();
   });
 

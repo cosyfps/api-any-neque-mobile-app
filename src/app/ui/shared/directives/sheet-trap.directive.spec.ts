@@ -1,12 +1,18 @@
 import { ElementRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
+import { fn } from '@testing/typed-mock';
+
 import { SheetTrapDirective } from './sheet-trap.directive';
 
 /** Sheet minimo con tres botones, como el de cerrar sesion. */
 function createSheet(): HTMLElement {
   const sheet = document.createElement('div');
   sheet.innerHTML = `
+    <div class="nq-sheet-handle"></div>
+    <h2 class="nq-sheet-title">Titulo</h2>
+    <p id="cuerpo">Cuerpo</p>
+    <select id="lista" disabled><option>A</option></select>
     <button id="uno" type="button">Uno</button>
     <button id="dos" type="button">Dos</button>
     <button id="tres" type="button">Tres</button>
@@ -48,18 +54,22 @@ describe('SheetTrapDirective', () => {
   });
 
   describe('foco al abrir', () => {
-    it('lleva el foco al primer control cuando se abre', () => {
+    it('lleva el foco al sheet y no a su primer control cuando se abre', () => {
       directive.nqSheetTrap = true;
       jest.runAllTimers();
 
-      expect(document.activeElement?.id).toBe('uno');
+      expect(document.activeElement).toBe(sheet);
+    });
+
+    it('deja el sheet fuera del orden de tabulacion', () => {
+      expect(sheet.tabIndex).toBe(-1);
     });
 
     it('no mueve el foco si sigue cerrado', () => {
       directive.nqSheetTrap = false;
       jest.runAllTimers();
 
-      expect(document.activeElement?.id).not.toBe('uno');
+      expect(document.activeElement).not.toBe(sheet);
     });
 
     it('cancela el foco pendiente si se cierra antes de aplicarse', () => {
@@ -67,13 +77,13 @@ describe('SheetTrapDirective', () => {
       directive.nqSheetTrap = false;
       jest.runAllTimers();
 
-      expect(document.activeElement?.id).not.toBe('uno');
+      expect(document.activeElement).not.toBe(sheet);
     });
   });
 
   describe('Escape', () => {
     it('avisa que el usuario pidio cerrar', () => {
-      const dismissed = jest.fn();
+      const dismissed = fn<() => void>();
       directive.dismissed.subscribe(dismissed);
 
       const event = keydown('Escape');
@@ -85,8 +95,43 @@ describe('SheetTrapDirective', () => {
   });
 
   describe('arrastre para descartar', () => {
+    const asa = (): Element | null => sheet.querySelector('.nq-sheet-handle');
+
+    it('tambien arranca desde el titulo', () => {
+      directive.alEmpezar(toque(100, sheet.querySelector('.nq-sheet-title')));
+      directive.alMover(toque(150));
+
+      expect(directive.arrastre()).toBe(50);
+    });
+
+    // El cuerpo desplaza el formulario: un arrastre desde ahi cerraba el
+    // sheet al intentar volver arriba.
+    it.each([
+      ['el cuerpo', '#cuerpo'],
+      ['un select', '#lista'],
+    ])('no arranca desde %s', (_caso, selector) => {
+      directive.alEmpezar(toque(0, sheet.querySelector(selector)));
+      directive.alMover(toque(200));
+      directive.alSoltar();
+
+      expect(directive.arrastre()).toBe(0);
+      expect(directive.arrastrando()).toBe(false);
+    });
+
+    it('no arranca si el sheet no esta arriba del todo', () => {
+      const dismissed = fn<() => void>();
+      directive.dismissed.subscribe(dismissed);
+      Object.defineProperty(sheet, 'scrollTop', { value: 40, configurable: true });
+
+      directive.alEmpezar(toque(0, asa()));
+      directive.alMover(toque(200));
+      directive.alSoltar();
+
+      expect(dismissed).not.toHaveBeenCalled();
+    });
+
     it('sigue al dedo hacia abajo', () => {
-      directive.alEmpezar(toque(100, sheet));
+      directive.alEmpezar(toque(100, asa()));
       directive.alMover(toque(180));
 
       expect(directive.arrastre()).toBe(80);
@@ -94,17 +139,17 @@ describe('SheetTrapDirective', () => {
     });
 
     it('no se estira hacia arriba', () => {
-      directive.alEmpezar(toque(100, sheet));
+      directive.alEmpezar(toque(100, asa()));
       directive.alMover(toque(40));
 
       expect(directive.arrastre()).toBe(0);
     });
 
     it('cierra al soltar pasado el umbral', () => {
-      const dismissed = jest.fn();
+      const dismissed = fn<() => void>();
       directive.dismissed.subscribe(dismissed);
 
-      directive.alEmpezar(toque(0, sheet));
+      directive.alEmpezar(toque(0, asa()));
       directive.alMover(toque(140));
       directive.alSoltar();
 
@@ -113,10 +158,10 @@ describe('SheetTrapDirective', () => {
     });
 
     it('vuelve a su sitio si se queda corto', () => {
-      const dismissed = jest.fn();
+      const dismissed = fn<() => void>();
       directive.dismissed.subscribe(dismissed);
 
-      directive.alEmpezar(toque(0, sheet));
+      directive.alEmpezar(toque(0, asa()));
       directive.alMover(toque(40));
       directive.alSoltar();
 
@@ -135,10 +180,10 @@ describe('SheetTrapDirective', () => {
     });
 
     it('cancelar descarta el gesto sin cerrar', () => {
-      const dismissed = jest.fn();
+      const dismissed = fn<() => void>();
       directive.dismissed.subscribe(dismissed);
 
-      directive.alEmpezar(toque(0, sheet));
+      directive.alEmpezar(toque(0, asa()));
       directive.alMover(toque(200));
       directive.cancelarArrastre();
 
@@ -168,6 +213,16 @@ describe('SheetTrapDirective', () => {
       expect(event.defaultPrevented).toBe(true);
     });
 
+    it('desde el sheet recien abierto, Shift salta al ultimo', () => {
+      sheet.focus();
+
+      const event = keydown('Tab', true);
+      directive.onKeydown(event);
+
+      expect(document.activeElement?.id).toBe('tres');
+      expect(event.defaultPrevented).toBe(true);
+    });
+
     it('deja pasar el Tab en los controles intermedios', () => {
       sheet.querySelector<HTMLElement>('#dos')?.focus();
 
@@ -179,7 +234,7 @@ describe('SheetTrapDirective', () => {
     });
 
     it('ignora cualquier otra tecla', () => {
-      const dismissed = jest.fn();
+      const dismissed = fn<() => void>();
       directive.dismissed.subscribe(dismissed);
 
       const event = keydown('a');

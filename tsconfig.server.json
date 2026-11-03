@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/server",
+    "lib": ["ES2022", "dom"],
+    "skipLibCheck": true,
+    "types": ["node", "jest"],
+    "noEmit": true
+  },
+  "include": ["server/**/*.ts"],
+  "exclude": []
+}

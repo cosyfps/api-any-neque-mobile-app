@@ -3,7 +3,14 @@ import { Observable, forkJoin, map, of, switchMap } from 'rxjs';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
 import { Exercise, ExerciseInput } from '@app/domain/routines/model/exercise.model';
-import { Routine, RoutineInput, RoutineStatus } from '@app/domain/routines/model/routine.model';
+import {
+  Routine,
+  RoutineAssignment,
+  RoutineInput,
+  assignmentFor,
+  goalsMatch,
+  isAssigned,
+} from '@app/domain/routines/model/routine.model';
 import { EXERCISE_CATALOG_PORT, ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
 import { DomainError, toDomainError } from '@app/domain/shared/model/app-error';
 import { Student, fullName } from '@app/domain/students/model/student.model';
@@ -11,14 +18,25 @@ import { STUDENTS_PORT } from '@app/domain/students/port/students.port';
 
 import { AsyncState, ViewState, asyncState } from '../shared/async-state';
 
-/** Una rutina de la biblioteca, con el nombre de su alumno ya resuelto. */
+/** Una rutina de la biblioteca, con los nombres de sus alumnos ya resueltos. */
 export interface RoutineRow {
   readonly routine: Routine;
-  readonly studentName: string;
+  readonly studentNames: readonly string[];
 }
 
-/** Pestanas de la biblioteca. Lo archivado no se mezcla con lo vigente. */
-export type RoutinesFilter = RoutineStatus;
+/** Pestanas de la biblioteca: las que alguien hace y las que esperan alumnos. */
+export type RoutinesFilter = 'assigned' | 'unassigned';
+
+/** Un alumno en la hoja de asignar, con lo que el entrenador necesita para decidir. */
+export interface AssignmentOption {
+  readonly student: Student;
+  /** Su objetivo apunta a lo mismo que el de la rutina. */
+  readonly sameGoal: boolean;
+  /** Su asignacion en esta rutina, o null si todavia no la hace. */
+  readonly assignment: RoutineAssignment | null;
+  /** Nombre de la rutina que hace hoy, si es otra: asignarlo lo mueve. */
+  readonly otherRoutine: string | null;
+}
 
 /**
  * Biblioteca de rutinas del entrenador.
@@ -35,7 +53,7 @@ export class TrainerRoutinesFacade {
   private readonly students = inject(STUDENTS_PORT);
   private readonly session = inject(SessionFacade);
 
-  private readonly _filter = signal<RoutinesFilter>('active');
+  private readonly _filter = signal<RoutinesFilter>('assigned');
   private readonly _busy = signal(false);
   private readonly _actionError = signal<DomainError | null>(null);
 
@@ -52,13 +70,13 @@ export class TrainerRoutinesFacade {
   readonly busy: Signal<boolean> = this._busy.asReadonly();
   readonly actionError: Signal<DomainError | null> = this._actionError.asReadonly();
 
-  readonly activeCount: Signal<number> = computed(() => this.contar('active'));
-  readonly archivedCount: Signal<number> = computed(() => this.contar('archived'));
+  readonly assignedCount: Signal<number> = computed(() => this.contar('assigned'));
+  readonly unassignedCount: Signal<number> = computed(() => this.contar('unassigned'));
 
   readonly visible: Signal<RoutineRow[]> = computed(() => {
     const estado = this._filter();
     return (this.rows.data() ?? [])
-      .filter(row => row.routine.status === estado)
+      .filter(row => this.estadoDe(row.routine) === estado)
       .sort((a, b) => a.routine.name.localeCompare(b.routine.name, 'es'));
   });
 
@@ -66,17 +84,12 @@ export class TrainerRoutinesFacade {
    * Estado de la lista ya filtrada.
    *
    * No es `rows.viewState()`: una biblioteca con rutinas pero sin ninguna
-   * archivada tiene que mostrar el vacio de esa pestana, no la lista entera.
+   * libre tiene que mostrar el vacio de esa pestana, no la lista entera.
    */
   readonly viewState: Signal<ViewState> = computed(() => {
     const estado = this.rows.viewState();
     return estado === 'success' && this.visible().length === 0 ? 'empty' : estado;
   });
-
-  /** Alumnos activos, que son los unicos a los que se puede asignar. */
-  readonly assignableStudents: Signal<Student[]> = computed(() =>
-    (this.students$.data() ?? []).filter(student => student.status === 'active'),
-  );
 
   /** Catalogo publico primero, propios despues, cada grupo alfabetico. */
   readonly publicExercises: Signal<Exercise[]> = computed(() =>
@@ -134,17 +147,73 @@ export class TrainerRoutinesFacade {
   }
 
   /**
-   * Activa la rutina y archiva la anterior del alumno.
+   * Alumnos que se pueden asignar a la rutina, los de objetivo parecido primero.
    *
-   * Es una sola operacion del puerto a proposito: en dos pasos queda un
-   * hueco donde el alumno tiene dos rutinas activas o ninguna.
+   * Incluye a los que ya la hacen aunque esten suspendidos: si no, al guardar
+   * saldrian de la rutina sin que el entrenador los haya desmarcado.
    */
-  assign(routineId: string): Promise<boolean> {
-    return this.run(() => this.routines.assign(routineId)).then(routine => routine !== null);
+  assignmentOptions(routine: Routine): AssignmentOption[] {
+    const rutinas = (this.rows.data() ?? []).map(row => row.routine);
+    return (this.students$.data() ?? [])
+      .filter(student => student.status === 'active' || assignmentFor(routine, student.id) !== null)
+      .map(student => {
+        const actual = rutinas.find(item => assignmentFor(item, student.id) !== null);
+        return {
+          student,
+          sameGoal: goalsMatch(routine.goal, student.goal),
+          assignment: assignmentFor(routine, student.id),
+          otherRoutine: actual === undefined || actual.id === routine.id ? null : actual.name,
+        };
+      })
+      .sort(
+        (a, b) =>
+          Number(b.sameGoal) - Number(a.sameGoal) ||
+          fullName(a.student).localeCompare(fullName(b.student), 'es'),
+      );
   }
 
-  archive(routineId: string): Promise<boolean> {
-    return this.run(() => this.routines.archive(routineId)).then(routine => routine !== null);
+  /**
+   * Deja la rutina con esos alumnos.
+   *
+   * Es una sola operacion del puerto a proposito: el alumno que llega desde
+   * otra rutina sale de aquella en el mismo paso.
+   */
+  saveAssignments(routineId: string, assignments: readonly RoutineAssignment[]): Promise<boolean> {
+    return this.run(() => this.routines.setAssignments(routineId, assignments)).then(
+      routine => routine !== null,
+    );
+  }
+
+  /**
+   * Elimina la rutina aunque tenga alumnos: quedan sin rutina hasta que se les
+   * asigne otra. La pantalla confirma antes nombrando a quienes afecta.
+   */
+  remove(routineId: string): Promise<boolean> {
+    const trainerId = this.session.profileId();
+    if (trainerId === null || this._busy()) {
+      return Promise.resolve(false);
+    }
+
+    this._busy.set(true);
+    this._actionError.set(null);
+
+    return new Promise(resolve => {
+      this.routines
+        .remove(routineId)
+        .pipe(switchMap(() => this.cargarBiblioteca(trainerId)))
+        .subscribe({
+          next: rows => {
+            this.rows.set(rows);
+            this._busy.set(false);
+            resolve(true);
+          },
+          error: (cause: unknown) => {
+            this._actionError.set(toDomainError(cause));
+            this._busy.set(false);
+            resolve(false);
+          },
+        });
+    });
   }
 
   /** Alta de un ejercicio propio. Queda privado del entrenador que lo crea. */
@@ -173,15 +242,19 @@ export class TrainerRoutinesFacade {
     });
   }
 
-  private contar(status: RoutineStatus): number {
-    return (this.rows.data() ?? []).filter(row => row.routine.status === status).length;
+  private contar(estado: RoutinesFilter): number {
+    return (this.rows.data() ?? []).filter(row => this.estadoDe(row.routine) === estado).length;
+  }
+
+  private estadoDe(routine: Routine): RoutinesFilter {
+    return isAssigned(routine) ? 'assigned' : 'unassigned';
   }
 
   private ordenar(lista: Exercise[]): Exercise[] {
     return [...lista].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   }
 
-  /** Rutina y nombre del alumno, en una sola lectura. */
+  /** Rutinas y nombres de sus alumnos, en una sola lectura. */
   private cargarBiblioteca(trainerId: string): Observable<RoutineRow[]> {
     return forkJoin({
       rutinas: this.routines.listByTrainer(trainerId),
@@ -190,7 +263,7 @@ export class TrainerRoutinesFacade {
       map(({ rutinas, cartera }) =>
         rutinas.map(routine => ({
           routine,
-          studentName: this.nombreDe(cartera, routine.studentId),
+          studentNames: routine.assignments.map(item => this.nombreDe(cartera, item.studentId)),
         })),
       ),
     );
@@ -228,7 +301,7 @@ export class TrainerRoutinesFacade {
   /**
    * Relee la biblioteca tras mutar.
    *
-   * Asignar archiva otra rutina que no vuelve en la respuesta, asi que
+   * Asignar saca alumnos de otra rutina que no vuelve en la respuesta, asi que
    * parchear la lista en memoria la dejaria mintiendo.
    */
   private refrescar(routine: Routine): Observable<Routine> {

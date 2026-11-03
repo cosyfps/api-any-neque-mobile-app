@@ -1,6 +1,8 @@
 import { ComponentRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
+import { fn } from '@testing/typed-mock';
+
 import { WorkoutCardComponent } from './workout-card.component';
 
 /**
@@ -84,7 +86,7 @@ describe('WorkoutCardComponent', () => {
 
   describe('salidas', () => {
     it('action emite al tocar el chevron', () => {
-      const spy = jest.fn();
+      const spy = fn<() => void>();
       card.action.subscribe(spy);
       card.action.emit();
       expect(spy).toHaveBeenCalledTimes(1);

@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LucideArrowLeft, LucideCircleAlert, LucidePencil, LucidePlus } from '@lucide/angular';
 
@@ -123,7 +123,7 @@ const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
                   </div>
                 </dl>
               } @else {
-                <p class="empty-text">
+                <p class="nq-empty-inline">
                   Sin anamnesis registrada. Sin ella no se puede planificar una rutina.
                 </p>
               }
@@ -159,7 +159,7 @@ const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
                   }
                 </ul>
               } @else {
-                <p class="empty-text">Todavía no tiene evaluaciones.</p>
+                <p class="nq-empty-inline">Todavía no tiene evaluaciones.</p>
               }
             </section>
 
@@ -171,7 +171,7 @@ const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
                 <p class="latest">{{ routine.name }}</p>
                 <p class="empty-text">{{ dias(routine.days.length) }} · {{ routine.goal }}</p>
               } @else {
-                <p class="empty-text">{{ sinRutina() }}</p>
+                <p class="nq-empty-inline">{{ sinRutina() }}</p>
               }
             </section>
 
@@ -378,6 +378,26 @@ export class StudentDetailPage {
     const studentId = this.route.snapshot.paramMap.get('studentId') ?? '';
     this.facade.load(studentId);
     this.invitation.load(studentId);
+    this.abrirAccionPedida();
+  }
+
+  /**
+   * El inicio del entrenador llega con `?accion=anamnesis` o
+   * `?accion=evaluacion` para resolver un pendiente de un toque: la hoja se
+   * abre sola cuando la ficha termina de cargar, una sola vez.
+   */
+  private abrirAccionPedida(): void {
+    const accion = this.route.snapshot.queryParamMap.get('accion');
+    if (accion !== 'anamnesis' && accion !== 'evaluacion') {
+      return;
+    }
+    const pendiente = effect(() => {
+      if (this.facade.viewState() !== 'success') {
+        return;
+      }
+      untracked(() => (accion === 'anamnesis' ? this.openAnamnesis() : this.openAssessment()));
+      pendiente.destroy();
+    });
   }
 
   dias(total: number): string {

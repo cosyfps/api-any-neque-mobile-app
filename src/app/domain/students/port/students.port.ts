@@ -5,8 +5,14 @@ import { Id } from '@app/domain/shared/model/ids';
 
 import { Student, StudentStatus } from '../model/student.model';
 
-/** Campos que el propio alumno puede actualizar desde su perfil. */
-export type StudentSelfEditableFields = Pick<Student, 'phone' | 'avatarUrl' | 'heightCm'>;
+/**
+ * Campos que el propio alumno puede actualizar desde su perfil. Estatura y
+ * objetivo no: los define el entrenador.
+ */
+export type StudentSelfEditableFields = Pick<
+  Student,
+  'firstName' | 'lastName' | 'phone' | 'avatarUrl'
+>;
 
 /** Datos con los que el entrenador da de alta a un alumno. */
 export type StudentInput = Pick<

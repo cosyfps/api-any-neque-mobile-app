@@ -2,6 +2,9 @@ import { Id, IsoDateString } from '@app/domain/shared/model/ids';
 
 export type PhotoAngle = 'front' | 'side' | 'back';
 
+/** Angulos en el orden en que se muestran. */
+export const PHOTO_ANGLES: readonly PhotoAngle[] = ['front', 'side', 'back'];
+
 export const PHOTO_ANGLE_LABEL: Record<PhotoAngle, string> = {
   front: 'Frente',
   side: 'Perfil',

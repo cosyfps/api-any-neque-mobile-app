@@ -1,15 +1,30 @@
 import { Id, IsoDateString } from '@app/domain/shared/model/ids';
 
-export type NotificationKind = 'routine' | 'session' | 'message' | 'system';
+/**
+ * `alert` e `invitation` son del entrenador: un alumno que salto un
+ * ejercicio por dolor o que esta en riesgo, y una invitacion aceptada.
+ */
+export type NotificationKind =
+  | 'routine'
+  | 'session'
+  | 'message'
+  | 'system'
+  | 'alert'
+  | 'invitation';
 
-/** Entidad a la que apunta la notificacion. La ruta la decide el front. */
-export type NotificationTarget = 'routine' | 'session' | 'assessment' | 'photo';
+/**
+ * Entidad a la que apunta la notificacion. La ruta la decide el front.
+ * `student` es del entrenador: abre la ficha de ese alumno.
+ */
+export type NotificationTarget = 'routine' | 'session' | 'assessment' | 'photo' | 'student';
 
 export const NOTIFICATION_KIND_LABEL: Record<NotificationKind, string> = {
   routine: 'Rutina',
   session: 'Sesión',
   message: 'Mensaje',
   system: 'Sistema',
+  alert: 'Alerta',
+  invitation: 'Invitación',
 };
 
 export interface AppNotification {

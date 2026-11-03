@@ -5,7 +5,7 @@ import { DateRange } from '@app/domain/shared/model/date-range';
 import { Id } from '@app/domain/shared/model/ids';
 
 import { WorkoutCompletion, WorkoutSession } from '../model/workout-session.model';
-import { WorkoutSetInput } from '../model/workout-set.model';
+import { SkipReason, WorkoutSetInput } from '../model/workout-set.model';
 
 /**
  * Sesiones de entrenamiento.
@@ -21,6 +21,12 @@ export interface WorkoutsPort {
   markExercise(sessionId: Id, routineExerciseId: Id, done: boolean): Observable<WorkoutSession>;
   /** Registra una serie con lo que el alumno realmente levanto. */
   logSet(sessionId: Id, routineExerciseId: Id, set: WorkoutSetInput): Observable<WorkoutSession>;
+  /** Salta las series que le quedan al ejercicio, con un motivo opcional. */
+  skipExercise(
+    sessionId: Id,
+    routineExerciseId: Id,
+    reason: SkipReason | null,
+  ): Observable<WorkoutSession>;
   complete(sessionId: Id, completion: WorkoutCompletion): Observable<WorkoutSession>;
 }
 

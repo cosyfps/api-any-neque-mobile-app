@@ -51,3 +51,5 @@ yarn-error.log*
 /.claude
 skills-lock.json
 CLAUDE.md
+# Vercel (Build Output API)
+/.vercel/

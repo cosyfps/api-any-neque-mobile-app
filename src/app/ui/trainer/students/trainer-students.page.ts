@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
-import { LucidePlus, LucideSearch, LucideX } from '@lucide/angular';
+import { LucideSearch, LucideX } from '@lucide/angular';
 
 import { TrainerInvitationFacade } from '@app/application/trainers/trainer-invitation.facade';
 import {
@@ -11,8 +11,8 @@ import { INVITATION_TTL_HOURS } from '@app/domain/auth/port/invitation.port';
 import { Student, fullName, initials } from '@app/domain/students/model/student.model';
 
 import { PageStateComponent } from '@shared/components/page-state.component';
-import { PullToRefreshDirective } from '@shared/directives/pull-to-refresh.directive';
 import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
+import { useFab } from '@shared/navigation/fab';
 
 import { InvitationPanelComponent } from '../shared/invitation-panel.component';
 import { StudentFormComponent, StudentFormValue } from '../shared/student-form.component';
@@ -22,24 +22,17 @@ import { StudentFormComponent, StudentFormValue } from '../shared/student-form.c
   standalone: true,
   imports: [
     PageStateComponent,
-    PullToRefreshDirective,
     SheetTrapDirective,
     InvitationPanelComponent,
     StudentFormComponent,
     LucideSearch,
     LucideX,
-    LucidePlus,
   ],
   providers: [TrainerStudentsFacade, TrainerInvitationFacade],
   template: `
-    <div class="page" nqPullToRefresh [refreshing]="facade.all.loading()" (refresh)="reload()">
+    <div class="page">
       <header class="head">
-        <div class="head-row">
-          <h1 class="nq-h2">Alumnos</h1>
-          <button class="add" type="button" aria-label="Dar de alta un alumno" (click)="openForm()">
-            <svg lucidePlus [size]="20" [strokeWidth]="2"></svg>
-          </button>
-        </div>
+        <h1 class="nq-h2">Alumnos</h1>
         <p class="nq-caption">{{ resumen() }}</p>
       </header>
 
@@ -215,6 +208,10 @@ export class TrainerStudentsPage {
 
   constructor() {
     this.facade.load();
+    useFab(
+      () => 'Dar de alta un alumno',
+      () => this.openForm(),
+    );
   }
 
   openForm(): void {

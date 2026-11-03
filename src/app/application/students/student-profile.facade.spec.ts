@@ -2,11 +2,17 @@ import { TestBed } from '@angular/core/testing';
 import { Subject, of, throwError } from 'rxjs';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
+import { AUTH_PORT, AuthPort } from '@app/domain/auth/port/auth.port';
 import { domainError } from '@app/domain/shared/model/app-error';
+import { CLOCK } from '@app/domain/shared/port/clock.port';
 import { Assessment } from '@app/domain/students/model/assessment.model';
 import { Student } from '@app/domain/students/model/student.model';
-import { ASSESSMENTS_PORT } from '@app/domain/students/port/assessments.port';
-import { STUDENTS_PORT } from '@app/domain/students/port/students.port';
+import { ASSESSMENTS_PORT, AssessmentsPort } from '@app/domain/students/port/assessments.port';
+import { STUDENTS_PORT, StudentsPort } from '@app/domain/students/port/students.port';
+import { WorkoutSession } from '@app/domain/workouts/model/workout-session.model';
+import { WORKOUTS_PORT, WorkoutsPort } from '@app/domain/workouts/port/workouts.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { StudentProfileFacade } from './student-profile.facade';
 
@@ -14,9 +20,9 @@ const STUDENT: Student = {
   id: 'std-001',
   trainerId: 'trn-001',
   trainerName: 'Kelvin Moreno',
-  firstName: 'Ana',
-  lastName: 'Rojas',
-  email: 'ana@neque.cl',
+  firstName: 'Alejandra',
+  lastName: 'Acosta',
+  email: 'alejandra@neque.cl',
   phone: null,
   avatarUrl: null,
   status: 'active',
@@ -39,8 +45,11 @@ const ASSESSMENT: Assessment = {
 };
 
 describe('StudentProfileFacade', () => {
-  let getById: jest.Mock;
-  let latestByStudent: jest.Mock;
+  let getById: MockOf<StudentsPort['getById']>;
+  let latestByStudent: MockOf<AssessmentsPort['latestByStudent']>;
+  let update: MockOf<StudentsPort['update']>;
+  let changePassword: MockOf<AuthPort['changePassword']>;
+  let listSessions: MockOf<WorkoutsPort['listByStudent']>;
   let profileId: string | null;
 
   const build = (): StudentProfileFacade => {
@@ -49,22 +58,160 @@ describe('StudentProfileFacade', () => {
         StudentProfileFacade,
         {
           provide: STUDENTS_PORT,
-          useValue: { getById, listByTrainer: jest.fn(), update: jest.fn() },
+          useValue: { getById, listByTrainer: fn<StudentsPort['listByTrainer']>(), update },
         },
         {
           provide: ASSESSMENTS_PORT,
-          useValue: { latestByStudent, listByStudent: jest.fn(), create: jest.fn() },
+          useValue: {
+            latestByStudent,
+            listByStudent: fn<AssessmentsPort['listByStudent']>(),
+            create: fn<AssessmentsPort['create']>(),
+          },
         },
-        { provide: SessionFacade, useValue: { profileId: () => profileId } },
+        { provide: WORKOUTS_PORT, useValue: { listByStudent: listSessions } },
+        { provide: AUTH_PORT, useValue: { changePassword } },
+        // Miercoles 23 de septiembre de 2026.
+        { provide: CLOCK, useValue: { now: () => new Date(2026, 8, 23, 12) } },
+        {
+          provide: SessionFacade,
+          useValue: {
+            profileId: () => profileId,
+            user: () => (profileId === null ? null : { email: 'alejandra@neque.cl' }),
+          },
+        },
       ],
     });
     return TestBed.inject(StudentProfileFacade);
   };
 
   beforeEach(() => {
-    getById = jest.fn().mockReturnValue(of(STUDENT));
-    latestByStudent = jest.fn().mockReturnValue(of(ASSESSMENT));
+    getById = fn<StudentsPort['getById']>().mockReturnValue(of(STUDENT));
+    latestByStudent = fn<AssessmentsPort['latestByStudent']>().mockReturnValue(of(ASSESSMENT));
+    update = fn<StudentsPort['update']>().mockImplementation(
+      (_id: string, cambios: Partial<Student>) => of({ ...STUDENT, ...cambios }),
+    );
+    changePassword = fn<AuthPort['changePassword']>().mockReturnValue(of(undefined));
+    listSessions = fn<WorkoutsPort['listByStudent']>().mockReturnValue(of([]));
     profileId = 'std-001';
+  });
+
+  describe('racha', () => {
+    const sesion = (fecha: Date): WorkoutSession => ({
+      id: `wks-${fecha.getTime()}`,
+      studentId: 'std-001',
+      routineId: 'rtn-001',
+      routineDayId: 'day-1',
+      title: 'Sesion',
+      scheduledFor: fecha.toISOString(),
+      startedAt: null,
+      completedAt: null,
+      status: 'completed',
+      durationMinutes: null,
+      estimatedMinutes: 45,
+      exercises: [],
+    });
+
+    it('cuenta las semanas seguidas con la agenda cumplida', () => {
+      listSessions.mockReturnValue(
+        of([sesion(new Date(2026, 8, 14, 18)), sesion(new Date(2026, 8, 7, 18))]),
+      );
+      const facade = build();
+      facade.load();
+
+      expect(listSessions).toHaveBeenCalledWith('std-001');
+      expect(facade.streakWeeks()).toBe(2);
+    });
+
+    it('es cero sin sesiones', () => {
+      const facade = build();
+      facade.load();
+
+      expect(facade.streakWeeks()).toBe(0);
+    });
+  });
+
+  describe('edicion del perfil', () => {
+    it('saveProfile() actualiza la ficha con lo que devuelve el puerto', async () => {
+      const facade = build();
+      facade.load();
+
+      expect(await facade.saveProfile({ lastName: 'Rivas' })).toBe(true);
+
+      expect(update).toHaveBeenCalledWith('std-001', { lastName: 'Rivas' });
+      expect(facade.displayName()).toBe('Alejandra Rivas');
+      expect(facade.busy()).toBe(false);
+    });
+
+    it('setAvatar() guarda la foto como avatarUrl', async () => {
+      const facade = build();
+      facade.load();
+
+      await facade.setAvatar('data:image/png;base64,AAA');
+
+      expect(update).toHaveBeenCalledWith('std-001', { avatarUrl: 'data:image/png;base64,AAA' });
+      expect(facade.student.data()?.avatarUrl).toBe('data:image/png;base64,AAA');
+    });
+
+    it('expone el error si el puerto falla', async () => {
+      update.mockReturnValue(throwError(() => domainError('network')));
+      const facade = build();
+      facade.load();
+
+      expect(await facade.saveProfile({ phone: null })).toBe(false);
+      expect(facade.actionError()?.code).toBe('network');
+
+      facade.clearActionError();
+      expect(facade.actionError()).toBeNull();
+    });
+
+    it('sin sesion no guarda', async () => {
+      profileId = null;
+
+      expect(await build().saveProfile({ phone: null })).toBe(false);
+      expect(update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('changePassword()', () => {
+    it('cambia la contrasena del correo de la sesion', async () => {
+      const facade = build();
+
+      expect(await facade.changePassword('Alumno1234!', 'Nueva5678!')).toBe(true);
+      expect(changePassword).toHaveBeenCalledWith(
+        'alejandra@neque.cl',
+        'Alumno1234!',
+        'Nueva5678!',
+      );
+    });
+
+    it('con la actual incorrecta expone el error', async () => {
+      changePassword.mockReturnValue(throwError(() => domainError('invalid_credentials')));
+      const facade = build();
+
+      expect(await facade.changePassword('Mala1234!', 'Nueva5678!')).toBe(false);
+      expect(facade.actionError()?.code).toBe('invalid_credentials');
+    });
+
+    it('sin sesion no hace nada', async () => {
+      profileId = null;
+
+      expect(await build().changePassword('a', 'b')).toBe(false);
+      expect(changePassword).not.toHaveBeenCalled();
+    });
+
+    // Un doble toque no dispara dos cambios.
+    it('ignora un segundo envio mientras hay uno en curso', async () => {
+      const pendiente = new Subject<void>();
+      changePassword.mockReturnValue(pendiente);
+      const facade = build();
+
+      void facade.changePassword('Alumno1234!', 'Nueva5678!');
+      expect(await facade.changePassword('Alumno1234!', 'Nueva5678!')).toBe(false);
+
+      expect(changePassword).toHaveBeenCalledTimes(1);
+      pendiente.next();
+      pendiente.complete();
+    });
   });
 
   describe('load()', () => {
@@ -87,9 +234,9 @@ describe('StudentProfileFacade', () => {
       facade.load();
 
       expect(facade.viewState()).toBe('success');
-      expect(facade.displayName()).toBe('Ana Rojas');
-      expect(facade.firstName()).toBe('Ana');
-      expect(facade.avatarInitials()).toBe('AR');
+      expect(facade.displayName()).toBe('Alejandra Acosta');
+      expect(facade.firstName()).toBe('Alejandra');
+      expect(facade.avatarInitials()).toBe('AA');
     });
 
     it('queda en loading mientras el puerto no responde', () => {

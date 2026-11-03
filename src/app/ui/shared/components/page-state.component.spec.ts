@@ -1,6 +1,8 @@
 import { ComponentRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
+import { fn } from '@testing/typed-mock';
+
 import { PageStateComponent } from './page-state.component';
 
 /** Renderiza por la misma razon que el spec de `nq-workout-card`: `input()`. */
@@ -24,7 +26,7 @@ describe('PageStateComponent', () => {
   });
 
   it('onRetry() invoca el callback cuando existe', () => {
-    const retry = jest.fn();
+    const retry = fn<() => void>();
     ref.setInput('retry', retry);
 
     cmp.onRetry();

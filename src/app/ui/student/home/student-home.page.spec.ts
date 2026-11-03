@@ -6,16 +6,22 @@ import { SessionFacade } from '@app/application/auth/session.facade';
 import { NotificationsFacade } from '@app/application/notifications/notifications.facade';
 import { StudentProfileFacade } from '@app/application/students/student-profile.facade';
 import { WorkoutFacade } from '@app/application/workouts/workout.facade';
+import { AUTH_PORT, AuthPort } from '@app/domain/auth/port/auth.port';
 import { AppNotification } from '@app/domain/notifications/model/notification.model';
-import { NOTIFICATIONS_PORT } from '@app/domain/notifications/port/notifications.port';
+import {
+  NOTIFICATIONS_PORT,
+  NotificationsPort,
+} from '@app/domain/notifications/port/notifications.port';
 import { toIsoDate } from '@app/domain/shared/model/date';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
 import { Assessment } from '@app/domain/students/model/assessment.model';
 import { Student } from '@app/domain/students/model/student.model';
-import { ASSESSMENTS_PORT } from '@app/domain/students/port/assessments.port';
-import { STUDENTS_PORT } from '@app/domain/students/port/students.port';
+import { ASSESSMENTS_PORT, AssessmentsPort } from '@app/domain/students/port/assessments.port';
+import { STUDENTS_PORT, StudentsPort } from '@app/domain/students/port/students.port';
 import { WorkoutSession, WorkoutStatus } from '@app/domain/workouts/model/workout-session.model';
-import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
+import { WORKOUTS_PORT, WorkoutsPort } from '@app/domain/workouts/port/workouts.port';
+
+import { fn } from '@testing/typed-mock';
 
 import { StudentHomePage } from './student-home.page';
 
@@ -25,9 +31,9 @@ const STUDENT: Student = {
   id: 'std-001',
   trainerId: 'trn-001',
   trainerName: 'Kelvin Moreno',
-  firstName: 'Ana',
-  lastName: 'Rojas',
-  email: 'ana@neque.cl',
+  firstName: 'Alejandra',
+  lastName: 'Acosta',
+  email: 'alejandra@neque.cl',
   phone: null,
   avatarUrl: null,
   status: 'active',
@@ -90,39 +96,45 @@ describe('StudentHomePage', () => {
         WorkoutFacade,
         NotificationsFacade,
         { provide: CLOCK, useValue: { now: () => now } },
+        // El perfil lo pide para cambiar la contrasena; el home no lo usa.
+        { provide: AUTH_PORT, useValue: { changePassword: fn<AuthPort['changePassword']>() } },
         {
           provide: SessionFacade,
           useValue: { profileId: () => 'std-001', user: () => ({ id: 'usr-1' }) },
         },
         {
           provide: STUDENTS_PORT,
-          useValue: { getById: () => of(STUDENT), listByTrainer: jest.fn(), update: jest.fn() },
+          useValue: {
+            getById: () => of(STUDENT),
+            listByTrainer: fn<StudentsPort['listByTrainer']>(),
+            update: fn<StudentsPort['update']>(),
+          },
         },
         {
           provide: ASSESSMENTS_PORT,
           useValue: {
             latestByStudent: () => of(ASSESSMENT),
             listByStudent: () => of([ASSESSMENT]),
-            create: jest.fn(),
+            create: fn<AssessmentsPort['create']>(),
           },
         },
         {
           provide: WORKOUTS_PORT,
           useValue: {
             listByStudent: () => of(sessions),
-            getById: jest.fn(),
-            start: jest.fn(),
-            markExercise: jest.fn(),
-            logSet: jest.fn(),
-            complete: jest.fn(),
+            getById: fn<WorkoutsPort['getById']>(),
+            start: fn<WorkoutsPort['start']>(),
+            markExercise: fn<WorkoutsPort['markExercise']>(),
+            logSet: fn<WorkoutsPort['logSet']>(),
+            complete: fn<WorkoutsPort['complete']>(),
           },
         },
         {
           provide: NOTIFICATIONS_PORT,
           useValue: {
             listByUser: () => of(notifications),
-            markRead: jest.fn(),
-            markAllRead: jest.fn(),
+            markRead: fn<NotificationsPort['markRead']>(),
+            markAllRead: fn<NotificationsPort['markAllRead']>(),
           },
         },
       ],
@@ -142,7 +154,7 @@ describe('StudentHomePage', () => {
   describe('carga inicial', () => {
     it('queda en success con la ficha del alumno', () => {
       expect(page.profile.viewState()).toBe('success');
-      expect(page.profile.firstName()).toBe('Ana');
+      expect(page.profile.firstName()).toBe('Alejandra');
     });
 
     it('calcula el IMC desde la evaluacion', () => {

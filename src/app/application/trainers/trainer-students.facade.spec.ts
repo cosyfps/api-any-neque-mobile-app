@@ -4,7 +4,9 @@ import { Observable, of, throwError } from 'rxjs';
 import { SessionFacade } from '@app/application/auth/session.facade';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { Student } from '@app/domain/students/model/student.model';
-import { STUDENTS_PORT } from '@app/domain/students/port/students.port';
+import { STUDENTS_PORT, StudentsPort } from '@app/domain/students/port/students.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { TrainerStudentsFacade } from './trainer-students.facade';
 
@@ -33,15 +35,15 @@ const alumno = (
 
 const CARTERA = [
   alumno('std-002', 'Camila', 'Soto', 'camila@neque.cl'),
-  alumno('std-001', 'Ana', 'Rojas', 'ana@neque.cl'),
+  alumno('std-001', 'Alejandra', 'Acosta', 'alejandra@neque.cl'),
   alumno('std-003', 'Diego', 'Paredes', 'diego@neque.cl', 'suspended'),
   alumno('std-004', 'Benjamín', 'Muñoz', 'benja@neque.cl'),
 ];
 
 describe('TrainerStudentsFacade', () => {
   let facade: TrainerStudentsFacade;
-  let listByTrainer: jest.Mock;
-  let create: jest.Mock;
+  let listByTrainer: MockOf<StudentsPort['listByTrainer']>;
+  let create: MockOf<StudentsPort['create']>;
 
   const ALTA = {
     firstName: 'Nueva',
@@ -57,8 +59,10 @@ describe('TrainerStudentsFacade', () => {
     trainerId: string | null = 'trn-001',
     source: () => Observable<Student[]> = () => of(CARTERA),
   ): TrainerStudentsFacade => {
-    listByTrainer = jest.fn().mockImplementation(source);
-    create = jest.fn().mockReturnValue(of(alumno('std-009', 'Nueva', 'Alumna', 'nueva@neque.cl')));
+    listByTrainer = fn<StudentsPort['listByTrainer']>().mockImplementation(source);
+    create = fn<StudentsPort['create']>().mockReturnValue(
+      of(alumno('std-009', 'Nueva', 'Alumna', 'nueva@neque.cl')),
+    );
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
@@ -100,7 +104,7 @@ describe('TrainerStudentsFacade', () => {
     });
 
     it('ordena por nombre completo', () => {
-      expect(facade.visible()[0]?.firstName).toBe('Ana');
+      expect(facade.visible()[0]?.firstName).toBe('Alejandra');
     });
 
     it('cambia a los suspendidos', () => {
@@ -116,7 +120,7 @@ describe('TrainerStudentsFacade', () => {
     });
 
     it('busca por correo', () => {
-      facade.search('ana@neque');
+      facade.search('alejandra@neque');
 
       expect(facade.visible()[0]?.id).toBe('std-001');
     });

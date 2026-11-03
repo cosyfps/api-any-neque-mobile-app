@@ -7,9 +7,11 @@ import { domainError } from '@app/domain/shared/model/app-error';
 import { Anamnesis } from '@app/domain/students/model/anamnesis.model';
 import { Assessment } from '@app/domain/students/model/assessment.model';
 import { Student } from '@app/domain/students/model/student.model';
-import { ANAMNESIS_PORT } from '@app/domain/students/port/anamnesis.port';
-import { ASSESSMENTS_PORT } from '@app/domain/students/port/assessments.port';
-import { STUDENTS_PORT } from '@app/domain/students/port/students.port';
+import { ANAMNESIS_PORT, AnamnesisPort } from '@app/domain/students/port/anamnesis.port';
+import { ASSESSMENTS_PORT, AssessmentsPort } from '@app/domain/students/port/assessments.port';
+import { STUDENTS_PORT, StudentsPort } from '@app/domain/students/port/students.port';
+
+import { fn, MockOf } from '@testing/typed-mock';
 
 import { TrainerStudentDetailFacade } from './trainer-student-detail.facade';
 
@@ -17,9 +19,9 @@ const ALUMNO: Student = {
   id: 'std-001',
   trainerId: 'trn-001',
   trainerName: 'Kelvin Moreno',
-  firstName: 'Ana',
-  lastName: 'Rojas',
-  email: 'ana@neque.cl',
+  firstName: 'Alejandra',
+  lastName: 'Acosta',
+  email: 'alejandra@neque.cl',
   phone: null,
   avatarUrl: null,
   status: 'active',
@@ -60,21 +62,27 @@ const RUTINA = { id: 'rtn-001', name: 'Hipertrofia' } as Routine;
 
 describe('TrainerStudentDetailFacade', () => {
   let facade: TrainerStudentDetailFacade;
-  let students: { getById: jest.Mock; edit: jest.Mock; setStatus: jest.Mock };
-  let save: jest.Mock;
-  let createAssessment: jest.Mock;
+  let students: {
+    getById: MockOf<StudentsPort['getById']>;
+    edit: MockOf<StudentsPort['edit']>;
+    setStatus: MockOf<StudentsPort['setStatus']>;
+  };
+  let save: MockOf<AnamnesisPort['save']>;
+  let createAssessment: MockOf<AssessmentsPort['create']>;
 
   const createFacade = (alumno: Student = ALUMNO): TrainerStudentDetailFacade => {
-    save = jest.fn().mockImplementation(input => of({ ...ANAMNESIS, ...input }));
-    createAssessment = jest
-      .fn()
-      .mockImplementation(input =>
-        of({ ...input, id: 'asm-003', takenAt: '2026-09-20T10:00:00.000Z' }),
-      );
+    save = fn<AnamnesisPort['save']>().mockImplementation(input => of({ ...ANAMNESIS, ...input }));
+    createAssessment = fn<AssessmentsPort['create']>().mockImplementation(input =>
+      of({ ...input, id: 'asm-003', takenAt: '2026-09-20T10:00:00.000Z' }),
+    );
     students = {
-      getById: jest.fn().mockReturnValue(of(alumno)),
-      edit: jest.fn().mockImplementation((_id, changes) => of({ ...alumno, ...changes })),
-      setStatus: jest.fn().mockImplementation((_id, status) => of({ ...alumno, status })),
+      getById: fn<StudentsPort['getById']>().mockReturnValue(of(alumno)),
+      edit: fn<StudentsPort['edit']>().mockImplementation((_id, changes) =>
+        of({ ...alumno, ...changes }),
+      ),
+      setStatus: fn<StudentsPort['setStatus']>().mockImplementation((_id, status) =>
+        of({ ...alumno, status }),
+      ),
     };
 
     TestBed.resetTestingModule();
@@ -114,8 +122,8 @@ describe('TrainerStudentDetailFacade', () => {
     });
 
     it('expone nombre e iniciales listos para mostrar', () => {
-      expect(facade.displayName()).toBe('Ana Rojas');
-      expect(facade.avatarInitials()).toBe('AR');
+      expect(facade.displayName()).toBe('Alejandra Acosta');
+      expect(facade.avatarInitials()).toBe('AA');
     });
 
     it('recuerda de quien es la ficha', () => {

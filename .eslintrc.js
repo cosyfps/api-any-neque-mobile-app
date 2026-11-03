@@ -5,7 +5,7 @@ module.exports = {
   plugins: ['@typescript-eslint', 'import'],
   parser: '@typescript-eslint/parser',
   parserOptions: {
-    project: './tsconfig.json',
+    project: ['./tsconfig.json', './tsconfig.server.json'],
     tsconfigRootDir: __dirname,
   },
   rules: {
@@ -23,6 +23,7 @@ module.exports = {
           { pattern: '@app/**', group: 'internal', position: 'before' },
           { pattern: '@shared/**', group: 'internal', position: 'before' },
           { pattern: '@env/**', group: 'internal', position: 'before' },
+          { pattern: '@testing/**', group: 'internal', position: 'before' },
         ],
         pathGroupsExcludedImportTypes: ['builtin'],
         'newlines-between': 'always',
@@ -34,5 +35,26 @@ module.exports = {
     'no-console': ['warn', { allow: ['warn', 'error'] }],
     eqeqeq: ['error', 'always'],
   },
-  ignorePatterns: ['node_modules/', 'dist/', 'coverage/', '.angular/'],
+  overrides: [
+    {
+      // Los tests van tipados: ningun valor any y ningun jest.fn sin firma.
+      files: ['**/*.spec.ts', 'src/testing/**/*.ts'],
+      rules: {
+        '@typescript-eslint/no-unsafe-assignment': 'error',
+        '@typescript-eslint/no-unsafe-member-access': 'error',
+        '@typescript-eslint/no-unsafe-call': 'error',
+        '@typescript-eslint/no-unsafe-return': 'error',
+        '@typescript-eslint/no-unsafe-argument': 'error',
+        'no-restricted-syntax': [
+          'error',
+          {
+            selector:
+              "CallExpression[callee.object.name='jest'][callee.property.name='fn']:not([typeArguments])",
+            message: 'Usa fn<F>() de @testing/typed-mock: jest.fn() sin firma es any.',
+          },
+        ],
+      },
+    },
+  ],
+  ignorePatterns: ['node_modules/', 'dist/', 'coverage/', '.angular/', 'out-tsc/', '.vercel/'],
 };

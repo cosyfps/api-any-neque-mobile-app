@@ -294,7 +294,7 @@ El plan de la Épica 8 describe un comparador con divisor arrastrable; lo implem
 
 > **Corrección del 19-09-2026.** La primera redacción de este hallazgo culpaba al ticket
 > `T-8.6.7`, y el ticket era correcto: dice «lado a lado». Quien prometía el arrastre era
-> el plan de la sesión. Resuelto en `T-11.6.27`: el comparador ahora arrastra.
+> el plan de la sesión. Resuelto en `T-11.6.21`: el comparador ahora arrastra.
 
 ### StudentProfilePage
 
