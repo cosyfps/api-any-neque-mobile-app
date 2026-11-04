@@ -157,6 +157,21 @@ describe('ConversationComponent', () => {
     expect(list).toHaveBeenCalledTimes(1);
   });
 
+  it('alFinal baja la conversacion al ultimo mensaje', () => {
+    const raf = jest.spyOn(window, 'requestAnimationFrame').mockImplementation(cb => {
+      cb(0);
+      return 0;
+    });
+    const hilo = el().querySelector('.thread') as HTMLElement;
+    const scrollTo = fn<(options?: ScrollToOptions) => void>();
+    hilo.scrollTo = scrollTo as unknown as HTMLElement['scrollTo'];
+
+    cmp.alFinal();
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: hilo.scrollHeight });
+    raf.mockRestore();
+  });
+
   it('reload es un campo arrow invocable', () => {
     expect(() => cmp.reload()).not.toThrow();
   });

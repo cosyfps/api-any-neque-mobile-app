@@ -101,24 +101,30 @@ type Seccion = 'routines' | 'exercises';
           @default {
             <ul class="list" role="list">
               @for (row of facade.visible(); track row.routine.id) {
-                <li class="card">
-                  <div class="card-head">
-                    <span class="card-name">{{ row.routine.name }}</span>
-                    <span class="nq-badge alumnos-badge" [class.vacia]="!asignada(row.routine)">
-                      {{ alumnos(row.studentNames.length) }}
+                <!-- Tocar la tarjeta abre el formulario de la rutina; las acciones
+                     de abajo no la abren. -->
+                <li class="card" (click)="openEdit(row.routine)">
+                  <button
+                    class="card-main"
+                    type="button"
+                    [attr.aria-label]="'Editar ' + row.routine.name"
+                    (click)="$event.stopPropagation(); openEdit(row.routine)"
+                  >
+                    <span class="card-head">
+                      <span class="card-name">{{ row.routine.name }}</span>
+                      <span class="nq-badge alumnos-badge" [class.vacia]="!asignada(row.routine)">
+                        {{ alumnos(row.studentNames.length) }}
+                      </span>
                     </span>
-                  </div>
-                  <p class="card-sub">
-                    {{ row.routine.goal }} · {{ dias(row.routine.days.length) }}
-                  </p>
-                  @if (row.studentNames.length > 0) {
-                    <p class="card-students">{{ row.studentNames.join(', ') }}</p>
-                  }
+                    <span class="card-sub">
+                      {{ row.routine.goal }} · {{ dias(row.routine.days.length) }}
+                    </span>
+                    @if (row.studentNames.length > 0) {
+                      <span class="card-students">{{ row.studentNames.join(', ') }}</span>
+                    }
+                  </button>
 
-                  <div class="card-actions">
-                    <button class="text-btn" type="button" (click)="openEdit(row.routine)">
-                      Editar
-                    </button>
+                  <div class="card-actions" (click)="$event.stopPropagation()">
                     <button
                       class="text-btn"
                       type="button"

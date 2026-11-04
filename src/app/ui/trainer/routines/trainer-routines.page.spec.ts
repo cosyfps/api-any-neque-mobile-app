@@ -319,6 +319,18 @@ describe('TrainerRoutinesPage', () => {
     });
   });
 
+  describe('tarjeta de rutina', () => {
+    // Sin boton Editar: tocar la tarjeta abre el formulario de la rutina.
+    it('openEdit abre el constructor con la rutina tocada', () => {
+      const hipertrofia = rutina('rtn-001', 'Hipertrofia', ['std-001']);
+
+      page.openEdit(hipertrofia);
+
+      expect(page.building()).toBe(true);
+      expect(page.editing()?.id).toBe('rtn-001');
+    });
+  });
+
   describe('duplicar rutina', () => {
     it('crea la copia, salta a Sin asignar y la abre para editar', async () => {
       // La biblioteca releida ya trae la copia.

@@ -51,6 +51,24 @@
       visibility 0s;
   }
 
+  // Con el teclado abierto (ver `useKeyboardInset`) el shell se achica hasta
+  // el borde del teclado y el tab bar se retira: la pantalla queda encima del
+  // teclado en vez de quedar tapada por el, como en Instagram.
+  :host-context(html.nq-keyboard-open) {
+    .layout {
+      height: calc(100% - var(--nq-kb, 0px));
+    }
+
+    .layout-content {
+      padding-bottom: 8px;
+    }
+
+    .tab-bar,
+    .nq-fab {
+      display: none;
+    }
+  }
+
   // Con un sheet abierto el tab bar se retira. En iOS el `.nq-overlay` de la
   // pagina queda atrapado dentro del contenedor con scroll y no logra pasar
   // por encima del tab bar, que es su hermano: tapaba los botones del sheet.

@@ -284,3 +284,36 @@
     outline-offset: 2px;
   }
 }
+
+// La tarjeta se toca entera para editar: el bloque de texto es un boton.
+.card {
+  cursor: pointer;
+
+  &:active {
+    background: var(--nq-border);
+  }
+}
+
+.card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 0;
+  font-family: var(--nq-font-family);
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--nq-primary-strong);
+    outline-offset: 4px;
+    border-radius: var(--nq-radius-sm);
+  }
+
+  .card-sub,
+  .card-students {
+    display: block;
+  }
+}

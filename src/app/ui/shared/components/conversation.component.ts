@@ -21,6 +21,8 @@ import {
   messageError,
 } from '@app/domain/messages/model/message.model';
 
+import { useKeyboardInset } from '../navigation/keyboard-inset';
+
 import { PageStateComponent } from './page-state.component';
 
 /** Cada cuanto se buscan mensajes nuevos mientras la pantalla esta abierta. */
@@ -85,6 +87,7 @@ const DIA = new Intl.DateTimeFormat('es-CL', { weekday: 'long', day: 'numeric', 
               [attr.aria-invalid]="error() !== null"
               [attr.aria-describedby]="error() ? 'mensaje-error' : null"
               (input)="escribir($event)"
+              (focus)="alFinal()"
               (keydown.enter)="alEnter($event)"
             ></textarea>
           </div>
@@ -130,6 +133,10 @@ export class ConversationComponent {
   private readonly thread = viewChild<ElementRef<HTMLElement>>('thread');
 
   constructor() {
+    // Con el teclado abierto la pantalla se achica (no se desplaza) y la
+    // conversacion baja al ultimo mensaje, como en Instagram.
+    useKeyboardInset(() => this.alFinal());
+
     const timer = setInterval(() => this.facade.refresh(), REFRESH_MS);
     inject(DestroyRef).onDestroy(() => clearInterval(timer));
 
@@ -140,6 +147,14 @@ export class ConversationComponent {
       if (el !== undefined && total > 0) {
         untracked(() => el.scrollTo({ top: el.scrollHeight }));
       }
+    });
+  }
+
+  /** Baja la conversacion al ultimo mensaje, despues de que el layout se acomoda. */
+  alFinal(): void {
+    requestAnimationFrame(() => {
+      const el = this.thread()?.nativeElement;
+      el?.scrollTo({ top: el.scrollHeight });
     });
   }
 
