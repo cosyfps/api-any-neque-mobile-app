@@ -34,8 +34,12 @@ body {
   background: var(--nq-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  // `overscroll-behavior` ya bloquea el gesto de volver por desborde.
+  // `touch-action` se intersecta con todos los ancestros: con `pan-y` aqui,
+  // ningun input podia deslizarse en horizontal para leer un texto largo.
+  // `pan-x pan-y` permite ambos y sigue sin zoom con pellizco.
   overscroll-behavior: none;
-  touch-action: pan-y;
+  touch-action: pan-x pan-y;
   // El resaltado azul del tap movil no aporta nada: cada control tiene su
   // propio estado `:active`.
   -webkit-tap-highlight-color: transparent;

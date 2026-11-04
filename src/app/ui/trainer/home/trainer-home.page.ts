@@ -348,7 +348,12 @@ export class TrainerHomePage {
   }
 
   hora(iso: string): string {
-    return new Date(iso).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+    // 24 horas fijo: iOS formatea es-CL con "a.m."/"p.m." y la hora se partia en dos lineas.
+    return new Date(iso).toLocaleTimeString('es-CL', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    });
   }
 
   accion(kind: PendingKind): string {

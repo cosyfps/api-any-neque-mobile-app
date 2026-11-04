@@ -32,6 +32,24 @@ describe('chart-math', () => {
       expect(bars[1]?.height).toBeCloseTo(BOX.height - BOX.padding * 2);
     });
 
+    // El home le pasa el porcentaje cumplido de cada dia (0 a 1): un dia
+    // completo llena la barra aunque otro tenga mas sesiones.
+    it('con porcentajes, un dia completo siempre llena la barra', () => {
+      const bars = scaleBars(
+        [
+          { label: 'L', value: 1, highlighted: false },
+          { label: 'M', value: 1, highlighted: true },
+          { label: 'X', value: 0.5, highlighted: false },
+        ],
+        BOX,
+      );
+      const lleno = BOX.height - BOX.padding * 2;
+
+      expect(bars[0]?.height).toBeCloseTo(lleno);
+      expect(bars[1]?.height).toBeCloseTo(lleno);
+      expect(bars[2]?.height).toBeCloseTo(lleno / 2);
+    });
+
     it('escala proporcionalmente contra el maximo', () => {
       const bars = scaleBars(inputs, BOX);
       expect(bars[0]?.height).toBeCloseTo((BOX.height - BOX.padding * 2) / 2);

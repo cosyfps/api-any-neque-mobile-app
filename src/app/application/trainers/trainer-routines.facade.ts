@@ -242,6 +242,64 @@ export class TrainerRoutinesFacade {
     });
   }
 
+  /** Edita un ejercicio propio y lo reemplaza en la lista sin recargarla. */
+  updateExercise(
+    exerciseId: string,
+    input: Omit<ExerciseInput, 'ownerTrainerId'>,
+  ): Promise<Exercise | null> {
+    const trainerId = this.session.profileId();
+    if (trainerId === null || this._busy()) {
+      return Promise.resolve(null);
+    }
+
+    this._busy.set(true);
+    this._actionError.set(null);
+
+    return new Promise(resolve => {
+      this.catalog.update(exerciseId, { ...input, ownerTrainerId: trainerId }).subscribe({
+        next: exercise => {
+          this.exercises.set(
+            (this.exercises.data() ?? []).map(item => (item.id === exercise.id ? exercise : item)),
+          );
+          this._busy.set(false);
+          // Las rutinas guardan el nombre: se recargan para mostrar el nuevo.
+          this.rows.reload();
+          resolve(exercise);
+        },
+        error: (cause: unknown) => {
+          this._actionError.set(toDomainError(cause));
+          this._busy.set(false);
+          resolve(null);
+        },
+      });
+    });
+  }
+
+  /** Elimina un ejercicio propio. Si una rutina lo usa, el error lo explica. */
+  removeExercise(exerciseId: string): Promise<boolean> {
+    if (this.session.profileId() === null || this._busy()) {
+      return Promise.resolve(false);
+    }
+
+    this._busy.set(true);
+    this._actionError.set(null);
+
+    return new Promise(resolve => {
+      this.catalog.remove(exerciseId).subscribe({
+        next: () => {
+          this.exercises.set((this.exercises.data() ?? []).filter(item => item.id !== exerciseId));
+          this._busy.set(false);
+          resolve(true);
+        },
+        error: (cause: unknown) => {
+          this._actionError.set(toDomainError(cause));
+          this._busy.set(false);
+          resolve(false);
+        },
+      });
+    });
+  }
+
   private contar(estado: RoutinesFilter): number {
     return (this.rows.data() ?? []).filter(row => this.estadoDe(row.routine) === estado).length;
   }

@@ -1,11 +1,16 @@
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
+import { LucideChevronRight, LucidePencil, LucideTrash2 } from '@lucide/angular';
 
 import {
   RoutineRow,
   RoutinesFilter,
   TrainerRoutinesFacade,
 } from '@app/application/trainers/trainer-routines.facade';
-import { ExerciseInput, MUSCLE_GROUP_LABEL } from '@app/domain/routines/model/exercise.model';
+import {
+  Exercise,
+  ExerciseInput,
+  MUSCLE_GROUP_LABEL,
+} from '@app/domain/routines/model/exercise.model';
 import {
   Routine,
   RoutineAssignment,
@@ -34,6 +39,9 @@ type Seccion = 'routines' | 'exercises';
     RoutineBuilderComponent,
     RoutineAssignComponent,
     ExerciseFormComponent,
+    LucideChevronRight,
+    LucidePencil,
+    LucideTrash2,
   ],
   providers: [TrainerRoutinesFacade],
   template: `
@@ -142,9 +150,24 @@ type Seccion = 'routines' | 'exercises';
           @if (facade.ownExercises().length > 0) {
             <ul class="list" role="list">
               @for (item of facade.ownExercises(); track item.id) {
-                <li class="exercise-row">
-                  <span class="exercise-name">{{ item.name }}</span>
-                  <span class="exercise-group">{{ grupo(item.muscleGroup) }}</span>
+                <li>
+                  <!-- Tocar el ejercicio abre sus opciones (modificar, eliminar). -->
+                  <button
+                    class="exercise-row own"
+                    type="button"
+                    aria-haspopup="dialog"
+                    [attr.aria-label]="'Opciones de ' + item.name"
+                    (click)="openExerciseOptions(item)"
+                  >
+                    <span class="exercise-name">{{ item.name }}</span>
+                    <span class="exercise-group">{{ grupo(item.muscleGroup) }}</span>
+                    <svg
+                      class="exercise-chevron"
+                      lucideChevronRight
+                      [size]="16"
+                      [strokeWidth]="2"
+                    ></svg>
+                  </button>
                 </li>
               }
             </ul>
@@ -276,15 +299,98 @@ type Seccion = 'routines' | 'exercises';
         (click)="$event.stopPropagation()"
       >
         <div class="nq-sheet-handle"></div>
-        <h2 class="nq-sheet-title" id="ejercicio-title">Nuevo ejercicio</h2>
+        <h2 class="nq-sheet-title" id="ejercicio-title">
+          {{ editingExercise() === null ? 'Nuevo ejercicio' : 'Modificar ejercicio' }}
+        </h2>
 
         <nq-exercise-form
           #exerciseForm
           [busy]="facade.busy()"
           [errorMessage]="facade.actionError()?.message ?? null"
+          [submitLabel]="editingExercise() === null ? 'Crear ejercicio' : 'Guardar cambios'"
           (submitted)="saveExercise($event)"
           (cancelled)="closeExercise()"
         />
+      </div>
+    </div>
+
+    <!-- Opciones de un ejercicio propio: se abre al tocarlo en la lista. -->
+    <div
+      class="nq-overlay"
+      [class.open]="exerciseOptions() !== null"
+      (click)="closeExerciseOptions()"
+    >
+      <div
+        class="nq-sheet confirm options-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="opciones-ejercicio-title"
+        [nqSheetTrap]="exerciseOptions() !== null"
+        (dismissed)="closeExerciseOptions()"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="nq-sheet-handle"></div>
+        <h2 class="nq-sheet-title" id="opciones-ejercicio-title">{{ exerciseOptions()?.name }}</h2>
+        @if (exerciseOptions(); as ejercicio) {
+          <p class="options-group">{{ grupo(ejercicio.muscleGroup) }}</p>
+          <div class="options-list">
+            <button class="option" type="button" (click)="openEditExercise(ejercicio)">
+              <svg class="option-icon" lucidePencil [size]="20" [strokeWidth]="2"></svg>
+              <span class="option-label">Modificar ejercicio</span>
+              <svg class="option-chevron" lucideChevronRight [size]="18" [strokeWidth]="2"></svg>
+            </button>
+            <button class="option danger" type="button" (click)="askRemoveExercise(ejercicio)">
+              <svg class="option-icon" lucideTrash2 [size]="20" [strokeWidth]="2"></svg>
+              <span class="option-label">Eliminar ejercicio</span>
+            </button>
+          </div>
+        }
+        <button class="options-cancel" type="button" (click)="closeExerciseOptions()">
+          Cancelar
+        </button>
+      </div>
+    </div>
+
+    <div
+      class="nq-overlay"
+      [class.open]="removingExercise() !== null"
+      (click)="cancelRemoveExercise()"
+    >
+      <div
+        class="nq-sheet confirm"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="eliminar-ejercicio-title"
+        aria-describedby="eliminar-ejercicio-desc"
+        [nqSheetTrap]="removingExercise() !== null"
+        (dismissed)="cancelRemoveExercise()"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="nq-sheet-handle"></div>
+        <h2 class="nq-sheet-title" id="eliminar-ejercicio-title">
+          ¿Eliminar «{{ removingExercise()?.name }}»?
+        </h2>
+        <p class="confirm-desc" id="eliminar-ejercicio-desc">
+          Deja de aparecer en tu catálogo. Las sesiones ya entrenadas lo conservan.
+        </p>
+
+        @if (facade.actionError(); as error) {
+          <p class="nq-field-error" role="alert">{{ error.message }}</p>
+        }
+
+        <div class="confirm-actions">
+          <button class="nq-btn nq-btn-secondary" type="button" (click)="cancelRemoveExercise()">
+            Cancelar
+          </button>
+          <button
+            class="nq-btn danger-confirm"
+            type="button"
+            [disabled]="facade.busy()"
+            (click)="confirmRemoveExercise()"
+          >
+            Eliminar
+          </button>
+        </div>
       </div>
     </div>
   `,
@@ -314,6 +420,11 @@ export class TrainerRoutinesPage {
   readonly assigning = signal<Routine | null>(null);
   /** Rutina que se esta por eliminar; null con la confirmacion cerrada. */
   readonly removing = signal<RoutineRow | null>(null);
+  /** Ejercicio que se edita; null al crear uno nuevo. */
+  readonly editingExercise = signal<Exercise | null>(null);
+  readonly removingExercise = signal<Exercise | null>(null);
+  /** Ejercicio propio cuyo menu de opciones esta abierto. */
+  readonly exerciseOptions = signal<Exercise | null>(null);
 
   /** Nombra a los alumnos que quedan sin rutina: es lo que el entrenador pierde. */
   readonly removeWarning = computed(() => {
@@ -397,6 +508,7 @@ export class TrainerRoutinesPage {
       this.builder()?.reset(null);
       return;
     }
+    this.editingExercise.set(null);
     this.creatingExercise.set(true);
     this.exerciseForm()?.reset();
   }
@@ -482,9 +594,51 @@ export class TrainerRoutinesPage {
     this.creatingExercise.set(false);
   }
 
+  openEditExercise(exercise: Exercise): void {
+    this.facade.clearActionError();
+    this.exerciseOptions.set(null);
+    this.editingExercise.set(exercise);
+    this.creatingExercise.set(true);
+    this.exerciseForm()?.reset(exercise);
+  }
+
   async saveExercise(value: Omit<ExerciseInput, 'ownerTrainerId'>): Promise<void> {
-    if ((await this.facade.createExercise(value)) !== null) {
+    const actual = this.editingExercise();
+    const guardado =
+      actual === null
+        ? await this.facade.createExercise(value)
+        : await this.facade.updateExercise(actual.id, value);
+    if (guardado !== null) {
       this.creatingExercise.set(false);
+    }
+  }
+
+  openExerciseOptions(exercise: Exercise): void {
+    this.exerciseOptions.set(exercise);
+  }
+
+  closeExerciseOptions(): void {
+    this.exerciseOptions.set(null);
+  }
+
+  askRemoveExercise(exercise: Exercise): void {
+    this.facade.clearActionError();
+    this.exerciseOptions.set(null);
+    this.removingExercise.set(exercise);
+  }
+
+  cancelRemoveExercise(): void {
+    this.removingExercise.set(null);
+  }
+
+  async confirmRemoveExercise(): Promise<void> {
+    const exercise = this.removingExercise();
+    if (exercise === null) {
+      return;
+    }
+    if (await this.facade.removeExercise(exercise.id)) {
+      this.removingExercise.set(null);
+      this.exerciseOptions.set(null);
     }
   }
 

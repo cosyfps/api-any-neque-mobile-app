@@ -77,6 +77,8 @@ describe('TrainerRoutinesPage', () => {
   let setAssignments: MockOf<RoutinesPort['setAssignments']>;
   let remove: MockOf<RoutinesPort['remove']>;
   let createExercise: MockOf<ExerciseCatalogPort['create']>;
+  let updateExercise: MockOf<ExerciseCatalogPort['update']>;
+  let removeExercise: MockOf<ExerciseCatalogPort['remove']>;
 
   const createPage = (
     opciones: {
@@ -107,6 +109,10 @@ describe('TrainerRoutinesPage', () => {
     createExercise = fn<ExerciseCatalogPort['create']>().mockReturnValue(
       of(ejercicio('ex-901', 'Zancada', 'trn-001')),
     );
+    updateExercise = fn<ExerciseCatalogPort['update']>().mockReturnValue(
+      of(ejercicio('ex-900', 'Búlgara con salto', 'trn-001')),
+    );
+    removeExercise = fn<ExerciseCatalogPort['remove']>().mockReturnValue(of(undefined));
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
@@ -128,7 +134,12 @@ describe('TrainerRoutinesPage', () => {
         { provide: STUDENTS_PORT, useValue: { listByTrainer: () => of(cartera) } },
         {
           provide: EXERCISE_CATALOG_PORT,
-          useValue: { listForTrainer: () => of(ejercicios), create: createExercise },
+          useValue: {
+            listForTrainer: () => of(ejercicios),
+            create: createExercise,
+            update: updateExercise,
+            remove: removeExercise,
+          },
         },
       ],
     });
@@ -496,6 +507,109 @@ describe('TrainerRoutinesPage', () => {
       page.closeExercise();
 
       expect(page.creatingExercise()).toBe(false);
+    });
+  });
+
+  describe('modificar y eliminar ejercicio propio', () => {
+    const propio = (): Exercise => page.facade.ownExercises()[0] as Exercise;
+    const CAMBIOS = {
+      name: 'Búlgara con salto',
+      muscleGroup: 'legs' as const,
+      equipment: null,
+      thumbnailUrl: null,
+      instructions: [],
+    };
+
+    it('tocar el ejercicio abre sus opciones', () => {
+      page.openExerciseOptions(propio());
+
+      expect(page.exerciseOptions()?.id).toBe('ex-900');
+    });
+
+    it('cerrar las opciones las oculta', () => {
+      page.openExerciseOptions(propio());
+
+      page.closeExerciseOptions();
+
+      expect(page.exerciseOptions()).toBeNull();
+    });
+
+    it('modificar cierra las opciones y abre el sheet en modo edicion', () => {
+      page.openExerciseOptions(propio());
+
+      page.openEditExercise(propio());
+
+      expect(page.creatingExercise()).toBe(true);
+      expect(page.editingExercise()?.id).toBe('ex-900');
+      expect(page.exerciseOptions()).toBeNull();
+    });
+
+    it('eliminar cierra las opciones y pide confirmacion', () => {
+      page.openExerciseOptions(propio());
+
+      page.askRemoveExercise(propio());
+
+      expect(page.exerciseOptions()).toBeNull();
+      expect(page.removingExercise()?.id).toBe('ex-900');
+    });
+
+    it('guardar en modo edicion actualiza en vez de crear', async () => {
+      page.openEditExercise(propio());
+
+      await page.saveExercise(CAMBIOS);
+
+      expect(updateExercise).toHaveBeenCalledWith('ex-900', {
+        ...CAMBIOS,
+        ownerTrainerId: 'trn-001',
+      });
+      expect(createExercise).not.toHaveBeenCalled();
+      expect(page.creatingExercise()).toBe(false);
+    });
+
+    it('el alta despues de editar vuelve a crear', () => {
+      page.openEditExercise(propio());
+      page.selectSeccion('exercises');
+
+      page.openCreate();
+
+      expect(page.editingExercise()).toBeNull();
+    });
+
+    it('eliminar pide confirmacion y luego lo quita', async () => {
+      page.askRemoveExercise(propio());
+      expect(page.removingExercise()?.id).toBe('ex-900');
+
+      await page.confirmRemoveExercise();
+
+      expect(removeExercise).toHaveBeenCalledWith('ex-900');
+      expect(page.removingExercise()).toBeNull();
+      expect(page.facade.ownExercises()).toEqual([]);
+    });
+
+    it('si una rutina lo usa, la confirmacion queda abierta con el motivo', async () => {
+      removeExercise.mockReturnValue(
+        throwError(() => domainError('conflict', 'Este ejercicio está en la rutina «Alfa».')),
+      );
+      page.askRemoveExercise(propio());
+
+      await page.confirmRemoveExercise();
+
+      expect(page.removingExercise()).not.toBeNull();
+      expect(page.facade.actionError()?.message).toContain('«Alfa»');
+    });
+
+    it('cancelar cierra la confirmacion', () => {
+      page.askRemoveExercise(propio());
+
+      page.cancelRemoveExercise();
+
+      expect(page.removingExercise()).toBeNull();
+    });
+
+    it('confirmar sin ejercicio no hace nada', async () => {
+      await page.confirmRemoveExercise();
+
+      expect(removeExercise).not.toHaveBeenCalled();
     });
   });
 

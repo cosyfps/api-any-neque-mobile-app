@@ -21,7 +21,12 @@ import {
 import { PageStateComponent } from '@shared/components/page-state.component';
 
 const WEEKDAY_HEADERS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'] as const;
-const TIME_FORMAT = new Intl.DateTimeFormat('es-CL', { hour: '2-digit', minute: '2-digit' });
+// 24 horas fijo: iOS formatea es-CL con "a.m."/"p.m.".
+const TIME_FORMAT = new Intl.DateTimeFormat('es-CL', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
 const DAY_FORMAT = new Intl.DateTimeFormat('es-CL', {
   weekday: 'long',
   day: 'numeric',

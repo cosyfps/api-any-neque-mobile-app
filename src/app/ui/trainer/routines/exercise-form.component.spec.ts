@@ -123,6 +123,33 @@ describe('ExerciseFormComponent', () => {
   });
 
   describe('reset()', () => {
+    it('con un ejercicio precarga sus datos para editarlo', () => {
+      form.reset({
+        id: 'ex-900',
+        name: 'Búlgara',
+        muscleGroup: 'legs',
+        equipment: 'Banco',
+        thumbnailUrl: null,
+        instructions: ['Paso uno', 'Paso dos'],
+        ownerTrainerId: 'trn-001',
+      });
+
+      expect(form.form.getRawValue()).toEqual({
+        name: 'Búlgara',
+        muscleGroup: 'legs',
+        equipment: 'Banco',
+        instructions: ['Paso uno', 'Paso dos'].join('\n'),
+      });
+    });
+
+    it('el boton usa la etiqueta recibida', () => {
+      fixture.componentRef.setInput('submitLabel', 'Guardar cambios');
+      fixture.detectChanges();
+
+      const boton = (fixture.nativeElement as HTMLElement).querySelector('button[type=submit]');
+      expect(boton?.textContent).toContain('Guardar cambios');
+    });
+
     it('limpia lo del ejercicio anterior', () => {
       form.form.controls.name.setValue('Zancada');
 

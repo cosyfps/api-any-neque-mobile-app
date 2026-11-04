@@ -60,4 +60,12 @@ export class ExerciseCatalogHttpAdapter implements ExerciseCatalogPort {
   create(input: ExerciseInput): Observable<Exercise> {
     return this.api.post<Exercise>('/exercises', input);
   }
+
+  update(exerciseId: Id, changes: ExerciseInput): Observable<Exercise> {
+    return this.api.put<Exercise>(`/exercises/${exerciseId}`, changes);
+  }
+
+  remove(exerciseId: Id): Observable<void> {
+    return this.api.delete<null>(`/exercises/${exerciseId}`).pipe(map((): void => undefined));
+  }
 }

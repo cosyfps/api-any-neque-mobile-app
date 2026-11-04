@@ -1,6 +1,8 @@
 import { Injectable, Signal, computed, inject } from '@angular/core';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
+import { Routine } from '@app/domain/routines/model/routine.model';
+import { ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
 import { isSameDay, parseIsoDate, startOfWeek } from '@app/domain/shared/model/date';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
 import { WeeklyProgress, weeklyProgress } from '@app/domain/workouts/model/weekly-progress';
@@ -17,12 +19,29 @@ import { AsyncState, ViewState, asyncState } from '../shared/async-state';
 @Injectable()
 export class WorkoutFacade {
   private readonly port = inject(WORKOUTS_PORT);
+  private readonly routines = inject(ROUTINES_PORT);
   private readonly session = inject(SessionFacade);
   private readonly clock = inject(CLOCK);
 
   readonly sessions: AsyncState<WorkoutSession[]> = asyncState<WorkoutSession[]>();
 
-  readonly all: Signal<readonly WorkoutSession[]> = computed(() => this.sessions.data() ?? []);
+  /** Rutina vigente: solo sus sesiones se muestran en el home. */
+  readonly activeRoutine: AsyncState<Routine | null> = asyncState<Routine | null>({
+    isEmpty: () => false,
+  });
+
+  /**
+   * Sesiones de la rutina vigente. Al asignar otra rutina, lo entrenado con la
+   * anterior queda guardado (historial del entrenador, racha) pero el alumno
+   * ya no lo ve en su semana ni como "ultimo entrenamiento". Sin rutina
+   * vigente no hay nada que mostrar.
+   */
+  readonly all: Signal<readonly WorkoutSession[]> = computed(() => {
+    const routineId = this.activeRoutine.data()?.id;
+    return routineId === undefined
+      ? []
+      : (this.sessions.data() ?? []).filter(item => item.routineId === routineId);
+  });
 
   /** Sesion agendada para hoy, si existe. */
   readonly todaySession: Signal<WorkoutSession | null> = computed(() => {
@@ -65,10 +84,12 @@ export class WorkoutFacade {
     if (studentId === null) {
       return;
     }
+    this.activeRoutine.load(() => this.routines.getActiveForStudent(studentId));
     this.sessions.load(() => this.port.listByStudent(studentId));
   }
 
   reload(): void {
+    this.activeRoutine.reload();
     this.sessions.reload();
   }
 
@@ -86,6 +107,8 @@ export class WorkoutFacade {
   }
 
   private replace(updated: WorkoutSession): void {
-    this.sessions.set(this.all().map(item => (item.id === updated.id ? updated : item)));
+    this.sessions.set(
+      (this.sessions.data() ?? []).map(item => (item.id === updated.id ? updated : item)),
+    );
   }
 }

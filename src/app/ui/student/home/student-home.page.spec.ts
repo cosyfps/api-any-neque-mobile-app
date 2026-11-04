@@ -12,6 +12,7 @@ import {
   NOTIFICATIONS_PORT,
   NotificationsPort,
 } from '@app/domain/notifications/port/notifications.port';
+import { ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
 import { toIsoDate } from '@app/domain/shared/model/date';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
 import { Assessment } from '@app/domain/students/model/assessment.model';
@@ -139,6 +140,10 @@ describe('StudentHomePage', () => {
             listByStudent: () => of([ASSESSMENT]),
             create: fn<AssessmentsPort['create']>(),
           },
+        },
+        {
+          provide: ROUTINES_PORT,
+          useValue: { getActiveForStudent: () => of({ id: 'rtn-001' }) },
         },
         {
           provide: WORKOUTS_PORT,

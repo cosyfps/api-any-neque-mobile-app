@@ -3,6 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import {
+  Exercise,
   ExerciseInput,
   MUSCLE_GROUP_LABEL,
   MuscleGroup,
@@ -20,7 +21,7 @@ const MAX_PASOS = 20;
 const MAX_LARGO_PASO = 500;
 
 /**
- * Alta de un ejercicio propio.
+ * Alta y edicion de un ejercicio propio.
  *
  * Queda privado del entrenador que lo crea: el puerto le pone su
  * `ownerTrainerId` y nadie mas lo ve en su catalogo.
@@ -107,7 +108,7 @@ const MAX_LARGO_PASO = 500;
           Cancelar
         </button>
         <button class="nq-btn nq-btn-primary" type="submit" [disabled]="busy()">
-          {{ busy() ? 'Guardando…' : 'Crear ejercicio' }}
+          {{ busy() ? 'Guardando…' : submitLabel() }}
         </button>
       </div>
     </form>
@@ -117,6 +118,7 @@ const MAX_LARGO_PASO = 500;
 export class ExerciseFormComponent {
   readonly busy = input(false);
   readonly errorMessage = input<string | null>(null);
+  readonly submitLabel = input('Crear ejercicio');
 
   readonly submitted = output<Omit<ExerciseInput, 'ownerTrainerId'>>();
   readonly cancelled = output<void>();
@@ -160,9 +162,15 @@ export class ExerciseFormComponent {
     return `${this.uid}-${campo}`;
   }
 
-  reset(): void {
+  /** Vacio para crear; con un ejercicio, precargado para editarlo. */
+  reset(exercise: Exercise | null = null): void {
     this.intentado.set(false);
-    this.form.reset({ name: '', muscleGroup: 'fullbody', equipment: '', instructions: '' });
+    this.form.reset({
+      name: exercise?.name ?? '',
+      muscleGroup: exercise?.muscleGroup ?? 'fullbody',
+      equipment: exercise?.equipment ?? '',
+      instructions: exercise?.instructions.join('\n') ?? '',
+    });
   }
 
   onSubmit(): void {

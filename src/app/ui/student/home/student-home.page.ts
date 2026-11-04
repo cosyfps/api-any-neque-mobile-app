@@ -20,7 +20,12 @@ const DATE_FORMAT = new Intl.DateTimeFormat('es-CL', {
   day: 'numeric',
   month: 'long',
 });
-const TIME_FORMAT = new Intl.DateTimeFormat('es-CL', { hour: '2-digit', minute: '2-digit' });
+// 24 horas fijo: iOS formatea es-CL con "a.m."/"p.m.".
+const TIME_FORMAT = new Intl.DateTimeFormat('es-CL', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
 
 @Component({
   selector: 'app-student-home',
@@ -211,7 +216,9 @@ export class StudentHomePage {
   readonly weeklyBars = computed((): BarInput[] =>
     this.workouts.weekly().byDay.map((day, index) => ({
       label: WEEKDAY_LABELS[index] ?? '',
-      value: day.completed,
+      // Porcentaje cumplido del dia, no cantidad: con la cantidad, un dia con
+      // dos sesiones dejaba a la mitad la barra de un dia ya completo.
+      value: day.planned === 0 ? 0 : day.completed / day.planned,
       highlighted: day.isToday,
     })),
   );

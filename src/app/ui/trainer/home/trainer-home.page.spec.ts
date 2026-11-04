@@ -522,7 +522,11 @@ describe('TrainerHomePage', () => {
 
   describe('hora()', () => {
     it('formatea en hora local', () => {
-      expect(page.hora(new Date(2026, 8, 20, 18, 30).toISOString())).toMatch(/18:30|6:30/);
+      expect(page.hora(new Date(2026, 8, 20, 18, 30).toISOString())).toBe('18:30');
+    });
+
+    it('usa 24 horas, sin a.m. ni p.m.', () => {
+      expect(page.hora(new Date(2026, 8, 20, 9, 0).toISOString())).toBe('09:00');
     });
   });
 

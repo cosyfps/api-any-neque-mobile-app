@@ -78,6 +78,8 @@ describe('TrainerRoutinesFacade', () => {
   let setAssignments: MockOf<RoutinesPort['setAssignments']>;
   let remove: MockOf<RoutinesPort['remove']>;
   let createExercise: MockOf<ExerciseCatalogPort['create']>;
+  let updateExercise: MockOf<ExerciseCatalogPort['update']>;
+  let removeExercise: MockOf<ExerciseCatalogPort['remove']>;
 
   const createFacade = (
     trainerId: string | null = 'trn-001',
@@ -99,6 +101,10 @@ describe('TrainerRoutinesFacade', () => {
     createExercise = fn<ExerciseCatalogPort['create']>().mockReturnValue(
       of(ejercicio('ex-901', 'Zancada', 'trn-001')),
     );
+    updateExercise = fn<ExerciseCatalogPort['update']>().mockReturnValue(
+      of(ejercicio('ex-900', 'Búlgara con salto', 'trn-001')),
+    );
+    removeExercise = fn<ExerciseCatalogPort['remove']>().mockReturnValue(of(undefined));
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
@@ -131,6 +137,8 @@ describe('TrainerRoutinesFacade', () => {
                 ejercicio('ex-900', 'Búlgara', 'trn-001'),
               ]),
             create: createExercise,
+            update: updateExercise,
+            remove: removeExercise,
           },
         },
       ],
@@ -319,6 +327,60 @@ describe('TrainerRoutinesFacade', () => {
 
       expect(await facade.remove('rtn-001')).toBe(false);
       expect(remove).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateExercise()', () => {
+    const CAMBIOS = {
+      name: 'Búlgara con salto',
+      muscleGroup: 'legs' as const,
+      equipment: null,
+      thumbnailUrl: null,
+      instructions: [],
+    };
+
+    it('lo reemplaza en el catalogo propio y relee las rutinas', async () => {
+      listByTrainer.mockClear();
+
+      expect(await facade.updateExercise('ex-900', CAMBIOS)).not.toBeNull();
+      expect(updateExercise).toHaveBeenCalledWith('ex-900', {
+        ...CAMBIOS,
+        ownerTrainerId: 'trn-001',
+      });
+      expect(facade.ownExercises().map(item => item.name)).toEqual(['Búlgara con salto']);
+      expect(listByTrainer).toHaveBeenCalled();
+    });
+
+    it('expone el rechazo del puerto', async () => {
+      updateExercise.mockReturnValue(throwError(() => domainError('not_found')));
+
+      expect(await facade.updateExercise('ex-900', CAMBIOS)).toBeNull();
+      expect(facade.actionError()?.code).toBe('not_found');
+    });
+  });
+
+  describe('removeExercise()', () => {
+    it('lo saca del catalogo propio', async () => {
+      expect(await facade.removeExercise('ex-900')).toBe(true);
+      expect(removeExercise).toHaveBeenCalledWith('ex-900');
+      expect(facade.ownExercises()).toEqual([]);
+    });
+
+    // El BFF lo rechaza si una rutina vigente lo usa, y nombra cual.
+    it('si una rutina lo usa, lo conserva y expone el motivo', async () => {
+      removeExercise.mockReturnValue(
+        throwError(() => domainError('conflict', 'Este ejercicio está en la rutina «Alfa».')),
+      );
+
+      expect(await facade.removeExercise('ex-900')).toBe(false);
+      expect(facade.actionError()?.message).toContain('«Alfa»');
+      expect(facade.ownExercises()).toHaveLength(1);
+    });
+
+    it('no elimina sin entrenador en sesion', async () => {
+      const sinSesion = createFacade(null);
+
+      expect(await sinSesion.removeExercise('ex-900')).toBe(false);
     });
   });
 

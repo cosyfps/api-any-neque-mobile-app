@@ -46,6 +46,13 @@ export interface ExerciseCatalogPort {
   listForTrainer(trainerId: Id): Observable<Exercise[]>;
   getById(exerciseId: Id): Observable<Exercise>;
   create(input: ExerciseInput): Observable<Exercise>;
+  /** Solo los propios. Las rutinas que lo usan toman el nombre nuevo. */
+  update(exerciseId: Id, changes: ExerciseInput): Observable<Exercise>;
+  /**
+   * Baja logica de un ejercicio propio. Falla con `conflict` si una rutina
+   * vigente lo usa; el mensaje nombra cual.
+   */
+  remove(exerciseId: Id): Observable<void>;
 }
 
 export const EXERCISE_CATALOG_PORT = new InjectionToken<ExerciseCatalogPort>('ExerciseCatalogPort');

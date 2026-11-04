@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
+import { ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { toIsoDate } from '@app/domain/shared/model/date';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
@@ -47,6 +48,7 @@ describe('WorkoutFacade', () => {
   let listByStudent: MockOf<WorkoutsPort['listByStudent']>;
   let complete: MockOf<WorkoutsPort['complete']>;
   let profileId: string | null;
+  let activeRoutine: { id: string } | null;
 
   const build = (): WorkoutFacade => {
     TestBed.configureTestingModule({
@@ -54,6 +56,7 @@ describe('WorkoutFacade', () => {
         WorkoutFacade,
         { provide: CLOCK, useValue: { now: () => NOW } },
         { provide: SessionFacade, useValue: { profileId: () => profileId } },
+        { provide: ROUTINES_PORT, useValue: { getActiveForStudent: () => of(activeRoutine) } },
         {
           provide: WORKOUTS_PORT,
           useValue: {
@@ -74,6 +77,7 @@ describe('WorkoutFacade', () => {
     listByStudent = fn<WorkoutsPort['listByStudent']>().mockReturnValue(of(SESSIONS));
     complete = fn<WorkoutsPort['complete']>();
     profileId = 'std-001';
+    activeRoutine = { id: 'rtn-001' };
   });
 
   describe('load()', () => {
@@ -102,6 +106,27 @@ describe('WorkoutFacade', () => {
       facade.load();
 
       expect(facade.viewState()).toBe('error');
+    });
+  });
+
+  describe('all()', () => {
+    it('oculta las sesiones de rutinas anteriores sin borrarlas', () => {
+      listByStudent.mockReturnValue(
+        of([...SESSIONS, { ...session('old', NOW, 'completed', 'Leg day'), routineId: 'rtn-old' }]),
+      );
+      const facade = build();
+      facade.load();
+
+      expect(facade.all().map(item => item.id)).not.toContain('old');
+      expect(facade.sessions.data()?.map(item => item.id)).toContain('old');
+    });
+
+    it('sin rutina vigente no muestra sesiones', () => {
+      activeRoutine = null;
+      const facade = build();
+      facade.load();
+
+      expect(facade.all()).toEqual([]);
     });
   });
 

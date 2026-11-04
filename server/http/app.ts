@@ -397,6 +397,19 @@ export function createApp(): Hono<AppEnv> {
       201,
     );
   });
+  app.put('/exercises/:id', requireRole('trainer'), async c => {
+    const body = await parseBody(c, exerciseInput);
+    return c.json(
+      await training.updateExercise(c.get('actor'), idParam(c, 'id'), {
+        ...body,
+        ownerTrainerId: null,
+      }),
+    );
+  });
+  app.delete('/exercises/:id', requireRole('trainer'), async c => {
+    await training.removeExercise(c.get('actor'), idParam(c, 'id'));
+    return c.body(null, 204);
+  });
 
   // Rutinas
   app.get('/students/:id/routine', async c =>

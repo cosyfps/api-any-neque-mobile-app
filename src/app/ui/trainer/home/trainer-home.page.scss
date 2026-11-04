@@ -248,7 +248,8 @@
 
 .slot-time {
   flex-shrink: 0;
-  width: 44px;
+  min-width: 44px;
+  white-space: nowrap;
   font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;

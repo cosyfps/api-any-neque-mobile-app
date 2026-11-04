@@ -95,6 +95,99 @@ export async function createExercise(actor: Actor, input: ExerciseInput): Promis
   return toExercise(row);
 }
 
+/** Solo el dueno toca un ejercicio propio; los del catalogo publico no se editan. */
+async function ownedExercise(actor: Actor, exerciseId: string): Promise<ExerciseRow> {
+  const row = await maybe<ExerciseRow>(
+    db().from('exercises').select('*').eq('id', exerciseId).is('deleted_at', null).maybeSingle(),
+  );
+  if (row === null || actor.role !== 'trainer' || row.owner_trainer_id !== actor.profileId) {
+    return fail('not_found');
+  }
+  return row;
+}
+
+export async function updateExercise(
+  actor: Actor,
+  exerciseId: string,
+  input: ExerciseInput,
+): Promise<Exercise> {
+  await ownedExercise(actor, exerciseId);
+  const row = await must<ExerciseRow>(
+    db()
+      .from('exercises')
+      .update({
+        name: input.name,
+        muscle_group: input.muscleGroup,
+        equipment: input.equipment,
+        thumbnail_url: input.thumbnailUrl,
+        instructions: input.instructions,
+        // El formulario no los envia: si faltan, se conservan los actuales.
+        ...(input.defaultLoad === undefined ? {} : { default_load: input.defaultLoad }),
+        ...(input.defaultMeasure === undefined ? {} : { default_measure: input.defaultMeasure }),
+      })
+      .eq('id', exerciseId)
+      .select('*')
+      .single(),
+  );
+  // Las rutinas guardan el nombre copiado: se renombra donde sigue en uso.
+  // Las sesiones ya entrenadas conservan el nombre con que se hicieron.
+  await maybe(
+    db()
+      .from('routine_exercises')
+      .update({ name: input.name })
+      .eq('exercise_id', exerciseId)
+      .is('deleted_at', null),
+  );
+  return toExercise(row);
+}
+
+/**
+ * Baja logica de un ejercicio propio. Si alguna rutina vigente lo usa, se
+ * rechaza nombrandola: borrarlo dejaria esa rutina con un ejercicio fantasma.
+ */
+export async function removeExercise(actor: Actor, exerciseId: string): Promise<void> {
+  await ownedExercise(actor, exerciseId);
+  const usos = await must<{ routine_day_id: string }[]>(
+    db()
+      .from('routine_exercises')
+      .select('routine_day_id')
+      .eq('exercise_id', exerciseId)
+      .is('deleted_at', null),
+  );
+  const dias =
+    usos.length === 0
+      ? []
+      : await must<{ routine_id: string }[]>(
+          db()
+            .from('routine_days')
+            .select('routine_id')
+            .in('id', [...new Set(usos.map(uso => uso.routine_day_id))]),
+        );
+  const vigentes =
+    dias.length === 0
+      ? []
+      : await must<{ name: string }[]>(
+          db()
+            .from('routines')
+            .select('name')
+            .in('id', [...new Set(dias.map(dia => dia.routine_id))])
+            .is('deleted_at', null),
+        );
+  const rutinas = [...new Set(vigentes.map(rutina => rutina.name))];
+  if (rutinas.length > 0) {
+    const lista = rutinas.map(nombre => `«${nombre}»`).join(', ');
+    return fail(
+      'conflict',
+      rutinas.length === 1
+        ? `Este ejercicio está en la rutina ${lista}. Quítalo de ella antes de eliminarlo.`
+        : `Este ejercicio está en las rutinas ${lista}. Quítalo de ellas antes de eliminarlo.`,
+    );
+  }
+  await maybe(
+    db().from('exercises').update({ deleted_at: new Date().toISOString() }).eq('id', exerciseId),
+  );
+}
+
 // ── Rutinas ────────────────────────────────────────────────────────────────
 async function loadRoutine(routineId: string): Promise<Routine> {
   const row = await must<RoutineRow>(
