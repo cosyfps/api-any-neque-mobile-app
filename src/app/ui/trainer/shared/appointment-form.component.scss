@@ -1,0 +1,51 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.field {
+  min-width: 0;
+}
+
+// `.nq-field-input` estira su `input`; el `select` necesita lo mismo o el
+// area de toque queda en la mitad de la caja visible.
+.nq-field-input select {
+  flex: 1;
+  align-self: stretch;
+  min-width: 0;
+  font-family: var(--nq-font-family);
+  font-size: var(--nq-font-input);
+  color: var(--nq-text);
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+// El error de fecha y hora es de las dos: va bajo la fila, no bajo un campo.
+.when-error {
+  margin-top: -8px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--nq-text-secondary);
+}
+
+.submit-error {
+  margin: 0;
+}
+
+.form-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+}

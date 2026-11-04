@@ -5,11 +5,13 @@ import {
   LucideArrowLeft,
   LucideChevronLeft,
   LucideChevronRight,
+  LucideDumbbell,
   LucideMapPin,
 } from '@lucide/angular';
 
 import { ScheduleFacade } from '@app/application/schedule/schedule.facade';
 import { MonthCell } from '@app/domain/schedule/model/month-grid';
+import { TRAINING_STATUS_LABEL, TrainingStatus } from '@app/domain/schedule/model/planned-training';
 import {
   SCHEDULE_STATUS_LABEL,
   SESSION_KIND_LABEL,
@@ -42,6 +44,7 @@ const DAY_FORMAT = new Intl.DateTimeFormat('es-CL', {
     LucideChevronLeft,
     LucideChevronRight,
     LucideMapPin,
+    LucideDumbbell,
   ],
   template: `
     <div class="page">
@@ -114,6 +117,24 @@ const DAY_FORMAT = new Intl.DateTimeFormat('es-CL', {
             <nq-page-state type="error" [retry]="reload" />
           }
           @default {
+            <!-- Entrenamiento de la rutina: sale de la rutina vigente, no de una cita. -->
+            @if (facade.dayTraining(); as training) {
+              <button class="training" type="button" (click)="goToRoutine()">
+                <span class="training-icon" aria-hidden="true">
+                  <svg lucideDumbbell [size]="18" [strokeWidth]="2"></svg>
+                </span>
+                <span class="session-body">
+                  <span class="session-title">{{ training.day.title }}</span>
+                  <span class="session-kind">
+                    {{ training.day.estimatedMinutes }} min ·
+                    {{ training.day.exercises.length }} ejercicios
+                  </span>
+                </span>
+                <span class="nq-badge" [class]="trainingBadge(training.status)">
+                  {{ trainingLabel(training.status) }}
+                </span>
+              </button>
+            }
             @if (facade.daySessions().length > 0) {
               <ul class="sessions">
                 @for (session of facade.daySessions(); track session.id) {
@@ -152,7 +173,7 @@ const DAY_FORMAT = new Intl.DateTimeFormat('es-CL', {
                   </li>
                 }
               </ul>
-            } @else {
+            } @else if (facade.dayTraining() === null) {
               <p class="nq-empty-inline">No tienes nada agendado este día.</p>
             }
           }
@@ -228,6 +249,20 @@ export class StudentSchedulePage {
     if (status === 'confirmed') return 'nq-badge-success';
     if (status === 'cancelled') return 'nq-badge-danger';
     return 'nq-badge-warning';
+  }
+
+  trainingLabel(status: TrainingStatus): string {
+    return TRAINING_STATUS_LABEL[status];
+  }
+
+  trainingBadge(status: TrainingStatus): string {
+    if (status === 'done') return 'nq-badge-success';
+    if (status === 'missed') return 'nq-badge-danger';
+    return 'nq-badge-primary';
+  }
+
+  goToRoutine(): void {
+    void this.router.navigate(['/student/routine']);
   }
 
   async confirm(sessionId: string): Promise<void> {

@@ -55,4 +55,27 @@ describe('PageStateComponent', () => {
     const estado = (fixture.nativeElement as HTMLElement).querySelector('[role="status"]');
     expect(estado?.getAttribute('aria-live')).toBe('polite');
   });
+
+  // QA-30: el titulo era un span sin semantica; ahora es un encabezado.
+  it.each(['error', 'empty', 'offline'] as const)(
+    'en %s el titulo es un encabezado de nivel 2',
+    tipo => {
+      const fixture = TestBed.createComponent(PageStateComponent);
+      fixture.componentRef.setInput('type', tipo);
+      fixture.detectChanges();
+
+      const titulo = (fixture.nativeElement as HTMLElement).querySelector('[role="heading"]');
+      expect(titulo?.getAttribute('aria-level')).toBe('2');
+    },
+  );
+
+  it('el nivel del encabezado se puede ajustar', () => {
+    const fixture = TestBed.createComponent(PageStateComponent);
+    fixture.componentRef.setInput('type', 'error');
+    fixture.componentRef.setInput('headingLevel', 3);
+    fixture.detectChanges();
+
+    const titulo = (fixture.nativeElement as HTMLElement).querySelector('[role="heading"]');
+    expect(titulo?.getAttribute('aria-level')).toBe('3');
+  });
 });

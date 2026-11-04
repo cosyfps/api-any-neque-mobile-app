@@ -17,6 +17,16 @@ import { InvitationPanelComponent } from './invitation-panel.component';
 const share = fn<(...args: unknown[]) => Promise<void>>();
 jest.mock('@capacitor/share', () => ({ Share: { share: (...args: unknown[]) => share(...args) } }));
 
+// QA-32: la libreria real tarda bajo carga y el test fallaba por tiempo. Aqui
+// se prueba el panel, no el contenido del QR.
+const toDataURL = fn<(text: string) => Promise<string>>().mockResolvedValue(
+  'data:image/png;base64,QR',
+);
+jest.mock('qrcode', () => ({
+  __esModule: true,
+  toDataURL: (text: string) => toDataURL(text),
+}));
+
 const AHORA = new Date('2026-09-20T10:00:00.000Z');
 
 const invitacion = (

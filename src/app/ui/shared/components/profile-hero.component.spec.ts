@@ -59,8 +59,10 @@ describe('ProfileHeroComponent', () => {
   });
 
   it('entrega la foto leida como data-URL', async () => {
+    // QA-32: se espera la emision, no un tiempo fijo que bajo carga no alcanzaba.
+    const leida = new Promise<string>(resolve => hero.photo.subscribe(resolve));
     elegir(new File(['hola'], 'yo.png', { type: 'image/png' }));
-    await new Promise(resolve => setTimeout(resolve, 20));
+    await leida;
 
     expect(fotos).toHaveLength(1);
     expect(fotos[0]).toMatch(/^data:image\/png;base64,/);

@@ -138,7 +138,8 @@ const RANGOS: Record<
               (click)="toggleDay(d)"
             >
               <span class="day-title">
-                {{ etiquetaDia(day.weekday) }} · {{ day.title || 'Sin título' }}
+                {{ etiquetaDia(day.weekday) }}{{ day.startTime ? ' ' + day.startTime : '' }} ·
+                {{ day.title || 'Sin título' }}
               </span>
               <span class="day-meta">{{ day.exercises.length }} ej.</span>
               <svg
@@ -210,6 +211,25 @@ const RANGOS: Record<
                       />
                     </div>
                   </div>
+                </div>
+
+                <!-- Hora en Chile: las sesiones de este dia se agendan a esa hora.
+                     Vacia, el dia no tiene hora fija. -->
+                <div class="field">
+                  <label class="nq-field-label" [attr.for]="id('hora-' + d)">Hora de inicio</label>
+                  <div class="nq-field-input">
+                    <input
+                      [attr.id]="id('hora-' + d)"
+                      type="time"
+                      step="300"
+                      [value]="day.startTime ?? ''"
+                      [attr.aria-describedby]="id('hora-' + d) + '-hint'"
+                      (change)="setStartTime(d, $event)"
+                    />
+                  </div>
+                  <span class="field-hint" [id]="id('hora-' + d) + '-hint'">
+                    Opcional. Las sesiones de este día se agendan a esa hora.
+                  </span>
                 </div>
 
                 <div class="exercises">
@@ -489,6 +509,7 @@ export class RoutineBuilderComponent {
         title: day.title,
         focus: day.focus,
         estimatedMinutes: day.estimatedMinutes,
+        startTime: day.startTime ?? null,
         exercises: day.exercises.map(exercise => ({
           exerciseId: exercise.exerciseId,
           name: exercise.name,
@@ -525,6 +546,7 @@ export class RoutineBuilderComponent {
         title: '',
         focus: 'fullbody',
         estimatedMinutes: MINUTOS_POR_DEFECTO,
+        startTime: null,
         exercises: [],
       },
     ]);
@@ -548,6 +570,12 @@ export class RoutineBuilderComponent {
 
   setTitle(index: number, event: Event): void {
     this.patchDay(index, { title: (event.target as HTMLInputElement).value });
+  }
+
+  /** Vacio = sin hora fija. El input `time` ya entrega `HH:mm`. */
+  setStartTime(index: number, event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.patchDay(index, { startTime: /^\d{2}:\d{2}$/.test(value) ? value : null });
   }
 
   /**

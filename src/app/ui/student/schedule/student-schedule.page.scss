@@ -237,3 +237,45 @@
     cursor: progress;
   }
 }
+
+// Entrenamiento de la rutina: misma tarjeta que una cita, pero tocable.
+.training {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px;
+  margin-bottom: 8px;
+  font-family: var(--nq-font-family);
+  text-align: left;
+  cursor: pointer;
+  background: var(--nq-bg);
+  border: 1px solid var(--nq-border);
+  border-radius: var(--nq-radius-md);
+
+  &:active {
+    background: var(--nq-surface);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--nq-primary-strong);
+    outline-offset: 2px;
+  }
+
+  .nq-badge {
+    flex-shrink: 0;
+  }
+}
+
+.training-icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  color: var(--nq-primary-strong);
+  background: rgba(var(--nq-primary-strong-rgb), 0.12);
+  border-radius: var(--nq-radius-sm);
+}

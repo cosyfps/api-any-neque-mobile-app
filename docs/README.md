@@ -28,13 +28,15 @@ Leer en orden: cada documento asume el anterior.
 
 ## Auditorías
 
-| Fecha      | Documento                                                                      |
-| ---------- | ------------------------------------------------------------------------------ |
-| 2026-09-18 | [Auditoría de la app del alumno](auditoria/2026-09-18-auditoria-app-alumno.md) |
-| 2026-09-18 | [Cierre de la Épica 11](auditoria/2026-09-18-cierre-epica-11.md)               |
-| 2026-11-02 | [Auditoría integral](auditoria/2026-11-02-auditoria-integral.md)               |
-| 2026-11-03 | [Auditoría QA + UX/UI](../QA_AUDIT_REPORT.md)                                  |
-| 2026-11-03 | [Cambios de la auditoría (resumen)](auditoria/2026-11-03-cambios-auditoria.md) |
+| Fecha      | Documento                                                                                |
+| ---------- | ---------------------------------------------------------------------------------------- |
+| 2026-09-18 | [Auditoría de la app del alumno](auditoria/2026-09-18-auditoria-app-alumno.md)           |
+| 2026-09-18 | [Cierre de la Épica 11](auditoria/2026-09-18-cierre-epica-11.md)                         |
+| 2026-11-02 | [Auditoría integral](auditoria/2026-11-02-auditoria-integral.md)                         |
+| 2026-11-03 | [Auditoría QA + UX/UI](../QA_AUDIT_REPORT.md)                                            |
+| 2026-11-03 | [Cambios de la auditoría (resumen)](auditoria/2026-11-03-cambios-auditoria.md)           |
+| 2026-11-03 | [Interrogación de producto y pendientes](auditoria/2026-11-03-interrogacion-producto.md) |
+| 2026-11-04 | [Plan de trabajo](auditoria/2026-11-04-plan-de-trabajo.md)                               |
 
 ## Planes
 

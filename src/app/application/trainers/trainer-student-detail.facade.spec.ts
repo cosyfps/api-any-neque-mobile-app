@@ -3,7 +3,10 @@ import { Subject, of, throwError } from 'rxjs';
 
 import { Routine } from '@app/domain/routines/model/routine.model';
 import { ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
+import { ScheduledSession } from '@app/domain/schedule/model/scheduled-session.model';
+import { SCHEDULE_PORT, SchedulePort } from '@app/domain/schedule/port/schedule.port';
 import { domainError } from '@app/domain/shared/model/app-error';
+import { CLOCK } from '@app/domain/shared/port/clock.port';
 import { Anamnesis } from '@app/domain/students/model/anamnesis.model';
 import { Assessment } from '@app/domain/students/model/assessment.model';
 import { Student } from '@app/domain/students/model/student.model';
@@ -60,7 +63,25 @@ const evaluacion = (id: string, takenAt: string): Assessment => ({
 
 const RUTINA = { id: 'rtn-001', name: 'Hipertrofia' } as Routine;
 
+const cita = (id: string, startsAt: string): ScheduledSession => ({
+  id,
+  studentId: 'std-001',
+  trainerId: 'trn-001',
+  title: 'Evaluación',
+  startsAt,
+  endsAt: startsAt,
+  location: null,
+  kind: 'assessment',
+  status: 'pending',
+  workoutSessionId: null,
+  cancellationReason: null,
+  cancellationNote: null,
+  cancelledAt: null,
+});
+
 describe('TrainerStudentDetailFacade', () => {
+  let listSchedule: MockOf<SchedulePort['listByStudent']>;
+  let createAppointment: MockOf<SchedulePort['create']>;
   let facade: TrainerStudentDetailFacade;
   let students: {
     getById: MockOf<StudentsPort['getById']>;
@@ -74,6 +95,12 @@ describe('TrainerStudentDetailFacade', () => {
     save = fn<AnamnesisPort['save']>().mockImplementation(input => of({ ...ANAMNESIS, ...input }));
     createAssessment = fn<AssessmentsPort['create']>().mockImplementation(input =>
       of({ ...input, id: 'asm-003', takenAt: '2026-09-20T10:00:00.000Z' }),
+    );
+    listSchedule = fn<SchedulePort['listByStudent']>().mockReturnValue(
+      of([cita('cit-002', '2026-09-25T15:00:00.000Z')]),
+    );
+    createAppointment = fn<SchedulePort['create']>().mockImplementation(input =>
+      of({ ...cita('cit-001', input.startsAt), title: input.title }),
     );
     students = {
       getById: fn<StudentsPort['getById']>().mockReturnValue(of(alumno)),
@@ -103,6 +130,11 @@ describe('TrainerStudentDetailFacade', () => {
           },
         },
         { provide: ROUTINES_PORT, useValue: { getActiveForStudent: () => of(RUTINA) } },
+        {
+          provide: SCHEDULE_PORT,
+          useValue: { listByStudent: listSchedule, create: createAppointment },
+        },
+        { provide: CLOCK, useValue: { now: () => new Date('2026-09-20T12:00:00.000Z') } },
       ],
     });
     return TestBed.inject(TrainerStudentDetailFacade);
@@ -283,6 +315,48 @@ describe('TrainerStudentDetailFacade', () => {
 
       expect(await vacia.toggleStatus()).toBe(false);
       expect(students.setStatus).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('citas', () => {
+    const NUEVA = {
+      title: 'Control',
+      startsAt: '2026-09-22T13:00:00.000Z',
+      endsAt: '2026-09-22T14:00:00.000Z',
+      location: null,
+      kind: 'checkin' as const,
+    };
+
+    it('carga las citas de los proximos 90 dias', () => {
+      const rango = listSchedule.mock.calls[0]?.[1];
+
+      expect(listSchedule.mock.calls[0]?.[0]).toBe('std-001');
+      expect(rango?.from).toBe('2026-09-20T12:00:00.000Z');
+      expect(rango?.to.startsWith('2026-12-19')).toBe(true);
+    });
+
+    it('agenda con el alumno de la ficha y la ordena por fecha', async () => {
+      expect(await facade.scheduleAppointment(NUEVA)).toBe(true);
+
+      expect(createAppointment).toHaveBeenCalledWith({ ...NUEVA, studentId: 'std-001' });
+      expect(facade.appointments.data()?.map(item => item.id)).toEqual(['cit-001', 'cit-002']);
+      expect(facade.busy()).toBe(false);
+    });
+
+    it('expone el rechazo del BFF', async () => {
+      createAppointment.mockReturnValue(
+        throwError(() => domainError('validation', 'Elige una fecha y hora futuras.')),
+      );
+
+      expect(await facade.scheduleAppointment(NUEVA)).toBe(false);
+      expect(facade.actionError()?.message).toBe('Elige una fecha y hora futuras.');
+    });
+
+    it('sin alumno cargado no agenda', async () => {
+      const sinCargar = createFacade();
+
+      expect(await sinCargar.scheduleAppointment(NUEVA)).toBe(false);
+      expect(createAppointment).not.toHaveBeenCalled();
     });
   });
 

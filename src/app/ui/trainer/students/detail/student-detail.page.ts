@@ -5,6 +5,12 @@ import { LucideArrowLeft, LucideCircleAlert, LucidePencil, LucidePlus } from '@l
 import { TrainerInvitationFacade } from '@app/application/trainers/trainer-invitation.facade';
 import { TrainerStudentDetailFacade } from '@app/application/trainers/trainer-student-detail.facade';
 import {
+  SCHEDULE_STATUS_LABEL,
+  SESSION_KIND_LABEL,
+  ScheduleStatus,
+  SessionKind,
+} from '@app/domain/schedule/model/scheduled-session.model';
+import {
   AnamnesisInput,
   hasClinicalFlags,
   isAnamnesisUsable,
@@ -16,12 +22,26 @@ import { PageStateComponent } from '@shared/components/page-state.component';
 import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
 
 import { AnamnesisFormComponent } from '../../shared/anamnesis-form.component';
+import {
+  AppointmentFormComponent,
+  AppointmentFormValue,
+} from '../../shared/appointment-form.component';
 import { AssessmentFormComponent } from '../../shared/assessment-form.component';
 import { InvitationPanelComponent } from '../../shared/invitation-panel.component';
 import { StudentFormComponent, StudentFormValue } from '../../shared/student-form.component';
 
 /** Dias ISO en la etiqueta corta que ya usa el resto de la app. */
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+const DIA_CITA = new Intl.DateTimeFormat('es-CL', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+});
+const HORA_CITA = new Intl.DateTimeFormat('es-CL', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
 
 @Component({
   selector: 'app-student-detail',
@@ -34,6 +54,7 @@ const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     StudentFormComponent,
     AnamnesisFormComponent,
     AssessmentFormComponent,
+    AppointmentFormComponent,
     LucideArrowLeft,
     LucideCircleAlert,
     LucidePencil,
@@ -168,10 +189,45 @@ const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
                 <h2 class="nq-section-title">Rutina activa</h2>
               </div>
               @if (facade.routine.data(); as routine) {
-                <p class="latest">{{ routine.name }}</p>
-                <p class="empty-text">{{ dias(routine.days.length) }} · {{ routine.goal }}</p>
+                <div class="routine-card">
+                  <p class="latest">{{ routine.name }}</p>
+                  <p class="empty-text">{{ dias(routine.days.length) }} · {{ routine.goal }}</p>
+                </div>
               } @else {
                 <p class="nq-empty-inline">{{ sinRutina() }}</p>
+              }
+            </section>
+
+            <section class="nq-section">
+              <div class="nq-section-header">
+                <h2 class="nq-section-title">Próximas citas</h2>
+                <button class="nq-section-action" type="button" (click)="openAppointment()">
+                  <svg lucidePlus [size]="16" [strokeWidth]="2"></svg>
+                  Agendar
+                </button>
+              </div>
+              @if (facade.appointments.data()?.length) {
+                <ul class="appointments" role="list">
+                  @for (cita of facade.appointments.data(); track cita.id) {
+                    <li class="appointment" [class.cancelled]="cita.status === 'cancelled'">
+                      <div class="appointment-when">
+                        <span class="appointment-day">{{ diaCita(cita.startsAt) }}</span>
+                        <span class="appointment-hour">{{ horaCita(cita.startsAt) }}</span>
+                      </div>
+                      <div class="appointment-body">
+                        <span class="appointment-title">{{ cita.title }}</span>
+                        <span class="appointment-meta">
+                          {{ tipoCita(cita.kind) }}{{ cita.location ? ' · ' + cita.location : '' }}
+                        </span>
+                      </div>
+                      <span class="nq-badge" [class]="estadoClase(cita.status)">
+                        {{ estadoCita(cita.status) }}
+                      </span>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="nq-empty-inline">Sin citas agendadas.</p>
               }
             </section>
 
@@ -273,6 +329,29 @@ const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
       </div>
     </div>
 
+    <div class="nq-overlay" [class.open]="addingAppointment()" (click)="closeAppointment()">
+      <div
+        class="nq-sheet form-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cita-title"
+        [nqSheetTrap]="addingAppointment()"
+        (dismissed)="closeAppointment()"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="nq-sheet-handle"></div>
+        <h2 class="nq-sheet-title" id="cita-title">Agendar cita</h2>
+
+        <nq-appointment-form
+          #appointmentForm
+          [busy]="facade.busy()"
+          [errorMessage]="facade.actionError()?.message ?? null"
+          (submitted)="saveAppointment($event)"
+          (cancelled)="closeAppointment()"
+        />
+      </div>
+    </div>
+
     <div class="nq-overlay" [class.open]="confirmingStatus()" (click)="cancelStatus()">
       <div
         class="nq-sheet confirm"
@@ -313,6 +392,7 @@ export class StudentDetailPage {
   readonly editing = signal(false);
   readonly editingAnamnesis = signal(false);
   readonly addingAssessment = signal(false);
+  readonly addingAppointment = signal(false);
 
   readonly clinicalFlags = computed(() => {
     const value = this.facade.anamnesis.data();
@@ -371,6 +451,7 @@ export class StudentDetailPage {
   private readonly formulario = viewChild<StudentFormComponent>('formulario');
   private readonly anamnesisForm = viewChild<AnamnesisFormComponent>('anamnesisForm');
   private readonly assessmentForm = viewChild<AssessmentFormComponent>('assessmentForm');
+  private readonly appointmentForm = viewChild<AppointmentFormComponent>('appointmentForm');
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -465,6 +546,43 @@ export class StudentDetailPage {
     if (await this.facade.addAssessment(value)) {
       this.addingAssessment.set(false);
     }
+  }
+
+  openAppointment(): void {
+    this.addingAppointment.set(true);
+    this.appointmentForm()?.reset();
+  }
+
+  closeAppointment(): void {
+    this.addingAppointment.set(false);
+  }
+
+  async saveAppointment(value: AppointmentFormValue): Promise<void> {
+    if (await this.facade.scheduleAppointment(value)) {
+      this.addingAppointment.set(false);
+    }
+  }
+
+  diaCita(iso: string): string {
+    return DIA_CITA.format(new Date(iso));
+  }
+
+  horaCita(iso: string): string {
+    return HORA_CITA.format(new Date(iso));
+  }
+
+  tipoCita(kind: SessionKind): string {
+    return SESSION_KIND_LABEL[kind];
+  }
+
+  estadoCita(status: ScheduleStatus): string {
+    return SCHEDULE_STATUS_LABEL[status];
+  }
+
+  estadoClase(status: ScheduleStatus): string {
+    if (status === 'confirmed') return 'nq-badge-success';
+    if (status === 'cancelled') return 'nq-badge-danger';
+    return 'nq-badge-warning';
   }
 
   askStatus(): void {

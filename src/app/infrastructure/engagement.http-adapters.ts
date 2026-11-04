@@ -5,7 +5,11 @@ import { AppNotification } from '@app/domain/notifications/model/notification.mo
 import { NotificationsPort } from '@app/domain/notifications/port/notifications.port';
 import { ProgressPhoto } from '@app/domain/progress/model/progress-photo.model';
 import { ProgressPhotosPort } from '@app/domain/progress/port/progress-photos.port';
-import { CancelReason, ScheduledSession } from '@app/domain/schedule/model/scheduled-session.model';
+import {
+  CancelReason,
+  ScheduledSession,
+  ScheduledSessionInput,
+} from '@app/domain/schedule/model/scheduled-session.model';
 import { SchedulePort } from '@app/domain/schedule/port/schedule.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { DateRange } from '@app/domain/shared/model/date-range';
@@ -57,6 +61,11 @@ export class ScheduleHttpAdapter implements SchedulePort {
       from: range.from,
       to: range.to,
     });
+  }
+
+  create(input: ScheduledSessionInput): Observable<ScheduledSession> {
+    const { studentId, ...body } = input;
+    return this.api.post<ScheduledSession>(`/students/${studentId}/schedule`, body);
   }
 
   confirm(sessionId: Id): Observable<ScheduledSession> {

@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
-import { LucideSearch, LucideX } from '@lucide/angular';
+import { LucideChevronRight, LucideSearch, LucideX } from '@lucide/angular';
 
 import { TrainerInvitationFacade } from '@app/application/trainers/trainer-invitation.facade';
 import {
@@ -25,6 +25,7 @@ import { StudentFormComponent, StudentFormValue } from '../shared/student-form.c
     SheetTrapDirective,
     InvitationPanelComponent,
     StudentFormComponent,
+    LucideChevronRight,
     LucideSearch,
     LucideX,
   ],
@@ -113,6 +114,7 @@ import { StudentFormComponent, StudentFormValue } from '../shared/student-form.c
                   @if (student.status === 'suspended') {
                     <span class="nq-badge nq-badge-warning">Suspendido</span>
                   }
+                  <svg class="item-chevron" lucideChevronRight [size]="18" [strokeWidth]="2"></svg>
                 </button>
               </li>
             }

@@ -1,5 +1,10 @@
 import { PhotoAngle, ProgressPhoto } from '@app/domain/progress/model/progress-photo.model';
-import { CancelReason, ScheduledSession } from '@app/domain/schedule/model/scheduled-session.model';
+import {
+  CancelReason,
+  ScheduledSession,
+  ScheduledSessionInput,
+  appointmentError,
+} from '@app/domain/schedule/model/scheduled-session.model';
 import { DateRange } from '@app/domain/shared/model/date-range';
 
 import { fail } from '../domain/api-error';
@@ -8,10 +13,21 @@ import { PhotoRow, ScheduledRow, toPhoto, toScheduled } from '../infrastructure/
 import { removeObject, signedUpload, signedUrls } from '../infrastructure/storage';
 import { adminClient, maybe, must } from '../infrastructure/supabase';
 
-import { assertCanSeeStudent, assertIsStudent } from './access';
+import { assertCanSeeStudent, assertIsStudent, assertTrainerOf } from './access';
 import { notify } from './notifications';
 
 const db = () => adminClient();
+
+// Hora de Chile: el BFF corre en UTC y el aviso lo lee el alumno.
+const FECHA_CITA = new Intl.DateTimeFormat('es-CL', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+  timeZone: 'America/Santiago',
+});
 
 // ── Fotos de progreso ──────────────────────────────────────────────────────
 export async function listPhotos(actor: Actor, studentId: string): Promise<ProgressPhoto[]> {
@@ -111,6 +127,48 @@ export async function listSchedule(
       .order('starts_at'),
   );
   return rows.map(toScheduled);
+}
+
+/** El entrenador agenda una cita con un alumno suyo. Nace por confirmar. */
+export async function createAppointment(
+  actor: Actor,
+  input: ScheduledSessionInput,
+): Promise<ScheduledSession> {
+  await assertTrainerOf(actor, input.studentId);
+  const startsAt = new Date(input.startsAt);
+  const error = appointmentError(startsAt, new Date(input.endsAt), new Date());
+  if (error !== null) {
+    return fail('validation', error);
+  }
+  const row = await must<ScheduledRow>(
+    db()
+      .from('scheduled_sessions')
+      .insert({
+        student_id: input.studentId,
+        trainer_id: actor.profileId,
+        title: input.title,
+        starts_at: input.startsAt,
+        ends_at: input.endsAt,
+        location: input.location,
+        kind: input.kind,
+        status: 'pending',
+      })
+      .select('*')
+      .single(),
+  );
+
+  const alumno = await must<{ user_id: string }>(
+    db().from('students').select('user_id').eq('id', input.studentId).single(),
+  );
+  await notify(alumno.user_id, {
+    kind: 'session',
+    title: 'Nueva cita agendada',
+    body: `${input.title} · ${FECHA_CITA.format(startsAt)}`,
+    // 'session' abre el runner de entrenamiento; la cita se ve en Mi agenda.
+    targetType: 'student',
+    targetId: input.studentId,
+  });
+  return toScheduled(row);
 }
 
 async function ownedAppointment(actor: Actor, sessionId: string): Promise<ScheduledRow> {

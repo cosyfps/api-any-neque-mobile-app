@@ -265,6 +265,8 @@ export interface RoutineDayRow {
   title: string;
   focus: MuscleGroup;
   estimated_minutes: number;
+  /** `HH:MM:SS`; ausente mientras no se aplique la migracion de la hora. */
+  start_time?: string | null;
   deleted_at: string | null;
   routine_exercises: RoutineExerciseRow[];
 }
@@ -312,6 +314,7 @@ export function toRoutineDay(row: RoutineDayRow): RoutineDay {
     title: row.title,
     focus: row.focus,
     estimatedMinutes: row.estimated_minutes,
+    startTime: row.start_time?.slice(0, 5) ?? null,
     exercises: row.routine_exercises
       .filter(item => item.deleted_at === null)
       .sort((a, b) => a.position - b.position)

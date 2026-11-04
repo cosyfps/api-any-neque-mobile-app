@@ -49,17 +49,34 @@
   }
 }
 
+// Datos en tarjeta con divisores: el mismo lenguaje que las filas del perfil.
+.data,
+.routine-card {
+  margin: 0;
+  background: var(--nq-bg);
+  border: 1px solid var(--nq-border);
+  border-radius: var(--nq-radius-md);
+}
+
 .data {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin: 0;
+  padding: 0 16px;
+}
+
+.routine-card {
+  padding: 14px 16px;
 }
 
 .data-row {
   display: flex;
   gap: 16px;
   justify-content: space-between;
+  padding: 14px 0;
+
+  & + & {
+    border-top: 1px solid var(--nq-border);
+  }
 
   dt {
     flex-shrink: 0;
@@ -120,9 +137,10 @@
 .history-row {
   display: flex;
   justify-content: space-between;
-  padding: 12px;
-  background: var(--nq-surface);
-  border-radius: var(--nq-radius-sm);
+  padding: 12px 16px;
+  background: var(--nq-bg);
+  border: 1px solid var(--nq-border);
+  border-radius: var(--nq-radius-md);
 }
 
 .history-date {
@@ -134,4 +152,80 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--nq-text);
+}
+
+.appointments {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.appointment {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  background: var(--nq-bg);
+  border: 1px solid var(--nq-border);
+  border-radius: var(--nq-radius-md);
+
+  &.cancelled {
+    opacity: 0.55;
+
+    .appointment-title {
+      text-decoration: line-through;
+    }
+  }
+
+  .nq-badge {
+    flex-shrink: 0;
+  }
+}
+
+.appointment-when {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 64px;
+}
+
+.appointment-day {
+  font-size: 12px;
+  color: var(--nq-text-secondary);
+}
+
+.appointment-hour {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--nq-primary-strong);
+}
+
+.appointment-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.appointment-title {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--nq-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appointment-meta {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--nq-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

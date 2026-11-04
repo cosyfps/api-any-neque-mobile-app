@@ -3,7 +3,14 @@ import { Observable } from 'rxjs';
 
 import { Routine } from '@app/domain/routines/model/routine.model';
 import { ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
+import {
+  ScheduledSession,
+  ScheduledSessionInput,
+} from '@app/domain/schedule/model/scheduled-session.model';
+import { SCHEDULE_PORT } from '@app/domain/schedule/port/schedule.port';
 import { DomainError, toDomainError } from '@app/domain/shared/model/app-error';
+import { addDays } from '@app/domain/shared/model/date';
+import { CLOCK } from '@app/domain/shared/port/clock.port';
 import { Anamnesis, AnamnesisInput } from '@app/domain/students/model/anamnesis.model';
 import { Assessment } from '@app/domain/students/model/assessment.model';
 import { Student, fullName, initials } from '@app/domain/students/model/student.model';
@@ -27,6 +34,8 @@ export class TrainerStudentDetailFacade {
   private readonly anamnesisPort = inject(ANAMNESIS_PORT);
   private readonly assessmentsPort = inject(ASSESSMENTS_PORT);
   private readonly routines = inject(ROUTINES_PORT);
+  private readonly schedulePort = inject(SCHEDULE_PORT);
+  private readonly clock = inject(CLOCK);
 
   private readonly _studentId = signal<string | null>(null);
   private readonly _busy = signal(false);
@@ -39,6 +48,10 @@ export class TrainerStudentDetailFacade {
   });
   readonly assessments: AsyncState<Assessment[]> = asyncState<Assessment[]>();
   readonly routine: AsyncState<Routine | null> = asyncState<Routine | null>({
+    isEmpty: () => false,
+  });
+  /** Citas de hoy en adelante (90 dias), de la mas cercana a la mas lejana. */
+  readonly appointments: AsyncState<ScheduledSession[]> = asyncState<ScheduledSession[]>({
     isEmpty: () => false,
   });
 
@@ -76,6 +89,7 @@ export class TrainerStudentDetailFacade {
     this.anamnesis.load(() => this.anamnesisPort.getByStudent(studentId));
     this.assessments.load(() => this.assessmentsPort.listByStudent(studentId));
     this.routine.load(() => this.routines.getActiveForStudent(studentId));
+    this.appointments.load(() => this.schedulePort.listByStudent(studentId, this.proximos()));
   }
 
   reload(): void {
@@ -83,6 +97,7 @@ export class TrainerStudentDetailFacade {
     this.anamnesis.reload();
     this.assessments.reload();
     this.routine.reload();
+    this.appointments.reload();
   }
 
   /** Corrige los datos de la ficha. Devuelve si el puerto acepto. */
@@ -146,6 +161,33 @@ export class TrainerStudentDetailFacade {
     });
   }
 
+  /** Agenda una cita con el alumno. Queda pendiente hasta que el la confirme. */
+  scheduleAppointment(input: Omit<ScheduledSessionInput, 'studentId'>): Promise<boolean> {
+    const studentId = this._studentId();
+    if (studentId === null || this._busy()) {
+      return Promise.resolve(false);
+    }
+
+    this._busy.set(true);
+    this._actionError.set(null);
+
+    return new Promise(resolve => {
+      this.schedulePort.create({ ...input, studentId }).subscribe({
+        next: value => {
+          const lista = [...(this.appointments.data() ?? []), value];
+          this.appointments.set(lista.sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
+          this._busy.set(false);
+          resolve(true);
+        },
+        error: (cause: unknown) => {
+          this._actionError.set(toDomainError(cause));
+          this._busy.set(false);
+          resolve(false);
+        },
+      });
+    });
+  }
+
   /**
    * Suspende o reactiva la cuenta.
    *
@@ -160,6 +202,12 @@ export class TrainerStudentDetailFacade {
     }
     const next = current.status === 'active' ? 'suspended' : 'active';
     return this.run(() => this.students.setStatus(studentId, next));
+  }
+
+  /** Desde ahora hasta 90 dias: lo que el entrenador tiene que ver venir. */
+  private proximos(): { from: string; to: string } {
+    const ahora = this.clock.now();
+    return { from: ahora.toISOString(), to: addDays(ahora, 90).toISOString() };
   }
 
   private run(action: () => Observable<Student>): Promise<boolean> {

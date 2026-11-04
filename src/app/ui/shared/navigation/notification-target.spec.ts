@@ -36,7 +36,8 @@ describe('notificationRoute()', () => {
     });
   });
 
-  it('el alumno no abre destinos del entrenador', () => {
-    expect(notificationRoute('student', 'std-002')).toBeNull();
+  // Una cita nueva se avisa con destino 'student': el alumno la ve en su agenda.
+  it('el alumno abre su agenda con un aviso sobre si mismo', () => {
+    expect(notificationRoute('student', 'std-002')).toEqual(['/student/schedule']);
   });
 });

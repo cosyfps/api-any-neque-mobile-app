@@ -5,6 +5,7 @@ import { WorkoutSession } from '@app/domain/workouts/model/workout-session.model
 
 import { fail } from '../domain/api-error';
 import { DateWindow, staleSessionWindow } from '../domain/assignment-rules';
+import { sessionInstant } from '../domain/zoned-time';
 import { Actor } from '../http/context';
 import {
   ExerciseRow,
@@ -279,7 +280,45 @@ export async function saveRoutine(
       p_payload: input,
     }),
   );
+  if (routineId !== null) {
+    await removeOrphanSessions(id);
+  }
   return loadRoutine(id);
+}
+
+/**
+ * Al guardar, la funcion SQL recrea los dias de la rutina y solo borra lo
+ * pendiente desde hoy. Las sesiones sin empezar de dias ya reemplazados (por
+ * ejemplo, el lunes de la semana en curso) quedaban junto a las que se
+ * regeneran para los dias nuevos: el alumno veia el mismo dia dos veces y el
+ * progreso semanal contaba de mas. Las completadas o empezadas no se tocan.
+ */
+async function removeOrphanSessions(routineId: string): Promise<void> {
+  const viejos =
+    (await maybe<{ id: string }[]>(
+      db()
+        .from('routine_days')
+        .select('id')
+        .eq('routine_id', routineId)
+        .not('deleted_at', 'is', null),
+    )) ?? [];
+  if (viejos.length === 0) {
+    return;
+  }
+  const candidatas =
+    (await maybe<{ id: string }[]>(
+      db()
+        .from('workout_sessions')
+        .select('id')
+        .eq('routine_id', routineId)
+        .eq('status', 'scheduled')
+        .is('started_at', null)
+        .in(
+          'routine_day_id',
+          viejos.map(dia => dia.id),
+        ),
+    )) ?? [];
+  await deleteUnscheduled(candidatas.map(row => row.id));
 }
 
 export async function setAssignments(
@@ -340,10 +379,14 @@ async function removeStaleSessions(studentId: string, ventana: DateWindow): Prom
         .gte('scheduled_date', ventana.from)
         .lt('scheduled_date', ventana.to),
     )) ?? [];
-  if (candidatas.length === 0) {
+  await deleteUnscheduled(candidatas.map(row => row.id));
+}
+
+/** Borra las sesiones que ninguna cita de la agenda referencia. */
+async function deleteUnscheduled(ids: readonly string[]): Promise<void> {
+  if (ids.length === 0) {
     return;
   }
-  const ids = candidatas.map(row => row.id);
   const enAgenda =
     (await maybe<{ workout_session_id: string }[]>(
       db().from('scheduled_sessions').select('workout_session_id').in('workout_session_id', ids),
@@ -426,8 +469,8 @@ export async function ensureWorkoutSessions(studentId: string): Promise<void> {
       routine_day_id: day.id,
       title: day.title,
       scheduled_date: scheduledDate,
-      // Mediodia UTC: mismo dia calendario en Chile.
-      scheduled_for: `${scheduledDate}T12:00:00.000Z`,
+      // A la hora del dia en Chile; sin hora, mediodia UTC (mismo dia).
+      scheduled_for: sessionInstant(scheduledDate, day.start_time?.slice(0, 5)),
       estimated_minutes: day.estimated_minutes,
     });
   }

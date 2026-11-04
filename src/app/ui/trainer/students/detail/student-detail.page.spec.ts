@@ -7,6 +7,7 @@ import { TrainerStudentDetailFacade } from '@app/application/trainers/trainer-st
 import { INVITATION_PORT } from '@app/domain/auth/port/invitation.port';
 import { Routine } from '@app/domain/routines/model/routine.model';
 import { ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
+import { SCHEDULE_PORT, SchedulePort } from '@app/domain/schedule/port/schedule.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
 import { PUBLIC_APP_URL } from '@app/domain/shared/port/public-url.port';
@@ -73,6 +74,7 @@ describe('StudentDetailPage', () => {
   let edit: MockOf<StudentsPort['edit']>;
   let save: MockOf<AnamnesisPort['save']>;
   let createAssessment: MockOf<AssessmentsPort['create']>;
+  let createAppointment: MockOf<SchedulePort['create']>;
   let accionPedida: string | null;
 
   const createPage = (
@@ -82,6 +84,18 @@ describe('StudentDetailPage', () => {
     evaluaciones: Assessment[] = [],
   ): StudentDetailPage => {
     save = fn<AnamnesisPort['save']>().mockImplementation(input => of({ ...ANAMNESIS, ...input }));
+    createAppointment = fn<SchedulePort['create']>().mockImplementation(input =>
+      of({
+        ...input,
+        id: 'cit-001',
+        trainerId: 'trn-001',
+        status: 'pending' as const,
+        workoutSessionId: null,
+        cancellationReason: null,
+        cancellationNote: null,
+        cancelledAt: null,
+      }),
+    );
     createAssessment = fn<AssessmentsPort['create']>().mockImplementation(input =>
       of({ ...input, id: 'asm-nueva', takenAt: '2026-09-20T10:00:00.000Z' }),
     );
@@ -121,6 +135,10 @@ describe('StudentDetailPage', () => {
         },
         { provide: ROUTINES_PORT, useValue: { getActiveForStudent: () => of(rutina) } },
         { provide: INVITATION_PORT, useValue: { getForStudent: () => of(null) } },
+        {
+          provide: SCHEDULE_PORT,
+          useValue: { listByStudent: () => of([]), create: createAppointment },
+        },
       ],
     });
     router = TestBed.inject(Router);
@@ -485,6 +503,65 @@ describe('StudentDetailPage', () => {
   describe('fecha()', () => {
     it('formatea en espanol de Chile', () => {
       expect(page.fecha('2026-06-04T10:00:00.000Z')).toContain('junio');
+    });
+  });
+
+  describe('agendar cita', () => {
+    const CITA = {
+      title: 'Evaluación',
+      startsAt: '2026-09-22T13:00:00.000Z',
+      endsAt: '2026-09-22T14:00:00.000Z',
+      location: 'Box',
+      kind: 'assessment' as const,
+    };
+
+    it('el sheet nace cerrado y Agendar lo abre', () => {
+      expect(page.addingAppointment()).toBe(false);
+
+      page.openAppointment();
+
+      expect(page.addingAppointment()).toBe(true);
+    });
+
+    it('guardar con exito cierra el sheet', async () => {
+      page.openAppointment();
+
+      await page.saveAppointment(CITA);
+
+      expect(createAppointment).toHaveBeenCalledWith({ ...CITA, studentId: 'std-001' });
+      expect(page.addingAppointment()).toBe(false);
+    });
+
+    it('un rechazo deja el sheet abierto', async () => {
+      createAppointment.mockReturnValue(throwError(() => domainError('validation')));
+      page.openAppointment();
+
+      await page.saveAppointment(CITA);
+
+      expect(page.addingAppointment()).toBe(true);
+    });
+
+    it('cerrar lo oculta', () => {
+      page.openAppointment();
+
+      page.closeAppointment();
+
+      expect(page.addingAppointment()).toBe(false);
+    });
+
+    it('formatea dia, hora, tipo y estado de la cita', () => {
+      const iso = new Date(2026, 8, 22, 9, 0).toISOString();
+
+      expect(page.horaCita(iso)).toBe('09:00');
+      expect(page.diaCita(iso)).toContain('22');
+      expect(page.tipoCita('checkin')).toBe('Control');
+      expect(page.estadoCita('pending')).toBe('Por confirmar');
+    });
+
+    it('colorea el estado', () => {
+      expect(page.estadoClase('confirmed')).toBe('nq-badge-success');
+      expect(page.estadoClase('cancelled')).toBe('nq-badge-danger');
+      expect(page.estadoClase('pending')).toBe('nq-badge-warning');
     });
   });
 

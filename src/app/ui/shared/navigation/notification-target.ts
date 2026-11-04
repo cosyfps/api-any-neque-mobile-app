@@ -20,6 +20,8 @@ const RUTAS: Record<UserRole, Rutas> = {
     session: targetId => ['/student/workout', targetId],
     assessment: () => ['/student/schedule'],
     photo: () => ['/student/progress'],
+    // Avisos sobre su agenda (citas nuevas): la cita vive en Mi agenda.
+    student: () => ['/student/schedule'],
   },
   trainer: {
     student: targetId => ['/trainer/students', targetId],

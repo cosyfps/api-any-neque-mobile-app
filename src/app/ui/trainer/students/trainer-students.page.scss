@@ -36,8 +36,10 @@
   font-family: var(--nq-font-family);
   font-size: var(--nq-font-input);
   color: var(--nq-text);
-  background: var(--nq-surface);
-  border: 1.5px solid transparent;
+  // Mismo aspecto que `.nq-field-input`: sobre el fondo de la pagina, un
+  // campo sin borde no se distinguia del texto.
+  background: var(--nq-bg);
+  border: 1.5px solid var(--nq-border-solid);
   border-radius: var(--nq-radius-md);
 
   &::placeholder {
@@ -142,4 +144,10 @@
   display: grid;
   grid-template-columns: 1fr;
   margin-top: 16px;
+}
+
+// Flecha: la fila abre la ficha, igual que las filas navegables del perfil.
+.item-chevron {
+  flex-shrink: 0;
+  color: var(--nq-text-muted);
 }

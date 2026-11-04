@@ -36,7 +36,9 @@ export type PageStateType = 'loading' | 'error' | 'empty' | 'offline';
           <div class="nq-state-icon error">
             <svg lucideAlertCircle [size]="24" [strokeWidth]="1.5"></svg>
           </div>
-          <span class="nq-state-title">{{ title() || 'Algo salió mal' }}</span>
+          <span class="nq-state-title" role="heading" [attr.aria-level]="headingLevel()">{{
+            title() || 'Algo salió mal'
+          }}</span>
           <span class="nq-state-desc">{{
             message() || 'No pudimos cargar la información. Intenta de nuevo.'
           }}</span>
@@ -53,7 +55,9 @@ export type PageStateType = 'loading' | 'error' | 'empty' | 'offline';
           <div class="nq-state-icon">
             <svg lucideInbox [size]="24" [strokeWidth]="1.5"></svg>
           </div>
-          <span class="nq-state-title">{{ title() || 'Sin datos' }}</span>
+          <span class="nq-state-title" role="heading" [attr.aria-level]="headingLevel()">{{
+            title() || 'Sin datos'
+          }}</span>
           <span class="nq-state-desc">{{
             message() || 'Aún no hay información para mostrar.'
           }}</span>
@@ -64,7 +68,9 @@ export type PageStateType = 'loading' | 'error' | 'empty' | 'offline';
           <div class="nq-state-icon warning">
             <svg lucideWifi [size]="24" [strokeWidth]="1.5"></svg>
           </div>
-          <span class="nq-state-title">Sin conexión</span>
+          <span class="nq-state-title" role="heading" [attr.aria-level]="headingLevel()"
+            >Sin conexión</span
+          >
           <span class="nq-state-desc">Revisa tu conexión a internet e intenta de nuevo.</span>
           @if (showRetry()) {
             <button class="retry-btn" type="button" (click)="onRetry()">
@@ -151,6 +157,11 @@ export class PageStateComponent {
   readonly type = input<PageStateType>('loading');
   readonly title = input('');
   readonly message = input('');
+  /**
+   * Nivel del titulo como encabezado (QA-30). Por defecto 2: el estado ocupa
+   * el contenido bajo el h1 de la pagina. Dentro de una seccion con h2, 3.
+   */
+  readonly headingLevel = input<2 | 3 | 4>(2);
   readonly showRetry = input(true);
   /** Texto que anuncia el lector de pantalla mientras carga. */
   readonly loadingLabel = input('Cargando');

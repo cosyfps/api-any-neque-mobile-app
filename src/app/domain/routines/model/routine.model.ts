@@ -31,6 +31,11 @@ export interface RoutineDay {
   readonly title: string;
   readonly focus: MuscleGroup;
   readonly estimatedMinutes: number;
+  /**
+   * Hora de inicio en Chile, `HH:mm`. Null o ausente: sin hora fija (la
+   * sesion se agenda solo por dia).
+   */
+  readonly startTime?: string | null;
   readonly exercises: readonly RoutineExercise[];
 }
 

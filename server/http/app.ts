@@ -130,6 +130,11 @@ const routineInput = z.object({
         title: text(120).min(1),
         focus: muscleGroup,
         estimatedMinutes: z.number().int().min(1).max(600),
+        startTime: z
+          .string()
+          .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+          .nullable()
+          .optional(),
         exercises: z
           .array(
             z.object({
@@ -521,6 +526,25 @@ export function createApp(): Hono<AppEnv> {
       throw new ApiError('validation', 'Falta el rango de fechas.');
     }
     return c.json(await engagement.listSchedule(c.get('actor'), idParam(c, 'id'), range));
+  });
+  app.post('/students/:id/schedule', requireRole('trainer'), async c => {
+    const body = await parseBody(
+      c,
+      z.object({
+        title: text(120).min(1),
+        startsAt: z.string().datetime({ offset: true }),
+        endsAt: z.string().datetime({ offset: true }),
+        location: optionalText(120),
+        kind: z.enum(['training', 'assessment', 'checkin']),
+      }),
+    );
+    return c.json(
+      await engagement.createAppointment(c.get('actor'), {
+        ...body,
+        studentId: idParam(c, 'id'),
+      }),
+      201,
+    );
   });
   app.post('/schedule/:id/confirm', requireRole('student'), async c =>
     c.json(await engagement.confirmAppointment(c.get('actor'), idParam(c, 'id'))),

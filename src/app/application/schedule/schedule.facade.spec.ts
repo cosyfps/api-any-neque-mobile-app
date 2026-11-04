@@ -2,11 +2,14 @@ import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
+import { Routine } from '@app/domain/routines/model/routine.model';
+import { ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
 import { ScheduledSession } from '@app/domain/schedule/model/scheduled-session.model';
 import { SCHEDULE_PORT, SchedulePort } from '@app/domain/schedule/port/schedule.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { toIsoDate } from '@app/domain/shared/model/date';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
 
 import { fn, MockOf } from '@testing/typed-mock';
 
@@ -41,7 +44,20 @@ const SESSIONS: ScheduledSession[] = [
   scheduled('c', new Date(2026, 8, 22, 18), 'cancelled'),
 ];
 
+// Rutina con entrenamiento los jueves (17 y 24 de septiembre).
+const RUTINA: Routine = {
+  id: 'rtn-001',
+  trainerId: 'trn-001',
+  name: 'Fuerza',
+  goal: 'Fuerza',
+  days: [
+    { id: 'd4', weekday: 4, title: 'Pierna', focus: 'legs', estimatedMinutes: 50, exercises: [] },
+  ],
+  assignments: [{ studentId: 'std-001', startDate: '2026-09-01', endDate: null }],
+};
+
 describe('ScheduleFacade', () => {
+  let rutina: Routine | null;
   let listByStudent: MockOf<SchedulePort['listByStudent']>;
   let confirm: MockOf<SchedulePort['confirm']>;
   let cancel: MockOf<SchedulePort['cancel']>;
@@ -54,6 +70,8 @@ describe('ScheduleFacade', () => {
         { provide: CLOCK, useValue: { now: () => NOW } },
         { provide: SessionFacade, useValue: { profileId: () => profileId } },
         { provide: SCHEDULE_PORT, useValue: { listByStudent, confirm, cancel } },
+        { provide: ROUTINES_PORT, useValue: { getActiveForStudent: () => of(rutina) } },
+        { provide: WORKOUTS_PORT, useValue: { listByStudent: () => of([]) } },
       ],
     });
     return TestBed.inject(ScheduleFacade);
@@ -64,6 +82,41 @@ describe('ScheduleFacade', () => {
     confirm = fn<SchedulePort['confirm']>();
     cancel = fn<SchedulePort['cancel']>();
     profileId = 'std-001';
+    rutina = RUTINA;
+  });
+
+  describe('entrenamiento de la rutina', () => {
+    it('el dia de hoy muestra el entrenamiento de la rutina', () => {
+      const facade = build();
+      facade.load();
+
+      expect(facade.dayTraining()?.day.title).toBe('Pierna');
+    });
+
+    // Las sesiones solo se generan dos semanas adelante: la agenda usa la rutina.
+    it('marca los dias de entrenamiento aunque no tengan cita', () => {
+      const facade = build();
+      facade.load();
+
+      expect(facade.hasSessions(new Date(2026, 8, 24))).toBe(true);
+      expect(facade.hasSessions(new Date(2026, 8, 23))).toBe(false);
+    });
+
+    it('sin rutina vigente no hay entrenamiento', () => {
+      rutina = null;
+      const facade = build();
+      facade.load();
+
+      expect(facade.dayTraining()).toBeNull();
+    });
+
+    it('sin sesion de usuario no calcula entrenamiento', () => {
+      const facade = build();
+      facade.load();
+      profileId = null;
+
+      expect(facade.trainingOn(NOW)).toBeNull();
+    });
   });
 
   describe('load()', () => {

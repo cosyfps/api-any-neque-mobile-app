@@ -49,6 +49,7 @@ const RUTINA: Routine = {
       title: 'Tren inferior',
       focus: 'legs',
       estimatedMinutes: 55,
+      startTime: '18:30',
       exercises: [
         {
           id: 'rex-001',
@@ -267,6 +268,29 @@ describe('RoutineBuilderComponent', () => {
       builder.setMinutes(0, seleccionar(''));
 
       expect(builder.days()[0]?.estimatedMinutes).toBe(50);
+    });
+
+    it('un dia nuevo nace sin hora fija', () => {
+      builder.addDay();
+
+      expect(builder.days()[0]?.startTime).toBeNull();
+    });
+
+    it('guarda la hora de inicio elegida', () => {
+      builder.addDay();
+
+      builder.setStartTime(0, seleccionar('07:15'));
+
+      expect(builder.days()[0]?.startTime).toBe('07:15');
+    });
+
+    it('borrar la hora deja el dia sin hora fija', () => {
+      builder.addDay();
+      builder.setStartTime(0, seleccionar('07:15'));
+
+      builder.setStartTime(0, seleccionar(''));
+
+      expect(builder.days()[0]?.startTime).toBeNull();
     });
 
     it('etiqueta cada dia en espanol', () => {
@@ -516,6 +540,16 @@ describe('RoutineBuilderComponent', () => {
 
     it('precarga nombre y objetivo', () => {
       expect(builder.form.getRawValue()).toEqual({ name: 'Hipertrofia', goal: RUTINA.goal });
+    });
+
+    it('precarga la hora de inicio del dia', () => {
+      expect(builder.days()[0]?.startTime).toBe('18:30');
+    });
+
+    it('emite la hora de inicio', () => {
+      builder.onSubmit();
+
+      expect(emitido?.days[0]?.startTime).toBe('18:30');
     });
 
     it('precarga los dias con sus ejercicios', () => {

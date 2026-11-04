@@ -136,9 +136,17 @@ type CompareSide = 'before' | 'after';
                 </div>
               </div>
 
-              <div class="nq-card chart-card">
-                <nq-line-chart [data]="activeSeries()" [ariaLabel]="seriesAria()" />
-              </div>
+              <!-- Con un solo punto no hay evolucion: el grafico mostraba un circulo
+                   suelto en una tarjeta vacia, que parecia un error. -->
+              @if (activeSeries().length > 1) {
+                <div class="nq-card chart-card">
+                  <nq-line-chart [data]="activeSeries()" [ariaLabel]="seriesAria()" />
+                </div>
+              } @else {
+                <p class="nq-empty-inline">
+                  Con tu próxima evaluación verás aquí cómo evolucionas.
+                </p>
+              }
             </section>
 
             <section class="nq-section nq-ani nq-d3">

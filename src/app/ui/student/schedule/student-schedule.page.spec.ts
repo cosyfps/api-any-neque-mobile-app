@@ -4,11 +4,13 @@ import { of } from 'rxjs';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
 import { ScheduleFacade } from '@app/application/schedule/schedule.facade';
+import { ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
 import { MonthCell } from '@app/domain/schedule/model/month-grid';
 import { ScheduledSession } from '@app/domain/schedule/model/scheduled-session.model';
 import { SCHEDULE_PORT, SchedulePort } from '@app/domain/schedule/port/schedule.port';
 import { toIsoDate } from '@app/domain/shared/model/date';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
 
 import { fn, MockOf } from '@testing/typed-mock';
 
@@ -53,6 +55,8 @@ describe('StudentSchedulePage', () => {
             cancel: fn<SchedulePort['cancel']>(),
           },
         },
+        { provide: ROUTINES_PORT, useValue: { getActiveForStudent: () => of(null) } },
+        { provide: WORKOUTS_PORT, useValue: { listByStudent: () => of([]) } },
       ],
     });
     router = TestBed.inject(Router);
@@ -207,6 +211,25 @@ describe('StudentSchedulePage', () => {
       await page.confirm('sch-002');
 
       expect(page.confirming()).toBe('sch-001');
+    });
+  });
+
+  describe('entrenamiento de la rutina', () => {
+    it('traduce cada estado', () => {
+      expect(page.trainingLabel('done')).toBe('Completado');
+      expect(page.trainingLabel('planned')).toBe('Planificado');
+    });
+
+    it('usa un color por estado', () => {
+      expect(page.trainingBadge('done')).toBe('nq-badge-success');
+      expect(page.trainingBadge('missed')).toBe('nq-badge-danger');
+      expect(page.trainingBadge('planned')).toBe('nq-badge-primary');
+    });
+
+    it('tocarlo lleva a la rutina', () => {
+      page.goToRoutine();
+
+      expect(router.navigate).toHaveBeenCalledWith(['/student/routine']);
     });
   });
 

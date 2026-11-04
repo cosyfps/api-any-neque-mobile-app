@@ -173,9 +173,12 @@ describe('StudentProgressPage', () => {
       return input;
     };
 
-    /** FileReader resuelve en macrotask; se espera a que el control se libere. */
+    /**
+     * FileReader resuelve en macrotask; se espera a que el control se libere.
+     * Hasta 2 s: bajo carga 250 ms no alcanzaban (QA-32).
+     */
     const esperarLectura = async (): Promise<void> => {
-      for (let i = 0; i < 50 && page.uploading(); i++) {
+      for (let i = 0; i < 400 && page.uploading(); i++) {
         await new Promise(resolve => setTimeout(resolve, 5));
       }
     };
