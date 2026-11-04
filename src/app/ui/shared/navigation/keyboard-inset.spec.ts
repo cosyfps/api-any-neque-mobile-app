@@ -4,7 +4,12 @@ import { TestBed } from '@angular/core/testing';
 
 import { fn } from '@testing/typed-mock';
 
-import { KEYBOARD_OPEN_CLASS, useKeyboardInset } from './keyboard-inset';
+import {
+  KEYBOARD_OPEN_CLASS,
+  NO_TAB_BAR_CLASS,
+  useHiddenTabBar,
+  useKeyboardInset,
+} from './keyboard-inset';
 
 /** visualViewport falso: jsdom no lo implementa. */
 class FakeViewport extends EventTarget {
@@ -19,6 +24,24 @@ class HostConTeclado {
     useKeyboardInset(px => cambios(px));
   }
 }
+
+@Component({ standalone: true, template: '' })
+class HostSinTabBar {
+  constructor() {
+    useHiddenTabBar();
+  }
+}
+
+describe('useHiddenTabBar()', () => {
+  it('oculta el tab bar mientras la pantalla esta abierta', () => {
+    const root = TestBed.inject(DOCUMENT).documentElement;
+    const fixture = TestBed.createComponent(HostSinTabBar);
+    expect(root.classList.contains(NO_TAB_BAR_CLASS)).toBe(true);
+
+    fixture.destroy();
+    expect(root.classList.contains(NO_TAB_BAR_CLASS)).toBe(false);
+  });
+});
 
 describe('useKeyboardInset()', () => {
   let viewport: FakeViewport;
@@ -59,6 +82,19 @@ describe('useKeyboardInset()', () => {
     expect(scrollTo).toHaveBeenCalledWith(0, 0);
     expect(cambios).toHaveBeenLastCalledWith(350);
     Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+  });
+
+  // iOS: innerHeight se achica con el teclado; el alto del layout no.
+  it('mide contra el alto del layout aunque innerHeight se achique', () => {
+    Object.defineProperty(root, 'clientHeight', { value: 800, configurable: true });
+    TestBed.createComponent(HostConTeclado);
+
+    Object.defineProperty(window, 'innerHeight', { value: 450, configurable: true });
+    viewport.height = 450;
+    viewport.dispatchEvent(new Event('resize'));
+
+    expect(root.style.getPropertyValue('--nq-kb')).toBe('350px');
+    Object.defineProperty(root, 'clientHeight', { value: 0, configurable: true });
   });
 
   it('una diferencia chica (barras del navegador) no cuenta como teclado', () => {

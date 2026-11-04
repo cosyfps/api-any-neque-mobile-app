@@ -14,6 +14,12 @@
   padding: 8px 0 16px;
   overflow-y: auto;
   overscroll-behavior: contain;
+
+  // Como en Instagram: con pocos mensajes, quedan abajo junto al campo y el
+  // espacio libre va arriba. Con muchos, el scroll funciona igual.
+  > :first-child {
+    margin-top: auto;
+  }
 }
 
 .day-sep {

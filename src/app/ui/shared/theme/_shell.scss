@@ -51,6 +51,19 @@
       visibility 0s;
   }
 
+  // Pantallas sin tab bar (el chat, ver `useHiddenTabBar`): el contenido
+  // llega hasta abajo, respetando solo la zona segura del iPhone.
+  :host-context(html.nq-no-tab-bar) {
+    .layout-content {
+      padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+    }
+
+    .tab-bar,
+    .nq-fab {
+      display: none;
+    }
+  }
+
   // Con el teclado abierto (ver `useKeyboardInset`) el shell se achica hasta
   // el borde del teclado y el tab bar se retira: la pantalla queda encima del
   // teclado en vez de quedar tapada por el, como en Instagram.

@@ -21,7 +21,7 @@ import {
   messageError,
 } from '@app/domain/messages/model/message.model';
 
-import { useKeyboardInset } from '../navigation/keyboard-inset';
+import { useHiddenTabBar, useKeyboardInset } from '../navigation/keyboard-inset';
 
 import { PageStateComponent } from './page-state.component';
 
@@ -136,6 +136,8 @@ export class ConversationComponent {
     // Con el teclado abierto la pantalla se achica (no se desplaza) y la
     // conversacion baja al ultimo mensaje, como en Instagram.
     useKeyboardInset(() => this.alFinal());
+    // Sin tab bar, como el chat de Instagram: el campo queda pegado abajo.
+    useHiddenTabBar();
 
     const timer = setInterval(() => this.facade.refresh(), REFRESH_MS);
     inject(DestroyRef).onDestroy(() => clearInterval(timer));
