@@ -1,10 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { NEVER, of, throwError } from 'rxjs';
 
 import { ConversationFacade } from '@app/application/messages/conversation.facade';
 import { Message } from '@app/domain/messages/model/message.model';
 import { MESSAGES_PORT, MessagesPort } from '@app/domain/messages/port/messages.port';
 import { domainError } from '@app/domain/shared/model/app-error';
+import { STUDENTS_PORT } from '@app/domain/students/port/students.port';
+import { TRAINERS_PORT } from '@app/domain/trainers/port/trainers.port';
 
 import { fn, MockOf } from '@testing/typed-mock';
 
@@ -34,7 +36,7 @@ describe('ConversationComponent', () => {
     fixture = TestBed.createComponent(ConversationComponent);
     fixture.componentRef.setInput('me', 'trainer');
     cmp = fixture.componentInstance;
-    TestBed.inject(ConversationFacade).load('std-1');
+    TestBed.inject(ConversationFacade).load('std-1', 'trainer');
     fixture.detectChanges();
   };
 
@@ -52,7 +54,12 @@ describe('ConversationComponent', () => {
     );
     TestBed.configureTestingModule({
       imports: [ConversationComponent],
-      providers: [ConversationFacade, { provide: MESSAGES_PORT, useValue: { list, send } }],
+      providers: [
+        ConversationFacade,
+        { provide: MESSAGES_PORT, useValue: { list, send } },
+        { provide: STUDENTS_PORT, useValue: { getById: () => NEVER } },
+        { provide: TRAINERS_PORT, useValue: { getById: () => NEVER } },
+      ],
     });
     crear();
   });
@@ -64,7 +71,14 @@ describe('ConversationComponent', () => {
   it('pinta las burbujas y marca las propias a la derecha', () => {
     expect(el().querySelectorAll('.bubble')).toHaveLength(3);
     expect(el().querySelectorAll('.bubble-row.mine')).toHaveLength(2);
-    expect(el().textContent).toContain('Leído');
+  });
+
+  // m2 y m3 son del entrenador con 5 min de diferencia: una sola hora, bajo m3.
+  it('la hora va debajo y una sola por grupo', () => {
+    expect(cmp.cierraGrupo(0)).toBe(true);
+    expect(cmp.cierraGrupo(1)).toBe(false);
+    expect(cmp.cierraGrupo(2)).toBe(true);
+    expect(el().querySelectorAll('.bubble-time')).toHaveLength(2);
   });
 
   it('separa por dia', () => {
@@ -73,6 +87,18 @@ describe('ConversationComponent', () => {
     expect(cmp.nuevoDia(2)).toBe(false);
     expect(cmp.nuevoDia(9)).toBe(false);
     expect(el().querySelectorAll('.day-sep')).toHaveLength(2);
+  });
+
+  it('la hora de los propios leidos dice Leido; la de los ajenos, solo la hora', () => {
+    const lista = cmp.facade.messages.data() ?? [];
+    const [ajeno, leido, sinLeer] = lista;
+    if (ajeno === undefined || leido === undefined || sinLeer === undefined) {
+      throw new Error('fixture incompleto');
+    }
+
+    expect(cmp.meta(leido)).toMatch(/^\d{2}:\d{2} · Leído$/);
+    expect(cmp.meta(sinLeer)).toMatch(/^\d{2}:\d{2}$/);
+    expect(cmp.meta(ajeno)).toMatch(/^\d{2}:\d{2}$/);
   });
 
   it('formatea hora y dia', () => {

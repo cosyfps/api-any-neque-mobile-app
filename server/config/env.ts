@@ -8,6 +8,12 @@ const schema = z.object({
   SUPABASE_SECRET_KEY: z.string().min(1),
   /** Origenes web extra permitidos por CORS, separados por coma. */
   ALLOWED_ORIGINS: z.string().default(''),
+  /**
+   * Llave AES-256 (32 bytes en base64) con que se cifra el texto de los
+   * mensajes. Opcional para no tumbar el resto del BFF: sin ella los mensajes
+   * no se leen ni se guardan (ver `message-cipher.ts`).
+   */
+  MESSAGES_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof schema>;

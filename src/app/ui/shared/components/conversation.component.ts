@@ -17,6 +17,7 @@ import {
   MESSAGE_MAX_LENGTH,
   Message,
   MessageSender,
+  endsGroup,
   messageError,
 } from '@app/domain/messages/model/message.model';
 
@@ -55,16 +56,17 @@ const DIA = new Intl.DateTimeFormat('es-CL', { weekday: 'long', day: 'numeric', 
             @if (nuevoDia(i)) {
               <p class="day-sep">{{ dia(mensaje.createdAt) }}</p>
             }
-            <div class="bubble-row" [class.mine]="mensaje.senderRole === me()">
-              <div class="bubble">
-                <p class="bubble-text">{{ mensaje.body }}</p>
-                <span class="bubble-meta">
-                  {{ hora(mensaje.createdAt) }}
-                  @if (mensaje.senderRole === me() && mensaje.readAt !== null) {
-                    · Leído
-                  }
-                </span>
-              </div>
+            <!-- La hora va debajo de la burbuja y solo al cerrar un grupo: mensajes
+                 seguidos de la misma persona con menos de 30 min muestran una sola. -->
+            <div
+              class="bubble-row"
+              [class.mine]="mensaje.senderRole === me()"
+              [class.grouped]="!cierraGrupo(i)"
+            >
+              <p class="bubble">{{ mensaje.body }}</p>
+              @if (cierraGrupo(i)) {
+                <span class="bubble-time">{{ meta(mensaje) }}</span>
+              }
             </div>
           } @empty {
             <p class="nq-empty-inline">{{ emptyText() }}</p>
@@ -177,6 +179,16 @@ export class ConversationComponent {
       anterior === undefined ||
       new Date(anterior.createdAt).toDateString() !== new Date(actual.createdAt).toDateString()
     );
+  }
+
+  cierraGrupo(index: number): boolean {
+    return endsGroup(this.facade.messages.data() ?? [], index);
+  }
+
+  /** "09:30" o "09:30 · Leído" para los propios ya leidos. */
+  meta(mensaje: Message): string {
+    const hora = this.hora(mensaje.createdAt);
+    return mensaje.senderRole === this.me() && mensaje.readAt !== null ? `${hora} · Leído` : hora;
   }
 
   hora(iso: string): string {

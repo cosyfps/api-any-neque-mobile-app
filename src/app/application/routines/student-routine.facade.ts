@@ -40,33 +40,86 @@ export class StudentRoutineFacade {
   /** Dias con entrenamiento, para el selector superior. */
   readonly days: Signal<readonly RoutineDay[]> = computed(() => this.routine.data()?.days ?? []);
 
-  readonly selectedDay: Signal<RoutineDay | null> = computed(() => {
-    const routine = this.routine.data();
-    return routine === null || routine === undefined
-      ? null
-      : dayForWeekday(routine, this._selectedWeekday());
-  });
-
-  /** Sesion asociada al dia seleccionado dentro de la semana en curso. */
-  readonly selectedSession: Signal<WorkoutSession | null> = computed(() => {
-    const day = this.selectedDay();
-    if (day === null) {
-      return null;
-    }
-    // Solo la semana en curso. Antes, sin sesion hoy, se tomaba la ULTIMA de
-    // ese dia de la rutina aunque fuera semanas adelante: el alumno completaba
-    // la del lunes 16 creyendo que era la de este lunes y el grafico semanal
-    // (que cuenta por fecha programada) no subia.
+  /**
+   * Sesiones de la semana en curso (sin las omitidas). Solo esta semana: antes,
+   * sin sesion hoy, se tomaba la de ese dia semanas adelante y el grafico
+   * semanal (que cuenta por fecha) no subia.
+   */
+  private readonly weekSessions: Signal<WorkoutSession[]> = computed(() => {
     const semana = weekRange(this.clock.now());
-    return (
-      (this.sessions.data() ?? []).find(
-        item =>
-          item.routineDayId === day.id &&
-          item.status !== 'skipped' &&
-          isWithinRange(item.scheduledFor, semana),
-      ) ?? null
+    return (this.sessions.data() ?? []).filter(
+      item => item.status !== 'skipped' && isWithinRange(item.scheduledFor, semana),
     );
   });
+
+  /**
+   * Sesion del dia seleccionado segun su FECHA. Un entrenamiento movido a otro
+   * dia (A-3) aparece en el dia al que se movio, no en su dia de rutina.
+   */
+  readonly selectedSession: Signal<WorkoutSession | null> = computed(() =>
+    this.sessionOn(this._selectedWeekday()),
+  );
+
+  /** Lo que se muestra: el dia de rutina de la sesion, o el que toca ese dia. */
+  readonly selectedDay: Signal<RoutineDay | null> = computed(() => {
+    const session = this.selectedSession();
+    if (session !== null) {
+      const delaSesion = this.days().find(day => day.id === session.routineDayId);
+      if (delaSesion !== undefined) {
+        return delaSesion;
+      }
+    }
+    return this.routineDayOn(this._selectedWeekday());
+  });
+
+  /**
+   * Si el entrenamiento de rutina de este dia se movio a otro dia de la
+   * semana, la fecha a la que se movio. Ese dia ya no se entrena aqui.
+   */
+  readonly movedAway: Signal<Date | null> = computed(() => {
+    if (this.selectedSession() !== null) {
+      return null;
+    }
+    const day = this.routineDayOn(this._selectedWeekday());
+    const movida =
+      day === null ? undefined : this.weekSessions().find(item => item.routineDayId === day.id);
+    return movida === undefined ? null : new Date(movida.scheduledFor);
+  });
+
+  /** Dia de la semana desde el que se movio la sesion seleccionada, si se movio. */
+  readonly movedFrom: Signal<Weekday | null> = computed(() => {
+    const session = this.selectedSession();
+    const origen = this.days().find(day => day.id === session?.routineDayId);
+    return origen !== undefined && origen.weekday !== this._selectedWeekday()
+      ? origen.weekday
+      : null;
+  });
+
+  /** Para el punto del selector: ese dia hay algo que entrenar esta semana. */
+  hasTrainingOn(weekday: Weekday): boolean {
+    if (this.sessionOn(weekday) !== null) {
+      return true;
+    }
+    const day = this.routineDayOn(weekday);
+    // Un dia de rutina cuyo entrenamiento se movio a otro dia queda libre.
+    return (
+      day !== null &&
+      !this.weekSessions().some(
+        item => item.routineDayId === day.id && isoWeekday(new Date(item.scheduledFor)) !== weekday,
+      )
+    );
+  }
+
+  private sessionOn(weekday: Weekday): WorkoutSession | null {
+    return (
+      this.weekSessions().find(item => isoWeekday(new Date(item.scheduledFor)) === weekday) ?? null
+    );
+  }
+
+  private routineDayOn(weekday: Weekday): RoutineDay | null {
+    const routine = this.routine.data();
+    return routine === null || routine === undefined ? null : dayForWeekday(routine, weekday);
+  }
 
   /** Avance del dia seleccionado, entre 0 y 1. */
   readonly dayProgress: Signal<number> = computed(() => {
@@ -118,17 +171,11 @@ export class StudentRoutineFacade {
       return [];
     }
     const dia = localDay(new Date(session.scheduledFor));
-    return rescheduleOptions(dia, dia, localDay(this.clock.now()));
-  });
-
-  /** Dia en que quedo la sesion si se movio fuera de su dia de rutina. */
-  readonly movedTo: Signal<Date | null> = computed(() => {
-    const session = this.selectedSession();
-    if (session === null) {
-      return null;
-    }
-    const fecha = new Date(session.scheduledFor);
-    return isoWeekday(fecha) === this._selectedWeekday() ? null : fecha;
+    // Dias con otro entrenamiento: no se ofrecen.
+    const ocupados = (this.sessions.data() ?? [])
+      .filter(item => item.id !== session.id && item.status !== 'skipped')
+      .map(item => localDay(new Date(item.scheduledFor)));
+    return rescheduleOptions(dia, dia, localDay(this.clock.now()), ocupados);
   });
 
   private readonly _moveError = signal<DomainError | null>(null);

@@ -19,8 +19,8 @@ import { ConversationComponent } from '@shared/components/conversation.component
           <svg lucideArrowLeft [size]="22" [strokeWidth]="1.8"></svg>
         </button>
         <div>
-          <h1 class="head-title">Mensajes</h1>
-          <p class="head-sub">Con tu alumno</p>
+          <h1 class="head-title">{{ conversation.peerName() ?? 'Tu alumno' }}</h1>
+          <p class="head-sub">Mensajes</p>
         </div>
       </header>
 
@@ -30,12 +30,13 @@ import { ConversationComponent } from '@shared/components/conversation.component
   styleUrl: '../../../shared/pages/messages/messages-page.scss',
 })
 export class TrainerStudentMessagesPage {
+  readonly conversation = inject(ConversationFacade);
   private readonly router = inject(Router);
   private readonly studentId: string;
 
   constructor() {
     this.studentId = inject(ActivatedRoute).snapshot.paramMap.get('studentId') ?? '';
-    inject(ConversationFacade).load(this.studentId);
+    this.conversation.load(this.studentId, 'trainer');
   }
 
   goBack(): void {

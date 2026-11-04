@@ -6,33 +6,33 @@ import { loadDelta } from '@app/domain/workouts/model/load-history';
 
 import { SeriesPoint } from '@shared/components/chart/chart-math';
 import { LineChartComponent } from '@shared/components/chart/line-chart.component';
-import { PageStateComponent } from '@shared/components/page-state.component';
 
 const FECHA = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short' });
 
 /**
- * Pestana "Cargas" de Mi progreso (A-2): elige un ejercicio y ve como
+ * Seccion "Cargas por ejercicio" de Mediciones (A-2): elige un ejercicio y ve como
  * evoluciono el peso maximo que levanto en cada sesion.
  */
 @Component({
   selector: 'nq-load-history',
   standalone: true,
-  imports: [PageStateComponent, LineChartComponent, LucideTrendingDown, LucideTrendingUp],
+  imports: [LineChartComponent, LucideTrendingDown, LucideTrendingUp],
   providers: [LoadHistoryFacade],
   template: `
     @switch (facade.viewState()) {
       @case ('loading') {
-        <nq-page-state type="loading" loadingLabel="Cargando tus cargas" />
+        <p class="nq-empty-inline" role="status">Cargando tus cargas…</p>
       }
       @case ('error') {
-        <nq-page-state type="error" [retry]="reload" />
+        <p class="nq-empty-inline" role="alert">
+          No pudimos cargar tus cargas.
+          <button class="retry-link" type="button" (click)="reload()">Reintentar</button>
+        </p>
       }
       @case ('empty') {
-        <nq-page-state
-          type="empty"
-          title="Sin cargas registradas"
-          message="Cuando registres series con peso en tus entrenamientos, verás aquí cómo progresas."
-        />
+        <p class="nq-empty-inline">
+          Cuando registres series con peso en tus entrenamientos, verás aquí cómo progresas.
+        </p>
       }
       @case ('success') {
         <div class="field">

@@ -5,7 +5,11 @@ export interface FabAction {
   /** Etiqueta accesible; puede cambiar, por ejemplo segun la pestana. */
   readonly label: () => string;
   readonly run: () => void;
+  /** Icono del boton: "+" para agregar (por defecto) o un globo para mensajes. */
+  readonly icon: FabIcon;
 }
+
+export type FabIcon = 'plus' | 'message';
 
 /**
  * Boton flotante que dibuja el shell y aporta cada pantalla.
@@ -36,9 +40,9 @@ export class FabRegistry {
  * Registra el boton flotante de la pantalla y lo retira al destruirla.
  * Se llama en contexto de inyeccion: un inicializador de campo o el constructor.
  */
-export function useFab(label: () => string, run: () => void): void {
+export function useFab(label: () => string, run: () => void, icon: FabIcon = 'plus'): void {
   const registry = inject(FabRegistry);
-  const action: FabAction = { label, run };
+  const action: FabAction = { label, run, icon };
   registry.set(action);
   inject(DestroyRef).onDestroy(() => registry.clear(action));
 }

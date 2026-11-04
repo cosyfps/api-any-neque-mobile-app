@@ -21,8 +21,8 @@ import { ConversationComponent } from '@shared/components/conversation.component
           <svg lucideArrowLeft [size]="22" [strokeWidth]="1.8"></svg>
         </button>
         <div>
-          <h1 class="head-title">Mensajes</h1>
-          <p class="head-sub">Con tu entrenador</p>
+          <h1 class="head-title">{{ conversation.peerName() ?? 'Tu entrenador' }}</h1>
+          <p class="head-sub">Mensajes</p>
         </div>
       </header>
 
@@ -37,12 +37,12 @@ import { ConversationComponent } from '@shared/components/conversation.component
 export class StudentMessagesPage {
   private readonly router = inject(Router);
   private readonly location = inject(Location);
-  private readonly conversation = inject(ConversationFacade);
+  readonly conversation = inject(ConversationFacade);
 
   constructor() {
     const studentId = inject(SessionFacade).profileId();
     if (studentId !== null) {
-      this.conversation.load(studentId);
+      this.conversation.load(studentId, 'student');
     }
   }
 

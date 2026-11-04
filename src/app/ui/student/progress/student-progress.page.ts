@@ -25,7 +25,7 @@ import { IMAGE_ACCEPT, imageFileError } from '@shared/validators/field-rules';
 
 import { LoadHistoryComponent } from './load-history.component';
 
-type ProgressTab = 'metrics' | 'photos' | 'loads';
+type ProgressTab = 'metrics' | 'photos';
 type MetricSeries = 'weight' | 'bmi';
 type CompareSide = 'before' | 'after';
 
@@ -68,23 +68,13 @@ type CompareSide = 'before' | 'after';
         >
           Fotos
         </button>
-        <button
-          class="nq-tab"
-          type="button"
-          [class.active]="tab() === 'loads'"
-          (click)="tab.set('loads')"
-        >
-          Cargas
-        </button>
       </div>
 
       <!-- Cada pestana tiene su propio estado. Con un switch unico sobre las
            evaluaciones, un alumno al que el entrenador todavia no le registra
            ninguna veia "Sin evaluaciones" tambien en Fotos y no podia subir
            la primera. -->
-      @if (tab() === 'loads') {
-        <nq-load-history />
-      } @else if (tab() === 'metrics') {
+      @if (tab() === 'metrics') {
         @switch (facade.viewState()) {
           @case ('loading') {
             <nq-page-state type="loading" />
@@ -160,6 +150,14 @@ type CompareSide = 'before' | 'after';
                   Con tu próxima evaluación verás aquí cómo evolucionas.
                 </p>
               }
+            </section>
+
+            <!-- Cargas por ejercicio: lo que levanta, bajo la evolucion del cuerpo. -->
+            <section class="nq-section nq-ani nq-d3">
+              <div class="nq-section-header">
+                <h2 class="nq-section-title">Cargas por ejercicio</h2>
+              </div>
+              <nq-load-history />
             </section>
 
             <section class="nq-section nq-ani nq-d3">

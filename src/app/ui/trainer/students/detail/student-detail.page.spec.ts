@@ -21,6 +21,8 @@ import { STUDENTS_PORT, StudentsPort } from '@app/domain/students/port/students.
 import { WorkoutSession } from '@app/domain/workouts/model/workout-session.model';
 import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
 
+import { FabRegistry } from '@shared/navigation/fab';
+
 import { fn, MockOf } from '@testing/typed-mock';
 
 import { StudentDetailPage } from './student-detail.page';
@@ -693,6 +695,18 @@ describe('StudentDetailPage', () => {
 
       expect(page.describeSerie(serie, ejercicio)).toBe('7 × 62.5 kg');
       expect(page.motivoSalto('no_time')).toBe('Sin tiempo');
+    });
+  });
+
+  describe('boton flotante de mensajes', () => {
+    it('registra el boton con el icono de mensajes y abre la conversacion', () => {
+      const accion = TestBed.inject(FabRegistry).action();
+
+      expect(accion?.icon).toBe('message');
+      expect(accion?.label()).toContain('Enviar un mensaje a');
+
+      accion?.run();
+      expect(router.navigate).toHaveBeenCalledWith(['/trainer/students', 'std-001', 'messages']);
     });
   });
 

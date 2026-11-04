@@ -10,9 +10,10 @@
   flex: 1;
   flex-direction: column;
   gap: 8px;
-  min-height: 240px;
+  min-height: 0;
   padding: 8px 0 16px;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .day-sep {
@@ -23,17 +24,33 @@
   text-align: center;
 }
 
+// Burbuja + hora debajo, alineadas al lado de quien escribe.
 .bubble-row {
   display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
 
   &.mine {
-    justify-content: flex-end;
+    align-items: flex-end;
+  }
+
+  // Dentro de un grupo los mensajes van mas juntos; el aire va entre grupos.
+  &.grouped {
+    margin-bottom: -4px;
   }
 }
 
+// Burbuja fina: solo el texto.
 .bubble {
   max-width: 80%;
-  padding: 10px 14px;
+  padding: 7px 12px;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--nq-text);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
   background: var(--nq-bg);
   border: 1px solid var(--nq-border);
   border-radius: var(--nq-radius-md);
@@ -45,32 +62,20 @@
   }
 }
 
-.bubble-text {
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
-
-.bubble-meta {
-  display: block;
-  margin-top: 4px;
+.bubble-time {
+  padding: 0 4px;
   font-size: 11px;
   color: var(--nq-text-secondary);
-  text-align: right;
-
-  .mine & {
-    color: inherit;
-    opacity: 0.85;
-  }
+  white-space: nowrap;
 }
 
 .composer {
   display: flex;
+  flex-shrink: 0;
   gap: 8px;
   align-items: flex-end;
-  padding: 8px 0;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--nq-border);
 }
 
 .composer-field {

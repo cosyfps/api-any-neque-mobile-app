@@ -23,6 +23,8 @@ const DIA_LARGO = new Intl.DateTimeFormat('es-CL', {
   month: 'long',
 });
 
+const NOMBRES_DIA = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+
 const WEEKDAYS: readonly { value: Weekday; label: string }[] = [
   { value: 1, label: 'Lun' },
   { value: 2, label: 'Mar' },
@@ -61,7 +63,7 @@ const WEEKDAYS: readonly { value: Weekday; label: string }[] = [
             class="nq-tab"
             type="button"
             [class.active]="facade.selectedWeekday() === day.value"
-            [class.has-training]="hasTraining(day.value)"
+            [class.has-training]="facade.hasTrainingOn(day.value)"
             (click)="facade.selectDay(day.value)"
           >
             {{ day.label }}
@@ -110,7 +112,11 @@ const WEEKDAYS: readonly { value: Weekday; label: string }[] = [
               <div class="bar-fill" [style.width.%]="progressPercent()"></div>
             </div>
 
-            @if (facade.selectedSession() === null) {
+            @if (facade.movedAway(); as fecha) {
+              <p class="no-session nq-ani" role="status">
+                Moviste este entrenamiento al {{ diaLargo(fecha) }}. Este día queda libre.
+              </p>
+            } @else if (facade.selectedSession() === null) {
               <!-- El dia existe en la rutina pero no hay sesion programada esta
                    semana (p. ej. la rutina empieza despues): se muestra, no se hace. -->
               <p class="no-session nq-ani" role="status">
@@ -126,8 +132,10 @@ const WEEKDAYS: readonly { value: Weekday; label: string }[] = [
                 <svg lucidePlay [size]="18" [strokeWidth]="2"></svg>
                 Comenzar entrenamiento
               </button>
-              @if (facade.movedTo(); as fecha) {
-                <p class="moved-note nq-ani" role="status">Lo moviste al {{ diaLargo(fecha) }}.</p>
+              @if (facade.movedFrom(); as origen) {
+                <p class="moved-note nq-ani" role="status">
+                  Lo moviste aquí desde el {{ nombreDia(origen) }}.
+                </p>
               }
               @if (facade.moveOptions().length > 0) {
                 <button class="move-btn" type="button" (click)="openMove()">
@@ -318,7 +326,12 @@ export class StudentRoutinePage {
   }
 
   hasTraining(weekday: Weekday): boolean {
-    return this.facade.days().some(day => day.weekday === weekday);
+    return this.facade.hasTrainingOn(weekday);
+  }
+
+  /** "lunes" a partir del dia ISO. */
+  nombreDia(weekday: Weekday): string {
+    return NOMBRES_DIA[weekday - 1] ?? '';
   }
 
   /** "3 × 12 · 30 kg", "3 × 45 s", "4 × 8 · Peso corporal", "4 × 8 · peso extra · 10kg". */

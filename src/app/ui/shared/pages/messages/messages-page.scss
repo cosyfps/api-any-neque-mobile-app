@@ -6,11 +6,16 @@
   height: 100%;
 }
 
-// La conversacion ocupa el alto disponible y el campo queda abajo.
+// La pagina mide exactamente el area visible de .layout-content (que ya
+// reserva el alto de la nav con su padding): la conversacion se desplaza por
+// dentro y la barra de escribir queda fija, un poco sobre la nav. Con
+// min-height crecia y la barra terminaba debajo de la nav.
 .page {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  min-height: calc(100dvh - var(--nq-fab-space, 120px));
+  height: 100%;
+  min-height: 0;
   padding: 16px var(--nq-page-px) 0;
 }
 

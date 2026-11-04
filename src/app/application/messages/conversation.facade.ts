@@ -1,8 +1,13 @@
 import { Injectable, Signal, inject, signal } from '@angular/core';
+import { map, switchMap } from 'rxjs';
 
-import { Message } from '@app/domain/messages/model/message.model';
+import { Message, MessageSender } from '@app/domain/messages/model/message.model';
 import { MESSAGES_PORT } from '@app/domain/messages/port/messages.port';
 import { DomainError, toDomainError } from '@app/domain/shared/model/app-error';
+import { fullName } from '@app/domain/students/model/student.model';
+import { STUDENTS_PORT } from '@app/domain/students/port/students.port';
+import { trainerFullName } from '@app/domain/trainers/model/trainer.model';
+import { TRAINERS_PORT } from '@app/domain/trainers/port/trainers.port';
 
 import { AsyncState, ViewState, asyncState } from '../shared/async-state';
 
@@ -14,6 +19,12 @@ import { AsyncState, ViewState, asyncState } from '../shared/async-state';
 @Injectable()
 export class ConversationFacade {
   private readonly port = inject(MESSAGES_PORT);
+  private readonly students = inject(STUDENTS_PORT);
+  private readonly trainers = inject(TRAINERS_PORT);
+  private readonly _peerName = signal<string | null>(null);
+
+  /** Nombre de la otra parte, para la cabecera. Null mientras carga o si falla. */
+  readonly peerName: Signal<string | null> = this._peerName.asReadonly();
 
   private readonly _studentId = signal<string | null>(null);
   private readonly _sending = signal(false);
@@ -26,9 +37,23 @@ export class ConversationFacade {
   readonly sending: Signal<boolean> = this._sending.asReadonly();
   readonly sendError: Signal<DomainError | null> = this._sendError.asReadonly();
 
-  load(studentId: string): void {
+  /** `me` es quien mira: con el entrenador se muestra el alumno y viceversa. */
+  load(studentId: string, me: MessageSender): void {
     this._studentId.set(studentId);
     this.messages.load(() => this.port.list(studentId));
+
+    const alumno$ = this.students.getById(studentId);
+    const nombre$ =
+      me === 'trainer'
+        ? alumno$.pipe(map(alumno => fullName(alumno)))
+        : alumno$.pipe(
+            switchMap(alumno => this.trainers.getById(alumno.trainerId)),
+            map(entrenador => trainerFullName(entrenador)),
+          );
+    nombre$.subscribe({
+      next: nombre => this._peerName.set(nombre),
+      error: () => this._peerName.set(null),
+    });
   }
 
   reload(): void {

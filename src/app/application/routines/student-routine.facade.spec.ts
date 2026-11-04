@@ -315,6 +315,23 @@ describe('StudentRoutineFacade', () => {
       expect(facade.moveOptions()).toEqual(['2026-09-18', '2026-09-19', '2026-09-20']);
     });
 
+    it('no ofrece dias con otro entrenamiento de la semana', () => {
+      listByStudent.mockReturnValue(
+        of([
+          todaySession([false, false]),
+          {
+            ...todaySession([false, false]),
+            id: 'wks-sabado',
+            scheduledFor: toIsoDate(new Date(2026, 8, 19, 18)),
+          },
+        ]),
+      );
+      const facade = build();
+      facade.load();
+
+      expect(facade.moveOptions()).toEqual(['2026-09-18', '2026-09-20']);
+    });
+
     it('una sesion empezada no se puede mover', () => {
       listByStudent.mockReturnValue(
         of([{ ...todaySession([false, false]), status: 'in_progress' as const }]),
@@ -331,18 +348,43 @@ describe('StudentRoutineFacade', () => {
       facade.load();
 
       expect(facade.moveOptions()).toEqual([]);
-      expect(facade.movedTo()).toBeNull();
+      expect(facade.movedAway()).toBeNull();
+      expect(facade.movedFrom()).toBeNull();
     });
 
-    it('mover reemplaza la sesion y la marca como movida', async () => {
+    // El entrenamiento movido aparece en el dia al que se movio, y su dia de
+    // rutina queda libre con el aviso de a donde se fue.
+    it('mover lleva la sesion a su nuevo dia', async () => {
       const facade = build();
       facade.load();
-      expect(facade.movedTo()).toBeNull();
+      expect(facade.hasTrainingOn(4)).toBe(true);
+      expect(facade.hasTrainingOn(6)).toBe(false);
 
       expect(await facade.moveSelectedSession('2026-09-19')).toBe(true);
-
       expect(reschedule).toHaveBeenCalledWith('wks-today', '2026-09-19');
-      expect(facade.movedTo()?.getDate()).toBe(19);
+
+      // Jueves: el dia de rutina queda libre y dice a donde se fue.
+      expect(facade.selectedSession()).toBeNull();
+      expect(facade.movedAway()?.getDate()).toBe(19);
+      expect(facade.hasTrainingOn(4)).toBe(false);
+
+      // Sabado: ahi esta ahora, con su dia de rutina y de donde vino.
+      expect(facade.hasTrainingOn(6)).toBe(true);
+      facade.selectDay(6);
+      expect(facade.selectedSession()?.id).toBe('wks-today');
+      expect(facade.selectedDay()?.id).toBe('day-004');
+      expect(facade.movedFrom()).toBe(4);
+      expect(facade.movedAway()).toBeNull();
+    });
+
+    it('un dia sin rutina ni sesion no tiene entrenamiento', () => {
+      const facade = build();
+      facade.load();
+      facade.selectDay(7);
+
+      expect(facade.selectedDay()).toBeNull();
+      expect(facade.movedAway()).toBeNull();
+      expect(facade.hasTrainingOn(7)).toBe(false);
     });
 
     it('un rechazo queda en moveError', async () => {

@@ -1,7 +1,7 @@
 import { Exercise, ExerciseInput } from '@app/domain/routines/model/exercise.model';
 import { Routine, RoutineAssignment, RoutineInput } from '@app/domain/routines/model/routine.model';
 import { DateRange } from '@app/domain/shared/model/date-range';
-import { rescheduleError } from '@app/domain/workouts/model/reschedule-rules';
+import { mondayOfDay, rescheduleError } from '@app/domain/workouts/model/reschedule-rules';
 import { WorkoutSession } from '@app/domain/workouts/model/workout-session.model';
 
 import { fail } from '../domain/api-error';
@@ -556,12 +556,29 @@ export async function rescheduleWorkout(
     db().from('workout_sessions').select('scheduled_date').eq('id', sessionId).single(),
   );
   const ahora = zonedParts(actual.scheduledFor);
+  // Otros entrenamientos del alumno esa semana (con un dia de margen por la
+  // zona horaria); sus dias en Chile no se pueden ocupar.
+  const lunes = Date.parse(mondayOfDay(fila.scheduled_date));
+  const otras =
+    (await maybe<{ id: string; scheduled_for: string; status: string }[]>(
+      db()
+        .from('workout_sessions')
+        .select('id, scheduled_for, status')
+        .eq('student_id', actual.studentId)
+        .neq('id', sessionId)
+        .gte('scheduled_for', new Date(lunes - DAY_MS).toISOString())
+        .lt('scheduled_for', new Date(lunes + 8 * DAY_MS).toISOString()),
+    )) ?? [];
+  const ocupados = otras
+    .filter(otra => otra.status !== 'skipped')
+    .map(otra => zonedParts(otra.scheduled_for).day);
   const error = rescheduleError(
     actual,
     fila.scheduled_date,
     ahora.day,
     newDay,
     zonedParts(new Date().toISOString()).day,
+    ocupados,
   );
   if (error !== null) {
     return fail('validation', error);

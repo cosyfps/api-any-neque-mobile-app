@@ -6,7 +6,6 @@ import {
   LucideCalendarX,
   LucideChevronRight,
   LucideCircleAlert,
-  LucideMessageCircle,
   LucidePencil,
   LucidePlus,
 } from '@lucide/angular';
@@ -42,6 +41,7 @@ import {
 import { LineChartComponent } from '@shared/components/chart/line-chart.component';
 import { PageStateComponent } from '@shared/components/page-state.component';
 import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
+import { useFab } from '@shared/navigation/fab';
 
 import { AnamnesisFormComponent } from '../../shared/anamnesis-form.component';
 import {
@@ -87,7 +87,6 @@ const HORA_CITA = new Intl.DateTimeFormat('es-CL', {
     LucideCalendarX,
     LucideChevronRight,
     LucideCircleAlert,
-    LucideMessageCircle,
     LucidePencil,
     LucidePlus,
   ],
@@ -97,10 +96,6 @@ const HORA_CITA = new Intl.DateTimeFormat('es-CL', {
       <header class="head">
         <button class="nav-back" type="button" aria-label="Volver a la cartera" (click)="goBack()">
           <svg lucideArrowLeft [size]="22" [strokeWidth]="1.8"></svg>
-        </button>
-        <button class="head-action" type="button" (click)="openMessages()">
-          <svg lucideMessageCircle [size]="18" [strokeWidth]="2"></svg>
-          Mensajes
         </button>
       </header>
 
@@ -114,7 +109,13 @@ const HORA_CITA = new Intl.DateTimeFormat('es-CL', {
         @default {
           @if (facade.student.data(); as student) {
             <section class="identity">
-              <span class="nq-avatar lg" aria-hidden="true">{{ facade.avatarInitials() }}</span>
+              <span class="nq-avatar lg" aria-hidden="true">
+                @if (student.avatarUrl) {
+                  <img [src]="student.avatarUrl" alt="" />
+                } @else {
+                  {{ facade.avatarInitials() }}
+                }
+              </span>
               <div class="identity-body">
                 <h1 class="nq-h2">{{ facade.displayName() }}</h1>
                 <p class="email">{{ student.email }}</p>
@@ -750,6 +751,12 @@ export class StudentDetailPage {
   private readonly route = inject(ActivatedRoute);
 
   constructor() {
+    // Mensajes con el alumno: boton flotante abajo a la derecha, como el "+".
+    useFab(
+      () => `Enviar un mensaje a ${this.facade.displayName() || 'tu alumno'}`,
+      () => this.openMessages(),
+      'message',
+    );
     const studentId = this.route.snapshot.paramMap.get('studentId') ?? '';
     this.facade.load(studentId);
     this.invitation.load(studentId);

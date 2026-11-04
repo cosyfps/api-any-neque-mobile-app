@@ -32,3 +32,26 @@ export function messageError(body: string): string | null {
 export function unreadFrom(messages: readonly Message[], me: MessageSender): number {
   return messages.filter(message => message.senderRole !== me && message.readAt === null).length;
 }
+
+/** Mensajes seguidos de la misma persona dentro de este lapso forman un grupo. */
+export const MESSAGE_GROUP_MS = 30 * 60_000;
+
+/**
+ * True si el mensaje cierra su grupo y por lo tanto lleva la hora debajo.
+ * Un grupo son mensajes seguidos de la misma persona, el mismo dia, con menos
+ * de 30 minutos entre uno y el siguiente. Asi una rafaga de mensajes muestra
+ * una sola hora, y un mensaje aislado (o separado por mas de 30 min) la suya.
+ */
+export function endsGroup(messages: readonly Message[], index: number): boolean {
+  const actual = messages[index];
+  const siguiente = messages[index + 1];
+  if (actual === undefined) {
+    return false;
+  }
+  if (siguiente === undefined || siguiente.senderRole !== actual.senderRole) {
+    return true;
+  }
+  const a = new Date(actual.createdAt);
+  const b = new Date(siguiente.createdAt);
+  return a.toDateString() !== b.toDateString() || b.getTime() - a.getTime() > MESSAGE_GROUP_MS;
+}

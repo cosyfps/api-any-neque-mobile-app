@@ -695,6 +695,16 @@
     visibility 0s;
   -webkit-tap-highlight-color: transparent;
 
+  // Con texto (Mensaje): pastilla que crece con la etiqueta.
+  &.extended {
+    gap: 8px;
+    width: auto;
+    padding: 0 20px;
+    font-family: var(--nq-font-family);
+    font-size: 15px;
+    font-weight: 600;
+  }
+
   &:active {
     transform: scale(0.94);
   }

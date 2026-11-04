@@ -32,12 +32,15 @@ export function mondayOfDay(day: string): string {
 
 /**
  * Dias a los que se puede mover: de hoy (o el lunes, si la semana aun no
- * empieza) al domingo de la semana original, sin el dia en que ya esta.
+ * empieza) al domingo de la semana original, sin el dia en que ya esta ni
+ * los que ya tienen otro entrenamiento (`occupied`): dos el mismo dia se
+ * pisaban y solo se veia uno.
  */
 export function rescheduleOptions(
   originalDay: string,
   currentDay: string,
   today: string,
+  occupied: readonly string[] = [],
 ): string[] {
   const lunes = aUtc(mondayOfDay(originalDay));
   const desde = Math.max(lunes, aUtc(today));
@@ -45,7 +48,7 @@ export function rescheduleOptions(
   const dias: string[] = [];
   for (let t = desde; t <= domingo; t += DAY_MS) {
     const dia = deUtc(t);
-    if (dia !== currentDay) {
+    if (dia !== currentDay && !occupied.includes(dia)) {
       dias.push(dia);
     }
   }
@@ -59,12 +62,16 @@ export function rescheduleError(
   currentDay: string,
   newDay: string,
   today: string,
+  occupied: readonly string[] = [],
 ): string | null {
   if (session.status !== 'scheduled' || session.startedAt !== null) {
     return 'Solo puedes mover un entrenamiento que todavía no empiezas.';
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(newDay)) {
     return 'Elige un día válido.';
+  }
+  if (occupied.includes(newDay)) {
+    return 'Ese día ya tiene un entrenamiento. Elige un día libre.';
   }
   if (!rescheduleOptions(originalDay, currentDay, today).includes(newDay)) {
     return 'Puedes moverlo a otro día de esta misma semana, desde hoy.';

@@ -3,6 +3,7 @@ import { Message } from '@app/domain/messages/model/message.model';
 import { fail } from '../domain/api-error';
 import { Actor } from '../http/context';
 import { MessageRow, toMessage } from '../infrastructure/mappers';
+import { decryptMessage, encryptMessage, messageKey } from '../infrastructure/message-cipher';
 import { adminClient, maybe, must } from '../infrastructure/supabase';
 
 import { assertCanSeeStudent } from './access';
@@ -40,7 +41,10 @@ export async function listMessages(actor: Actor, studentId: string): Promise<Mes
         ),
     );
   }
-  return filas.reverse().map(toMessage);
+  const key = messageKey();
+  return filas
+    .reverse()
+    .map(fila => toMessage({ ...fila, body: decryptMessage(fila.body, studentId, key) }));
 }
 
 /** Envia un mensaje y avisa a la otra parte. */
@@ -49,6 +53,9 @@ export async function sendMessage(actor: Actor, studentId: string, body: string)
   if (actor.role !== 'student' && actor.role !== 'trainer') {
     return fail('forbidden');
   }
+  // Antes de tocar la base: sin llave no se guarda nada.
+  const key = messageKey();
+  const texto = body.trim();
   const alumno = await must<{ trainer_id: string; user_id: string }>(
     db().from('students').select('trainer_id, user_id').eq('id', studentId).single(),
   );
@@ -59,7 +66,8 @@ export async function sendMessage(actor: Actor, studentId: string, body: string)
         student_id: studentId,
         trainer_id: alumno.trainer_id,
         sender_role: actor.role,
-        body: body.trim(),
+        // Cifrado: el texto en claro no llega a la base.
+        body: encryptMessage(texto, studentId, key),
       })
       .select('*')
       .single(),
@@ -73,13 +81,13 @@ export async function sendMessage(actor: Actor, studentId: string, body: string)
           )
         ).user_id
       : alumno.user_id;
-  const vista = body.trim();
+  // El aviso no copia el texto: quedaria en claro en la tabla de notificaciones.
   await notify(destino, {
     kind: 'message',
     title: `Mensaje de ${actor.displayName}`,
-    body: vista.length > 80 ? `${vista.slice(0, 77)}...` : vista,
+    body: 'Te escribió un mensaje. Ábrelo en la app.',
     targetType: 'message',
     targetId: studentId,
   });
-  return toMessage(fila);
+  return toMessage({ ...fila, body: texto });
 }

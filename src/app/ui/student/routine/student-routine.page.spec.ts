@@ -373,6 +373,11 @@ describe('StudentRoutinePage', () => {
       expect(page.moving()).toBe(true);
     });
 
+    it('nombra el dia de origen en minusculas', () => {
+      expect(page.nombreDia(1)).toBe('lunes');
+      expect(page.nombreDia(7)).toBe('domingo');
+    });
+
     it('nombra el dia en espanol', () => {
       expect(page.etiquetaDia('2026-09-19')).toBe('Sábado, 19 de septiembre');
       expect(page.diaLargo(new Date(2026, 8, 19))).toBe('sábado, 19 de septiembre');

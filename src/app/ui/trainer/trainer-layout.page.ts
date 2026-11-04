@@ -1,7 +1,14 @@
 import { Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
-import { LucideDumbbell, LucideHouse, LucidePlus, LucideUser, LucideUsers } from '@lucide/angular';
+import {
+  LucideDumbbell,
+  LucideHouse,
+  LucideMessageCircle,
+  LucidePlus,
+  LucideUser,
+  LucideUsers,
+} from '@lucide/angular';
 import { filter, map, scan } from 'rxjs/operators';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
@@ -39,6 +46,7 @@ function tabFor(url: string): string {
     LucideUsers,
     LucideDumbbell,
     LucideUser,
+    LucideMessageCircle,
     LucidePlus,
     TourComponent,
   ],
@@ -53,13 +61,20 @@ function tabFor(url: string): string {
       @if (fab.action(); as action) {
         <button
           class="nq-fab"
+          [class.extended]="action.icon === 'message'"
           data-tour="fab"
           [attr.inert]="tour.active() ? '' : null"
           type="button"
           [attr.aria-label]="action.label()"
           (click)="action.run()"
         >
-          <svg lucidePlus [size]="24" [strokeWidth]="2"></svg>
+          @if (action.icon === 'message') {
+            <!-- Con texto: un globo solo no dice a quien ni que hace. -->
+            <svg lucideMessageCircle [size]="20" [strokeWidth]="2"></svg>
+            <span class="fab-text">Mensaje</span>
+          } @else {
+            <svg lucidePlus [size]="24" [strokeWidth]="2"></svg>
+          }
         </button>
       }
 

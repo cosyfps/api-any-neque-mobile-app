@@ -1,9 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { NEVER, of } from 'rxjs';
 
 import { ConversationFacade } from '@app/application/messages/conversation.facade';
 import { MESSAGES_PORT, MessagesPort } from '@app/domain/messages/port/messages.port';
+import { STUDENTS_PORT } from '@app/domain/students/port/students.port';
+import { TRAINERS_PORT } from '@app/domain/trainers/port/trainers.port';
 
 import { fn, MockOf } from '@testing/typed-mock';
 
@@ -21,6 +23,8 @@ describe('TrainerStudentMessagesPage', () => {
         provideRouter([]),
         ConversationFacade,
         { provide: MESSAGES_PORT, useValue: { list, send: fn<MessagesPort['send']>() } },
+        { provide: STUDENTS_PORT, useValue: { getById: () => NEVER } },
+        { provide: TRAINERS_PORT, useValue: { getById: () => NEVER } },
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: { get: () => 'std-9' } } },

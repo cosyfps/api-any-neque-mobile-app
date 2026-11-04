@@ -91,3 +91,15 @@
   font-variant-numeric: tabular-nums;
   color: var(--nq-text);
 }
+
+.retry-link {
+  min-height: 44px;
+  padding: 0 4px;
+  font-family: var(--nq-font-family);
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--nq-primary-strong);
+  cursor: pointer;
+  background: none;
+  border: none;
+}

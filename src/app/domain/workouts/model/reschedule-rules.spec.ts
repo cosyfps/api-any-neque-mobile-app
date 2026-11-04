@@ -27,6 +27,12 @@ describe('reschedule-rules', () => {
       expect(rescheduleOptions('2026-11-10', '2026-11-10', '2026-11-04')[0]).toBe('2026-11-09');
     });
 
+    it('no ofrece dias que ya tienen otro entrenamiento', () => {
+      expect(
+        rescheduleOptions('2026-11-06', '2026-11-06', '2026-11-04', ['2026-11-05', '2026-11-07']),
+      ).toEqual(['2026-11-04', '2026-11-08']);
+    });
+
     it('una semana ya pasada no ofrece dias', () => {
       expect(rescheduleOptions('2026-10-28', '2026-10-28', '2026-11-04')).toEqual([]);
     });
@@ -59,6 +65,14 @@ describe('reschedule-rules', () => {
           '2026-11-04',
         ),
       ).toBe(mensaje);
+    });
+
+    it('rechaza un dia que ya tiene otro entrenamiento', () => {
+      expect(
+        rescheduleError(AGENDADA, '2026-11-06', '2026-11-06', '2026-11-07', '2026-11-04', [
+          '2026-11-07',
+        ]),
+      ).toBe('Ese día ya tiene un entrenamiento. Elige un día libre.');
     });
 
     it('rechaza un dia mal formado', () => {
