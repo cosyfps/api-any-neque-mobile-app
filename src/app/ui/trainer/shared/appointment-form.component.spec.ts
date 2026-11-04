@@ -101,6 +101,42 @@ describe('AppointmentFormComponent', () => {
     expect(form.form.getRawValue().minutes).toBe(60);
   });
 
+  it('con una cita precarga sus datos para reagendarla', () => {
+    form.reset({
+      id: 'cit-001',
+      studentId: 'std-001',
+      trainerId: 'trn-001',
+      title: 'Control',
+      startsAt: new Date(2026, 8, 25, 18, 30).toISOString(),
+      endsAt: new Date(2026, 8, 25, 19, 20).toISOString(),
+      location: null,
+      kind: 'checkin',
+      status: 'confirmed',
+      workoutSessionId: null,
+      cancellationReason: null,
+      cancellationNote: null,
+      cancelledAt: null,
+    });
+
+    expect(form.form.getRawValue()).toEqual({
+      kind: 'checkin',
+      title: 'Control',
+      date: '2026-09-25',
+      time: '18:30',
+      // 50 minutos no esta en la lista: queda en la duracion mas cercana.
+      minutes: 45,
+      location: '',
+    });
+  });
+
+  it('el boton usa la etiqueta recibida', () => {
+    fixture.componentRef.setInput('submitLabel', 'Guardar cambios');
+    fixture.detectChanges();
+
+    const boton = (fixture.nativeElement as HTMLElement).querySelector('button[type=submit]');
+    expect(boton?.textContent).toContain('Guardar cambios');
+  });
+
   it('cancelar emite el evento', () => {
     let cancelado = false;
     form.cancelled.subscribe(() => (cancelado = true));

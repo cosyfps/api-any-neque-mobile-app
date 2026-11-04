@@ -37,6 +37,8 @@ export interface TodaySession {
   readonly title: string;
   readonly scheduledFor: string;
   readonly estimatedMinutes: number;
+  /** False si el dia de rutina no tiene hora: `scheduledFor` solo fija el dia. */
+  readonly hasStartTime: boolean;
 }
 
 /** Que le falta a un alumno para entrenar, en orden de urgencia. */
@@ -167,7 +169,7 @@ export class TrainerHomeFacade {
   readonly today: Signal<TodaySession[]> = computed(() => {
     const hoy = this.clock.now();
     return (this.board.data() ?? [])
-      .flatMap(({ student, sessions }) =>
+      .flatMap(({ student, sessions, routine }) =>
         sessions
           .filter(sesion => sesion.status !== 'completed' && this.esHoy(sesion.scheduledFor, hoy))
           .map(sesion => ({
@@ -178,6 +180,9 @@ export class TrainerHomeFacade {
             title: sesion.title,
             scheduledFor: sesion.scheduledFor,
             estimatedMinutes: sesion.estimatedMinutes,
+            hasStartTime: Boolean(
+              routine?.days.find(dia => dia.id === sesion.routineDayId)?.startTime,
+            ),
           })),
       )
       .sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor));

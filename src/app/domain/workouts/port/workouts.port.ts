@@ -16,6 +16,8 @@ import { SkipReason, WorkoutSetInput } from '../model/workout-set.model';
  */
 export interface WorkoutsPort {
   listByStudent(studentId: Id, range?: DateRange): Observable<WorkoutSession[]>;
+  /** Mueve un entrenamiento sin empezar a otro dia (`yyyy-MM-dd`) de su semana. */
+  reschedule(sessionId: Id, day: string): Observable<WorkoutSession>;
   getById(sessionId: Id): Observable<WorkoutSession>;
   start(sessionId: Id): Observable<WorkoutSession>;
   markExercise(sessionId: Id, routineExerciseId: Id, done: boolean): Observable<WorkoutSession>;

@@ -1,0 +1,131 @@
+:host {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.thread {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 240px;
+  padding: 8px 0 16px;
+  overflow-y: auto;
+}
+
+.day-sep {
+  margin: 8px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--nq-text-secondary);
+  text-align: center;
+}
+
+.bubble-row {
+  display: flex;
+
+  &.mine {
+    justify-content: flex-end;
+  }
+}
+
+.bubble {
+  max-width: 80%;
+  padding: 10px 14px;
+  background: var(--nq-bg);
+  border: 1px solid var(--nq-border);
+  border-radius: var(--nq-radius-md);
+
+  .mine & {
+    color: var(--nq-text-inverse);
+    background: var(--nq-primary-strong);
+    border-color: transparent;
+  }
+}
+
+.bubble-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.bubble-meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--nq-text-secondary);
+  text-align: right;
+
+  .mine & {
+    color: inherit;
+    opacity: 0.85;
+  }
+}
+
+.composer {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 8px 0;
+}
+
+.composer-field {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  padding: 10px 14px;
+  background: var(--nq-bg);
+  border: 1.5px solid var(--nq-border-solid);
+  border-radius: var(--nq-radius-md);
+
+  &:focus-within {
+    border-color: var(--nq-primary-strong);
+    box-shadow: 0 0 0 3px rgba(var(--nq-primary-strong-rgb), 0.18);
+  }
+
+  textarea {
+    flex: 1;
+    min-width: 0;
+    max-height: 120px;
+    font-family: var(--nq-font-family);
+    font-size: var(--nq-font-input);
+    line-height: 1.4;
+    color: var(--nq-text);
+    resize: none;
+    field-sizing: content;
+    background: transparent;
+    border: none;
+    outline: none;
+
+    &::placeholder {
+      color: var(--nq-text-muted);
+    }
+  }
+}
+
+.send-btn {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  color: var(--nq-text-inverse);
+  cursor: pointer;
+  background: var(--nq-primary-strong);
+  border: none;
+  border-radius: var(--nq-radius-full);
+
+  &:disabled {
+    opacity: 0.6;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--nq-primary-strong);
+    outline-offset: 2px;
+  }
+}

@@ -115,8 +115,10 @@ const TIME_FORMAT = new Intl.DateTimeFormat('es-CL', {
                 <span class="today-label">Hoy te toca</span>
                 <span class="today-title">{{ session.title }}</span>
                 <span class="today-meta">
-                  {{ timeOf(session) }} · {{ session.estimatedMinutes }} min ·
-                  {{ session.exercises.length }} ejercicios
+                  @if (workouts.hasStartTime(session)) {
+                    {{ timeOf(session) }} ·
+                  }
+                  {{ session.estimatedMinutes }} min · {{ session.exercises.length }} ejercicios
                 </span>
               </div>
               <button class="nq-btn nq-btn-primary today-cta" type="button" (click)="goToRoutine()">
@@ -273,7 +275,9 @@ export class StudentHomePage {
   upcomingMeta(session: WorkoutSession): string {
     const date = new Date(session.scheduledFor);
     const label = DATE_FORMAT.format(date);
-    return `${label.charAt(0).toUpperCase()}${label.slice(1)} · ${TIME_FORMAT.format(date)}`;
+    const dia = `${label.charAt(0).toUpperCase()}${label.slice(1)}`;
+    // Sin hora en la rutina no hay una que mostrar: solo el dia.
+    return this.workouts.hasStartTime(session) ? `${dia} · ${TIME_FORMAT.format(date)}` : dia;
   }
 
   goToRoutine(): void {

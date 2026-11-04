@@ -31,7 +31,7 @@ propósito.
 
 ## Bloque 1 — Desplegar (mañana temprano)
 
-- [ ] **Commits.** Separar en commits de ≤ 200 líneas cuando se pueda
+- [x] **Commits.** Hechos en dos commits (`e9affbe`, `5677e4d`). Separar en commits de ≤ 200 líneas cuando se pueda
       (`CLAUDE.md`). Sugerencia de cortes:
   1. `feat(exercises)`: BFF + facade + modal de ejercicios.
   2. `feat(schedule)`: citas del entrenador + agenda con la rutina.
@@ -40,7 +40,7 @@ propósito.
   5. `fix`: limpieza de sesiones al guardar rutina.
   6. `style`: pulido de diseño.
   7. `test`/`chore`: QA-30 a QA-32 y documentación.
-- [ ] **Push** a `develop` y confirmar el despliegue en Vercel.
+- [x] **Push** a `develop` y confirmar el despliegue en Vercel (rutas nuevas responden en producción).
 - [ ] **IPA nueva**: GitHub → Actions → iOS IPA (`workflow_dispatch`).
 - [ ] **Recorrido de humo en producción** con los dos roles (E-8):
   - Entrenador: Inicio, alumnos, ficha, agendar una cita, editar un
@@ -62,12 +62,14 @@ propósito.
 
 ## Bloque 3 — Pendientes chicos detectados
 
-- [ ] **Hora en Mi agenda**: la tarjeta de entrenamiento del día no muestra
+- [x] **Hora en Mi agenda**: la tarjeta de entrenamiento del día no muestra
       la hora de inicio cuando la rutina la tiene.
-- [ ] **Días sin hora**: siguen mostrándose a las 09:00 (08:00 en
-      invierno). Decidir si se oculta la hora cuando el día no tiene una.
-- [ ] **"Última el 3 de noviembre: 108 kg, 177 cm."** en la ficha: redactar
-      mejor el resumen de la última evaluación.
+- [x] **Días sin hora**: siguen mostrándose a las 09:00 (08:00 en
+      invierno). Resuelto: el alumno ve solo el día y el entrenador ve
+      "Sin hora" en "Hoy".
+- [x] **"Última el 3 de noviembre: 108 kg, 177 cm."** en la ficha: redactar
+      mejor el resumen de la última evaluación. Ahora: "Última evaluación ·
+      fecha" y debajo "108 kg · 177 cm".
 
 ## Bloque 4 — Decisiones de negocio (AMB)
 
@@ -86,15 +88,38 @@ Responder para alinear front y BFF (detalle en `QA_AUDIT_REPORT.md`):
 
 En el orden sugerido por la interrogación de producto:
 
-1. [ ] **T-2 Reagendar y cancelar** citas desde la ficha, con aviso.
-2. [ ] **T-1 Agenda global** del entrenador (citas y entrenamientos de
-       todos sus alumnos).
-3. [ ] **T-3 Ver sesiones hechas**: series, pesos y repeticiones.
-4. [ ] **A-2 Historial de cargas** por ejercicio para el alumno.
-5. [ ] **A-3 Reprogramar** un entrenamiento dentro de la semana.
-6. [ ] **T-4 Duplicar rutinas**.
-7. [ ] **A-1 Notificaciones push** (APNs).
-8. [ ] **A-4 Mensajes** entrenador–alumno.
+1. [x] **T-2 Reagendar y cancelar** citas desde la ficha, con aviso. Tocar una
+       cita abre Reagendar / Cancelar; reagendar la deja por confirmar y
+       cancelar pide motivo (nota obligatoria con «Otro motivo»). Ruta nueva
+       `PUT /schedule/:id`.
+2. [x] **T-1 Agenda global** del entrenador: `/trainer/agenda`, desde el botón
+       Agenda de "Hoy". Calendario con citas y entrenamientos de toda la
+       cartera activa; cada item abre la ficha. Ruta nueva
+       `GET /trainers/:id/schedule`.
+3. [x] **T-3 Ver sesiones hechas**: sección "Entrenamientos realizados" en la
+       ficha (5 más recientes y "Ver todos"); el detalle muestra cada serie
+       ("8 × 60 kg", "45 s", "Saltada · motivo").
+4. [x] **A-2 Historial de cargas**: pestaña "Cargas" en Mi progreso. Por
+       ejercicio: última carga, máxima, diferencia desde el inicio, gráfico y
+       últimas sesiones.
+5. [x] **A-3 Reprogramar**: en Mi rutina, "Cambiar de día" mueve un
+       entrenamiento sin empezar a otro día de su semana (desde hoy). Ruta
+       nueva `PUT /workouts/:id/date`. Solo cambia `scheduled_for`: el día
+       original queda en `scheduled_date` y no se regenera.
+6. [x] **T-4 Duplicar rutinas**: botón Duplicar en cada tarjeta; la copia nace
+       sin alumnos como «Nombre (copia)» y se abre para editar.
+7. [ ] **A-1 Notificaciones push** — **bloqueado**. La IPA se compila sin
+       firma (`CODE_SIGNING_ALLOWED=NO`) y Apple solo entrega push a apps
+       firmadas por un equipo con el permiso `aps-environment` y una llave
+       APNs. Ya existen la tabla `device_tokens` y el plugin
+       `@capacitor/push-notifications`. Requiere resolver primero AMB-9
+       (distribución) y una cuenta Apple Developer de pago.
+8. [x] **A-4 Mensajes** entrenador–alumno: "Mensajes con tu entrenador" en el
+       Perfil del alumno y botón Mensajes en la ficha. Burbujas, separador por
+       día, "Leído", Enter envía y refresco cada 20 s. Aviso al otro lado que
+       abre la conversación. **Requiere ejecutar la migración
+       `20261104000100_messages.sql`** (tabla `messages` y destino
+       `message` en las notificaciones).
 
 ## Criterio de cierre de cada punto
 

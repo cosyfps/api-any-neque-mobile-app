@@ -13,6 +13,8 @@ import { Student } from '@app/domain/students/model/student.model';
 import { ANAMNESIS_PORT, AnamnesisPort } from '@app/domain/students/port/anamnesis.port';
 import { ASSESSMENTS_PORT, AssessmentsPort } from '@app/domain/students/port/assessments.port';
 import { STUDENTS_PORT, StudentsPort } from '@app/domain/students/port/students.port';
+import { WorkoutSession } from '@app/domain/workouts/model/workout-session.model';
+import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
 
 import { fn, MockOf } from '@testing/typed-mock';
 
@@ -79,9 +81,48 @@ const cita = (id: string, startsAt: string): ScheduledSession => ({
   cancelledAt: null,
 });
 
+const ENTRENO: WorkoutSession = {
+  id: 'wks-100',
+  studentId: 'std-001',
+  routineId: 'rtn-001',
+  routineDayId: 'day-001',
+  title: 'Pierna A',
+  scheduledFor: '2026-11-03T12:00:00.000Z',
+  startedAt: '2026-11-03T21:00:00.000Z',
+  completedAt: '2026-11-03T21:52:00.000Z',
+  status: 'completed',
+  durationMinutes: 52,
+  estimatedMinutes: 55,
+  exercises: [
+    {
+      routineExerciseId: 'rex-1',
+      exerciseId: 'ex-1',
+      name: 'Sentadilla',
+      targetSets: 2,
+      targetReps: 8,
+      restSeconds: 90,
+      weightKg: 60,
+      completedSets: 2,
+      done: true,
+      sets: [
+        { id: 's1', setNumber: 1, reps: 8, weightKg: 60, completedAt: '2026-11-03T21:05:00.000Z' },
+        {
+          id: 's2',
+          setNumber: 2,
+          reps: 7,
+          weightKg: 62.5,
+          completedAt: '2026-11-03T21:08:00.000Z',
+        },
+      ],
+    },
+  ],
+};
+
 describe('TrainerStudentDetailFacade', () => {
   let listSchedule: MockOf<SchedulePort['listByStudent']>;
   let createAppointment: MockOf<SchedulePort['create']>;
+  let reschedule: MockOf<SchedulePort['reschedule']>;
+  let cancelCita: MockOf<SchedulePort['cancel']>;
   let facade: TrainerStudentDetailFacade;
   let students: {
     getById: MockOf<StudentsPort['getById']>;
@@ -101,6 +142,16 @@ describe('TrainerStudentDetailFacade', () => {
     );
     createAppointment = fn<SchedulePort['create']>().mockImplementation(input =>
       of({ ...cita('cit-001', input.startsAt), title: input.title }),
+    );
+    reschedule = fn<SchedulePort['reschedule']>().mockImplementation((id, changes) =>
+      of({ ...cita(id, changes.startsAt), title: changes.title }),
+    );
+    cancelCita = fn<SchedulePort['cancel']>().mockImplementation((id, reason) =>
+      of({
+        ...cita(id, '2026-09-25T15:00:00.000Z'),
+        status: 'cancelled',
+        cancellationReason: reason,
+      }),
     );
     students = {
       getById: fn<StudentsPort['getById']>().mockReturnValue(of(alumno)),
@@ -132,9 +183,21 @@ describe('TrainerStudentDetailFacade', () => {
         { provide: ROUTINES_PORT, useValue: { getActiveForStudent: () => of(RUTINA) } },
         {
           provide: SCHEDULE_PORT,
-          useValue: { listByStudent: listSchedule, create: createAppointment },
+          useValue: {
+            listByStudent: listSchedule,
+            create: createAppointment,
+            reschedule,
+            cancel: cancelCita,
+          },
         },
         { provide: CLOCK, useValue: { now: () => new Date('2026-09-20T12:00:00.000Z') } },
+        {
+          provide: WORKOUTS_PORT,
+          useValue: {
+            listByStudent: () =>
+              of([{ ...ENTRENO, id: 'wks-agendada', status: 'scheduled', exercises: [] }, ENTRENO]),
+          },
+        },
       ],
     });
     return TestBed.inject(TrainerStudentDetailFacade);
@@ -357,6 +420,65 @@ describe('TrainerStudentDetailFacade', () => {
 
       expect(await sinCargar.scheduleAppointment(NUEVA)).toBe(false);
       expect(createAppointment).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('reagendar y cancelar citas', () => {
+    const CAMBIOS = {
+      title: 'Evaluación',
+      startsAt: '2026-09-20T13:00:00.000Z',
+      endsAt: '2026-09-20T14:00:00.000Z',
+      location: null,
+      kind: 'assessment' as const,
+    };
+
+    it('reagendar reemplaza la cita y reordena la lista', async () => {
+      await facade.scheduleAppointment({ ...CAMBIOS, startsAt: '2026-09-30T13:00:00.000Z' });
+
+      expect(await facade.rescheduleAppointment('cit-002', CAMBIOS)).toBe(true);
+
+      expect(reschedule).toHaveBeenCalledWith('cit-002', CAMBIOS);
+      expect(facade.appointments.data()?.map(item => item.id)).toEqual(['cit-002', 'cit-001']);
+    });
+
+    it('cancelar deja la cita con su motivo', async () => {
+      expect(await facade.cancelAppointment('cit-002', 'illness', null)).toBe(true);
+
+      expect(cancelCita).toHaveBeenCalledWith('cit-002', 'illness', null);
+      expect(facade.appointments.data()?.[0]?.status).toBe('cancelled');
+    });
+
+    it('expone el rechazo y no cambia la lista', async () => {
+      cancelCita.mockReturnValue(
+        throwError(() => domainError('conflict', 'La cita ya fue cancelada.')),
+      );
+
+      expect(await facade.cancelAppointment('cit-002', 'illness', null)).toBe(false);
+      expect(facade.actionError()?.message).toBe('La cita ya fue cancelada.');
+      expect(facade.appointments.data()?.[0]?.status).toBe('pending');
+    });
+
+    it('clearActionError limpia el error', async () => {
+      cancelCita.mockReturnValue(throwError(() => domainError('network')));
+      await facade.cancelAppointment('cit-002', 'illness', null);
+
+      facade.clearActionError();
+
+      expect(facade.actionError()).toBeNull();
+    });
+
+    it('sin alumno cargado no cambia citas', async () => {
+      const sinCargar = createFacade();
+
+      expect(await sinCargar.rescheduleAppointment('cit-002', CAMBIOS)).toBe(false);
+      expect(reschedule).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('trainingHistory()', () => {
+    // T-3: solo lo entrenado; lo agendado sin registrar no es historial.
+    it('lista los entrenamientos con algo registrado', () => {
+      expect(facade.trainingHistory().map(item => item.id)).toEqual(['wks-100']);
     });
   });
 

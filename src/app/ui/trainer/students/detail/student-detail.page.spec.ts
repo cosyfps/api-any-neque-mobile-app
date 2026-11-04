@@ -7,6 +7,7 @@ import { TrainerStudentDetailFacade } from '@app/application/trainers/trainer-st
 import { INVITATION_PORT } from '@app/domain/auth/port/invitation.port';
 import { Routine } from '@app/domain/routines/model/routine.model';
 import { ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
+import { ScheduledSession } from '@app/domain/schedule/model/scheduled-session.model';
 import { SCHEDULE_PORT, SchedulePort } from '@app/domain/schedule/port/schedule.port';
 import { domainError } from '@app/domain/shared/model/app-error';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
@@ -17,6 +18,8 @@ import { Student } from '@app/domain/students/model/student.model';
 import { ANAMNESIS_PORT, AnamnesisPort } from '@app/domain/students/port/anamnesis.port';
 import { ASSESSMENTS_PORT, AssessmentsPort } from '@app/domain/students/port/assessments.port';
 import { STUDENTS_PORT, StudentsPort } from '@app/domain/students/port/students.port';
+import { WorkoutSession } from '@app/domain/workouts/model/workout-session.model';
+import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
 
 import { fn, MockOf } from '@testing/typed-mock';
 
@@ -67,6 +70,59 @@ const evaluacion = (id: string, takenAt: string, weightKg: number): Assessment =
   notes: null,
 });
 
+const CITA_GUARDADA: ScheduledSession = {
+  id: 'cit-009',
+  studentId: 'std-001',
+  trainerId: 'trn-001',
+  title: 'Evaluación',
+  startsAt: '2026-09-22T13:00:00.000Z',
+  endsAt: '2026-09-22T14:00:00.000Z',
+  location: 'Box',
+  kind: 'assessment',
+  status: 'pending',
+  workoutSessionId: null,
+  cancellationReason: null,
+  cancellationNote: null,
+  cancelledAt: null,
+};
+
+const ENTRENO: WorkoutSession = {
+  id: 'wks-100',
+  studentId: 'std-001',
+  routineId: 'rtn-001',
+  routineDayId: 'day-001',
+  title: 'Pierna A',
+  scheduledFor: '2026-11-03T12:00:00.000Z',
+  startedAt: '2026-11-03T21:00:00.000Z',
+  completedAt: '2026-11-03T21:52:00.000Z',
+  status: 'completed',
+  durationMinutes: 52,
+  estimatedMinutes: 55,
+  exercises: [
+    {
+      routineExerciseId: 'rex-1',
+      exerciseId: 'ex-1',
+      name: 'Sentadilla',
+      targetSets: 2,
+      targetReps: 8,
+      restSeconds: 90,
+      weightKg: 60,
+      completedSets: 2,
+      done: true,
+      sets: [
+        { id: 's1', setNumber: 1, reps: 8, weightKg: 60, completedAt: '2026-11-03T21:05:00.000Z' },
+        {
+          id: 's2',
+          setNumber: 2,
+          reps: 7,
+          weightKg: 62.5,
+          completedAt: '2026-11-03T21:08:00.000Z',
+        },
+      ],
+    },
+  ],
+};
+
 describe('StudentDetailPage', () => {
   let page: StudentDetailPage;
   let router: Router;
@@ -75,6 +131,10 @@ describe('StudentDetailPage', () => {
   let save: MockOf<AnamnesisPort['save']>;
   let createAssessment: MockOf<AssessmentsPort['create']>;
   let createAppointment: MockOf<SchedulePort['create']>;
+  let rescheduleAppointment: MockOf<SchedulePort['reschedule']>;
+  let cancelAppointment: MockOf<SchedulePort['cancel']>;
+  let citas: ScheduledSession[];
+  let entrenos: WorkoutSession[];
   let accionPedida: string | null;
 
   const createPage = (
@@ -84,6 +144,18 @@ describe('StudentDetailPage', () => {
     evaluaciones: Assessment[] = [],
   ): StudentDetailPage => {
     save = fn<AnamnesisPort['save']>().mockImplementation(input => of({ ...ANAMNESIS, ...input }));
+    rescheduleAppointment = fn<SchedulePort['reschedule']>().mockImplementation((id, changes) =>
+      of({ ...CITA_GUARDADA, ...changes, id }),
+    );
+    cancelAppointment = fn<SchedulePort['cancel']>().mockImplementation((id, reason, note) =>
+      of({
+        ...CITA_GUARDADA,
+        id,
+        status: 'cancelled',
+        cancellationReason: reason,
+        cancellationNote: note,
+      }),
+    );
     createAppointment = fn<SchedulePort['create']>().mockImplementation(input =>
       of({
         ...input,
@@ -137,8 +209,14 @@ describe('StudentDetailPage', () => {
         { provide: INVITATION_PORT, useValue: { getForStudent: () => of(null) } },
         {
           provide: SCHEDULE_PORT,
-          useValue: { listByStudent: () => of([]), create: createAppointment },
+          useValue: {
+            listByStudent: () => of(citas),
+            create: createAppointment,
+            reschedule: rescheduleAppointment,
+            cancel: cancelAppointment,
+          },
         },
+        { provide: WORKOUTS_PORT, useValue: { listByStudent: () => of(entrenos) } },
       ],
     });
     router = TestBed.inject(Router);
@@ -147,6 +225,8 @@ describe('StudentDetailPage', () => {
   };
 
   beforeEach(() => {
+    citas = [];
+    entrenos = [];
     accionPedida = null;
     page = createPage();
   });
@@ -562,6 +642,176 @@ describe('StudentDetailPage', () => {
       expect(page.estadoClase('confirmed')).toBe('nq-badge-success');
       expect(page.estadoClase('cancelled')).toBe('nq-badge-danger');
       expect(page.estadoClase('pending')).toBe('nq-badge-warning');
+    });
+  });
+
+  describe('entrenamientos realizados', () => {
+    const varios = (total: number): WorkoutSession[] =>
+      Array.from({ length: total }, (_x, i) => ({
+        ...ENTRENO,
+        id: `wks-${i}`,
+        completedAt: `2026-10-${String(10 + i).padStart(2, '0')}T21:00:00.000Z`,
+      }));
+
+    it('muestra los 5 mas recientes y despliega el resto', () => {
+      entrenos = varios(7);
+      page = createPage();
+
+      expect(page.historial()).toHaveLength(5);
+      expect(page.historial()[0]?.id).toBe('wks-6');
+
+      page.verTodos.set(true);
+      expect(page.historial()).toHaveLength(7);
+    });
+
+    it('abre y cierra el detalle de un entrenamiento', () => {
+      page.openTraining(ENTRENO);
+      expect(page.training()?.id).toBe('wks-100');
+
+      page.closeTraining();
+      expect(page.training()).toBeNull();
+    });
+
+    it('resume fecha, ejercicios hechos y duracion', () => {
+      const resumen = page.resumenEntreno(ENTRENO);
+
+      expect(resumen).toContain('1/1 ejercicios');
+      expect(resumen).toContain('52 min');
+      expect(resumen.charAt(0)).toBe(resumen.charAt(0).toUpperCase());
+    });
+
+    it('sin duracion no la menciona', () => {
+      expect(page.resumenEntreno({ ...ENTRENO, durationMinutes: null })).not.toContain('min');
+    });
+
+    it('describe cada serie y el motivo de un salto', () => {
+      const ejercicio = ENTRENO.exercises[0];
+      const serie = ejercicio?.sets[1];
+      if (ejercicio === undefined || serie === undefined) {
+        throw new Error('fixture incompleto');
+      }
+
+      expect(page.describeSerie(serie, ejercicio)).toBe('7 × 62.5 kg');
+      expect(page.motivoSalto('no_time')).toBe('Sin tiempo');
+    });
+  });
+
+  describe('openMessages()', () => {
+    it('abre los mensajes con el alumno', () => {
+      page.openMessages();
+
+      expect(router.navigate).toHaveBeenCalledWith(['/trainer/students', 'std-001', 'messages']);
+    });
+  });
+
+  describe('opciones de una cita', () => {
+    beforeEach(() => {
+      citas = [CITA_GUARDADA];
+      page = createPage();
+    });
+
+    it('tocar una cita abre sus opciones', () => {
+      page.openAppointmentOptions(CITA_GUARDADA);
+
+      expect(page.appointmentOptions()?.id).toBe('cit-009');
+    });
+
+    it('una cita cancelada no abre opciones', () => {
+      page.openAppointmentOptions({ ...CITA_GUARDADA, status: 'cancelled' });
+
+      expect(page.appointmentOptions()).toBeNull();
+    });
+
+    it('cerrar oculta las opciones', () => {
+      page.openAppointmentOptions(CITA_GUARDADA);
+
+      page.closeAppointmentOptions();
+
+      expect(page.appointmentOptions()).toBeNull();
+    });
+
+    it('reagendar abre el formulario en modo edicion y guarda sobre la cita', async () => {
+      page.openAppointmentOptions(CITA_GUARDADA);
+      page.openReschedule(CITA_GUARDADA);
+
+      expect(page.appointmentOptions()).toBeNull();
+      expect(page.editingAppointment()?.id).toBe('cit-009');
+      expect(page.addingAppointment()).toBe(true);
+
+      const cambios = {
+        title: 'Control',
+        startsAt: '2026-09-23T13:00:00.000Z',
+        endsAt: '2026-09-23T14:00:00.000Z',
+        location: null,
+        kind: 'checkin' as const,
+      };
+      await page.saveAppointment(cambios);
+
+      expect(rescheduleAppointment).toHaveBeenCalledWith('cit-009', cambios);
+      expect(createAppointment).not.toHaveBeenCalled();
+      expect(page.addingAppointment()).toBe(false);
+    });
+
+    it('agendar despues de reagendar vuelve a crear', () => {
+      page.openReschedule(CITA_GUARDADA);
+
+      page.openAppointment();
+
+      expect(page.editingAppointment()).toBeNull();
+    });
+
+    it('cancelar pide motivo y confirma con el motivo elegido', async () => {
+      page.askCancelAppointment(CITA_GUARDADA);
+      expect(page.cancellingAppointment()?.id).toBe('cit-009');
+      expect(page.cancelReason()).toBe('rescheduled');
+
+      page.setCancelReason({ target: { value: 'illness' } } as unknown as Event);
+      page.setCancelNote({ target: { value: '  Resfrío  ' } } as unknown as Event);
+      await page.confirmCancelAppointment();
+
+      expect(cancelAppointment).toHaveBeenCalledWith('cit-009', 'illness', 'Resfrío');
+      expect(page.cancellingAppointment()).toBeNull();
+    });
+
+    it('con «Otro motivo» exige una nota', async () => {
+      page.askCancelAppointment(CITA_GUARDADA);
+      page.setCancelReason({ target: { value: 'other' } } as unknown as Event);
+
+      await page.confirmCancelAppointment();
+
+      expect(page.cancelNoteError()).toBe('Cuéntale al alumno el motivo.');
+      expect(cancelAppointment).not.toHaveBeenCalled();
+    });
+
+    it('sin nota envia null', async () => {
+      page.askCancelAppointment(CITA_GUARDADA);
+
+      await page.confirmCancelAppointment();
+
+      expect(cancelAppointment).toHaveBeenCalledWith('cit-009', 'rescheduled', null);
+    });
+
+    it('un rechazo deja la confirmacion abierta', async () => {
+      cancelAppointment.mockReturnValue(throwError(() => domainError('network')));
+      page.askCancelAppointment(CITA_GUARDADA);
+
+      await page.confirmCancelAppointment();
+
+      expect(page.cancellingAppointment()).not.toBeNull();
+    });
+
+    it('volver cierra la confirmacion', () => {
+      page.askCancelAppointment(CITA_GUARDADA);
+
+      page.closeCancelAppointment();
+
+      expect(page.cancellingAppointment()).toBeNull();
+    });
+
+    it('confirmar sin cita no hace nada', async () => {
+      await page.confirmCancelAppointment();
+
+      expect(cancelAppointment).not.toHaveBeenCalled();
     });
   });
 

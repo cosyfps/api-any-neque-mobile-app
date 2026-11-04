@@ -233,6 +233,19 @@ describe('TrainerRoutinesFacade', () => {
     });
   });
 
+  describe('duplicate()', () => {
+    it('crea una copia sin alumnos con "(copia)" en el nombre', async () => {
+      const original = rutina('rtn-001', 'Alfa', ['std-001']);
+
+      expect(await facade.duplicate(original)).toBe('rtn-nueva');
+
+      const enviada = create.mock.calls[0]?.[0];
+      expect(enviada?.name).toBe('Alfa (copia)');
+      expect(enviada?.trainerId).toBe('trn-001');
+      expect(enviada).not.toHaveProperty('assignments');
+    });
+  });
+
   describe('create()', () => {
     it('agrega el entrenador de la sesion', async () => {
       await facade.create(ENTRADA);

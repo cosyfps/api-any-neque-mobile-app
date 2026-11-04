@@ -319,6 +319,28 @@ describe('TrainerRoutinesPage', () => {
     });
   });
 
+  describe('duplicar rutina', () => {
+    it('crea la copia, salta a Sin asignar y la abre para editar', async () => {
+      // La biblioteca releida ya trae la copia.
+      page = createPage({ rutinas: [rutina('rtn-nueva', 'Hipertrofia (copia)')] });
+
+      await page.duplicate(rutina('rtn-001', 'Hipertrofia', ['std-001']));
+
+      expect(create).toHaveBeenCalled();
+      expect(page.facade.filter()).toBe('unassigned');
+      expect(page.building()).toBe(true);
+      expect(page.editing()?.id).toBe('rtn-nueva');
+    });
+
+    it('si falla no abre nada', async () => {
+      create.mockReturnValue(throwError(() => domainError('network')));
+
+      await page.duplicate(rutina('rtn-001', 'Hipertrofia'));
+
+      expect(page.building()).toBe(false);
+    });
+  });
+
   describe('eliminar rutina', () => {
     const fila = (): RoutineRow => {
       const row = page.facade.visible()[0];

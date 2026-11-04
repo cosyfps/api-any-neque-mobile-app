@@ -1,4 +1,5 @@
 import type { InvitationDetails, InvitationStatus } from '@app/domain/auth/port/invitation.port';
+import { Message } from '@app/domain/messages/model/message.model';
 import {
   AppNotification,
   NotificationKind,
@@ -522,5 +523,27 @@ export function toNotification(row: NotificationRow): AppNotification {
     readAt: row.read_at,
     targetType: row.target_type,
     targetId: row.target_id,
+  };
+}
+
+// ── Mensajes ───────────────────────────────────────────────────────────────
+export interface MessageRow {
+  id: string;
+  student_id: string;
+  trainer_id: string;
+  sender_role: 'trainer' | 'student';
+  body: string;
+  created_at: string;
+  read_at: string | null;
+}
+
+export function toMessage(row: MessageRow): Message {
+  return {
+    id: row.id,
+    studentId: row.student_id,
+    senderRole: row.sender_role,
+    body: row.body,
+    createdAt: row.created_at,
+    readAt: row.read_at,
   };
 }

@@ -122,6 +122,7 @@ describe('StudentRoutineFacade', () => {
   let getActiveForStudent: MockOf<RoutinesPort['getActiveForStudent']>;
   let listByStudent: MockOf<WorkoutsPort['listByStudent']>;
   let markExercise: MockOf<WorkoutsPort['markExercise']>;
+  let reschedule: MockOf<WorkoutsPort['reschedule']>;
   let complete: MockOf<WorkoutsPort['complete']>;
   let profileId: string | null;
 
@@ -145,6 +146,7 @@ describe('StudentRoutineFacade', () => {
             listByStudent,
             markExercise,
             complete,
+            reschedule,
             getById: fn<WorkoutsPort['getById']>(),
             start: fn<WorkoutsPort['start']>(),
             logSet: fn<WorkoutsPort['logSet']>(),
@@ -161,6 +163,9 @@ describe('StudentRoutineFacade', () => {
       of([todaySession([false, false])]),
     );
     markExercise = fn<WorkoutsPort['markExercise']>();
+    reschedule = fn<WorkoutsPort['reschedule']>().mockReturnValue(
+      of({ ...todaySession([false, false]), scheduledFor: toIsoDate(new Date(2026, 8, 19, 18)) }),
+    );
     complete = fn<WorkoutsPort['complete']>();
     profileId = 'std-001';
   });
@@ -299,6 +304,63 @@ describe('StudentRoutineFacade', () => {
       facade.load();
 
       expect(facade.isDayCompleted()).toBe(true);
+    });
+  });
+
+  describe('mover la sesion (A-3)', () => {
+    it('ofrece el resto de la semana desde hoy, sin el dia actual', () => {
+      const facade = build();
+      facade.load();
+
+      expect(facade.moveOptions()).toEqual(['2026-09-18', '2026-09-19', '2026-09-20']);
+    });
+
+    it('una sesion empezada no se puede mover', () => {
+      listByStudent.mockReturnValue(
+        of([{ ...todaySession([false, false]), status: 'in_progress' as const }]),
+      );
+      const facade = build();
+      facade.load();
+
+      expect(facade.moveOptions()).toEqual([]);
+    });
+
+    it('sin sesion no hay opciones ni dia movido', () => {
+      listByStudent.mockReturnValue(of([]));
+      const facade = build();
+      facade.load();
+
+      expect(facade.moveOptions()).toEqual([]);
+      expect(facade.movedTo()).toBeNull();
+    });
+
+    it('mover reemplaza la sesion y la marca como movida', async () => {
+      const facade = build();
+      facade.load();
+      expect(facade.movedTo()).toBeNull();
+
+      expect(await facade.moveSelectedSession('2026-09-19')).toBe(true);
+
+      expect(reschedule).toHaveBeenCalledWith('wks-today', '2026-09-19');
+      expect(facade.movedTo()?.getDate()).toBe(19);
+    });
+
+    it('un rechazo queda en moveError', async () => {
+      reschedule.mockReturnValue(throwError(() => domainError('validation', 'No se puede.')));
+      const facade = build();
+      facade.load();
+
+      expect(await facade.moveSelectedSession('2026-09-19')).toBe(false);
+      expect(facade.moveError()?.message).toBe('No se puede.');
+    });
+
+    it('sin sesion seleccionada no mueve', async () => {
+      listByStudent.mockReturnValue(of([]));
+      const facade = build();
+      facade.load();
+
+      expect(await facade.moveSelectedSession('2026-09-19')).toBe(false);
+      expect(reschedule).not.toHaveBeenCalled();
     });
   });
 

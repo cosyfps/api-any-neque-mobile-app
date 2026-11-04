@@ -162,6 +162,7 @@
 }
 
 .section-count {
+  font-weight: 500;
   font-size: 13px;
   color: var(--nq-text-secondary);
 }
@@ -244,6 +245,13 @@
   background: var(--nq-bg);
   border: 1px solid var(--nq-border);
   border-radius: var(--nq-radius-md);
+}
+
+.slot-time.no-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--nq-text-secondary);
+  white-space: normal;
 }
 
 .slot-time {

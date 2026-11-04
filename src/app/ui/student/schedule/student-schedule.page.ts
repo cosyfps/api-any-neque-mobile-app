@@ -126,6 +126,9 @@ const DAY_FORMAT = new Intl.DateTimeFormat('es-CL', {
                 <span class="session-body">
                   <span class="session-title">{{ training.day.title }}</span>
                   <span class="session-kind">
+                    @if (training.day.startTime) {
+                      {{ training.day.startTime }} ·
+                    }
                     {{ training.day.estimatedMinutes }} min ·
                     {{ training.day.exercises.length }} ejercicios
                   </span>

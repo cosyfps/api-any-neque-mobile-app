@@ -1,4 +1,4 @@
-import { sessionInstant } from './zoned-time';
+import { sessionInstant, zonedParts } from './zoned-time';
 
 describe('sessionInstant()', () => {
   it('sin hora usa mediodia UTC, el mismo dia en Chile', () => {
@@ -23,5 +23,12 @@ describe('sessionInstant()', () => {
 
   it('acepta otra zona horaria', () => {
     expect(sessionInstant('2026-11-09', '10:00', 'UTC')).toBe('2026-11-09T10:00:00.000Z');
+  });
+});
+
+describe('zonedParts()', () => {
+  it('da el dia y la hora de Chile de un instante UTC', () => {
+    expect(zonedParts('2026-11-10T01:15:00.000Z')).toEqual({ day: '2026-11-09', time: '22:15' });
+    expect(zonedParts('2026-07-06T11:00:00.000Z')).toEqual({ day: '2026-07-06', time: '07:00' });
   });
 });

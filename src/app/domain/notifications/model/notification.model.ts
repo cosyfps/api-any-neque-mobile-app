@@ -16,7 +16,14 @@ export type NotificationKind =
  * Entidad a la que apunta la notificacion. La ruta la decide el front.
  * `student` es del entrenador: abre la ficha de ese alumno.
  */
-export type NotificationTarget = 'routine' | 'session' | 'assessment' | 'photo' | 'student';
+export type NotificationTarget =
+  | 'routine'
+  | 'session'
+  | 'assessment'
+  | 'photo'
+  | 'student'
+  /** Conversacion del alumno con su entrenador; `targetId` es el alumno. */
+  | 'message';
 
 export const NOTIFICATION_KIND_LABEL: Record<NotificationKind, string> = {
   routine: 'Rutina',

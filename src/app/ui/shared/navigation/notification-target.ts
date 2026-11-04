@@ -22,9 +22,11 @@ const RUTAS: Record<UserRole, Rutas> = {
     photo: () => ['/student/progress'],
     // Avisos sobre su agenda (citas nuevas): la cita vive en Mi agenda.
     student: () => ['/student/schedule'],
+    message: () => ['/student/messages'],
   },
   trainer: {
     student: targetId => ['/trainer/students', targetId],
+    message: targetId => ['/trainer/students', targetId, 'messages'],
   },
 };
 

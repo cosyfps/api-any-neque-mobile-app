@@ -10,6 +10,7 @@ import {
   assignmentFor,
   goalsMatch,
   isAssigned,
+  routineCopy,
 } from '@app/domain/routines/model/routine.model';
 import { EXERCISE_CATALOG_PORT, ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
 import { DomainError, toDomainError } from '@app/domain/shared/model/app-error';
@@ -134,6 +135,11 @@ export class TrainerRoutinesFacade {
     return this.run(() => this.routines.create({ ...input, trainerId })).then(
       routine => routine?.id ?? null,
     );
+  }
+
+  /** Crea una copia de la rutina como plantilla sin alumnos (T-4). */
+  duplicate(routine: Routine): Promise<string | null> {
+    return this.create(routineCopy(routine));
   }
 
   update(routineId: string, input: Omit<RoutineInput, 'trainerId'>): Promise<string | null> {

@@ -128,6 +128,15 @@ type Seccion = 'routines' | 'exercises';
                       Asignar alumnos
                     </button>
                     <button
+                      class="text-btn"
+                      type="button"
+                      [attr.aria-label]="'Duplicar ' + row.routine.name"
+                      [disabled]="facade.busy()"
+                      (click)="duplicate(row.routine)"
+                    >
+                      Duplicar
+                    </button>
+                    <button
                       class="text-btn danger"
                       type="button"
                       [attr.aria-label]="'Eliminar ' + row.routine.name"
@@ -546,6 +555,22 @@ export class TrainerRoutinesPage {
     const creada = this.facade.rows.data()?.find(row => row.routine.id === id)?.routine;
     if (creada !== undefined) {
       this.openAssign(creada);
+    }
+  }
+
+  /**
+   * La copia nace sin alumnos: se salta a "Sin asignar" y se abre para
+   * editarla, que es lo siguiente que se hace con una copia.
+   */
+  async duplicate(routine: Routine): Promise<void> {
+    const id = await this.facade.duplicate(routine);
+    if (id === null) {
+      return;
+    }
+    this.facade.selectFilter('unassigned');
+    const copia = this.facade.rows.data()?.find(row => row.routine.id === id)?.routine;
+    if (copia !== undefined) {
+      this.openEdit(copia);
     }
   }
 

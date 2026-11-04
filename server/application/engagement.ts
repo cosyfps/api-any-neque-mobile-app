@@ -13,7 +13,7 @@ import { PhotoRow, ScheduledRow, toPhoto, toScheduled } from '../infrastructure/
 import { removeObject, signedUpload, signedUrls } from '../infrastructure/storage';
 import { adminClient, maybe, must } from '../infrastructure/supabase';
 
-import { assertCanSeeStudent, assertIsStudent, assertTrainerOf } from './access';
+import { assertCanSeeStudent, assertIsStudent, assertIsTrainer, assertTrainerOf } from './access';
 import { notify } from './notifications';
 
 const db = () => adminClient();
@@ -171,6 +171,25 @@ export async function createAppointment(
   return toScheduled(row);
 }
 
+/** Agenda global: las citas de todos los alumnos del entrenador en el rango. */
+export async function listTrainerSchedule(
+  actor: Actor,
+  trainerId: string,
+  range: DateRange,
+): Promise<ScheduledSession[]> {
+  assertIsTrainer(actor, trainerId);
+  const rows = await must<ScheduledRow[]>(
+    db()
+      .from('scheduled_sessions')
+      .select('*')
+      .eq('trainer_id', trainerId)
+      .gte('starts_at', range.from)
+      .lte('starts_at', range.to)
+      .order('starts_at'),
+  );
+  return rows.map(toScheduled);
+}
+
 async function ownedAppointment(actor: Actor, sessionId: string): Promise<ScheduledRow> {
   const row = await must<ScheduledRow>(
     db().from('scheduled_sessions').select('*').eq('id', sessionId).maybeSingle(),
@@ -208,6 +227,9 @@ export async function cancelAppointment(
   note: string | null,
 ): Promise<ScheduledSession> {
   const actual = await ownedAppointment(actor, sessionId);
+  if (actual.status === 'cancelled') {
+    return fail('conflict', 'La cita ya fue cancelada.');
+  }
   if (reason === 'other' && (note ?? '').trim() === '') {
     return fail('validation', 'Cuéntanos el motivo de la cancelación.');
   }
@@ -239,8 +261,60 @@ export async function cancelAppointment(
     kind: 'session',
     title: 'Cita cancelada',
     body: `${actual.title} · ${actor.displayName}`,
-    targetType: actor.role === 'student' ? 'student' : 'session',
-    targetId: actor.role === 'student' ? actual.student_id : actual.id,
+    // 'student' abre la ficha (entrenador) o Mi agenda (alumno). 'session'
+    // llevaba al alumno al runner de entrenamiento con el id de la cita.
+    targetType: 'student',
+    targetId: actual.student_id,
+  });
+  return toScheduled(row);
+}
+
+/**
+ * El entrenador mueve una cita. Vuelve a quedar por confirmar: el alumno
+ * habia confirmado otra fecha.
+ */
+export async function rescheduleAppointment(
+  actor: Actor,
+  sessionId: string,
+  input: Omit<ScheduledSessionInput, 'studentId'>,
+): Promise<ScheduledSession> {
+  if (actor.role !== 'trainer') {
+    return fail('forbidden');
+  }
+  const actual = await ownedAppointment(actor, sessionId);
+  if (actual.status === 'cancelled') {
+    return fail('conflict', 'La cita ya fue cancelada.');
+  }
+  const startsAt = new Date(input.startsAt);
+  const error = appointmentError(startsAt, new Date(input.endsAt), new Date());
+  if (error !== null) {
+    return fail('validation', error);
+  }
+  const row = await must<ScheduledRow>(
+    db()
+      .from('scheduled_sessions')
+      .update({
+        title: input.title,
+        starts_at: input.startsAt,
+        ends_at: input.endsAt,
+        location: input.location,
+        kind: input.kind,
+        status: 'pending',
+      })
+      .eq('id', sessionId)
+      .select('*')
+      .single(),
+  );
+
+  const alumno = await must<{ user_id: string }>(
+    db().from('students').select('user_id').eq('id', actual.student_id).single(),
+  );
+  await notify(alumno.user_id, {
+    kind: 'session',
+    title: 'Cita reagendada',
+    body: `${input.title} · ${FECHA_CITA.format(startsAt)}`,
+    targetType: 'student',
+    targetId: actual.student_id,
   });
   return toScheduled(row);
 }

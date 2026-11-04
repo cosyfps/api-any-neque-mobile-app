@@ -23,7 +23,9 @@ import { PageStateComponent } from '@shared/components/page-state.component';
 import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
 import { IMAGE_ACCEPT, imageFileError } from '@shared/validators/field-rules';
 
-type ProgressTab = 'metrics' | 'photos';
+import { LoadHistoryComponent } from './load-history.component';
+
+type ProgressTab = 'metrics' | 'photos' | 'loads';
 type MetricSeries = 'weight' | 'bmi';
 type CompareSide = 'before' | 'after';
 
@@ -34,6 +36,7 @@ type CompareSide = 'before' | 'after';
     PageStateComponent,
     SheetTrapDirective,
     LineChartComponent,
+    LoadHistoryComponent,
     LucideCamera,
     LucideChevronDown,
     LucideImagePlus,
@@ -65,13 +68,23 @@ type CompareSide = 'before' | 'after';
         >
           Fotos
         </button>
+        <button
+          class="nq-tab"
+          type="button"
+          [class.active]="tab() === 'loads'"
+          (click)="tab.set('loads')"
+        >
+          Cargas
+        </button>
       </div>
 
       <!-- Cada pestana tiene su propio estado. Con un switch unico sobre las
            evaluaciones, un alumno al que el entrenador todavia no le registra
            ninguna veia "Sin evaluaciones" tambien en Fotos y no podia subir
            la primera. -->
-      @if (tab() === 'metrics') {
+      @if (tab() === 'loads') {
+        <nq-load-history />
+      } @else if (tab() === 'metrics') {
         @switch (facade.viewState()) {
           @case ('loading') {
             <nq-page-state type="loading" />

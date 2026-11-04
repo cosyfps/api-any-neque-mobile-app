@@ -36,9 +36,23 @@ export const TRAINER_ROUTES: Routes = [
               import('./students/detail/student-detail.page').then(m => m.StudentDetailPage),
           },
           {
+            // Mensajes con el alumno (A-4): se llega desde su ficha.
+            path: 'students/:studentId/messages',
+            loadComponent: () =>
+              import('./students/detail/student-messages.page').then(
+                m => m.TrainerStudentMessagesPage,
+              ),
+          },
+          {
             path: 'routines',
             loadComponent: () =>
               import('./routines/trainer-routines.page').then(m => m.TrainerRoutinesPage),
+          },
+          {
+            // Agenda global (T-1): se llega desde "Hoy" en el Inicio.
+            path: 'agenda',
+            loadComponent: () =>
+              import('./agenda/trainer-agenda.page').then(m => m.TrainerAgendaPage),
           },
           {
             // Fuera de las pestanas pero dentro del shell, como en el alumno.

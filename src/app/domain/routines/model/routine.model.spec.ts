@@ -5,6 +5,7 @@ import {
   dayForWeekday,
   goalsMatch,
   isAssigned,
+  routineCopy,
   totalSets,
 } from './routine.model';
 
@@ -35,6 +36,28 @@ const routine: Routine = {
   assignments: [{ studentId: 'std-001', startDate: '2026-09-01T00:00:00.000Z', endDate: null }],
   days: [day(1, [4, 3, 3]), day(2, [4, 4]), day(4, [3])],
 };
+
+describe('routineCopy()', () => {
+  it('copia dias y ejercicios sin ids ni alumnos, con "(copia)" en el nombre', () => {
+    const copia = routineCopy(routine);
+
+    expect(copia.name).toBe('Hipertrofia (copia)');
+    expect(copia.goal).toBe('Masa muscular');
+    expect(copia).not.toHaveProperty('assignments');
+    expect(copia.days).toHaveLength(3);
+    expect(copia.days[0]).not.toHaveProperty('id');
+    expect(copia.days[0]?.exercises[0]).not.toHaveProperty('id');
+    expect(copia.days[0]?.exercises[0]).toMatchObject({ sets: 4, reps: 10, durationSeconds: null });
+    expect(copia.days[0]?.startTime).toBeNull();
+  });
+
+  it('no se pasa del largo maximo del nombre', () => {
+    const copia = routineCopy({ ...routine, name: 'x'.repeat(120) });
+
+    expect(copia.name).toHaveLength(120);
+    expect(copia.name.endsWith(' (copia)')).toBe(true);
+  });
+});
 
 describe('routine model', () => {
   describe('totalSets()', () => {

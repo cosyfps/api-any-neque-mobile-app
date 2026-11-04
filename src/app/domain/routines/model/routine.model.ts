@@ -141,3 +141,39 @@ export function goalsMatch(a: string | null, b: string | null): boolean {
   const claveA = palabrasClave(a);
   return [...palabrasClave(b)].some(palabra => claveA.has(palabra));
 }
+
+/** Largo maximo del nombre de una rutina (limite del BFF). */
+export const ROUTINE_NAME_MAX = 120;
+
+/**
+ * Copia de una rutina como plantilla nueva (T-4): mismos dias, ejercicios y
+ * prescripcion, sin ids ni alumnos. El nombre lleva "(copia)" sin pasarse
+ * del largo que acepta el BFF.
+ */
+export function routineCopy(routine: Routine): Omit<RoutineInput, 'trainerId'> {
+  const sufijo = ' (copia)';
+  return {
+    name: routine.name.slice(0, ROUTINE_NAME_MAX - sufijo.length).trimEnd() + sufijo,
+    goal: routine.goal,
+    days: routine.days.map(day => ({
+      weekday: day.weekday,
+      title: day.title,
+      focus: day.focus,
+      estimatedMinutes: day.estimatedMinutes,
+      startTime: day.startTime ?? null,
+      exercises: day.exercises.map(exercise => ({
+        exerciseId: exercise.exerciseId,
+        name: exercise.name,
+        order: exercise.order,
+        sets: exercise.sets,
+        reps: exercise.reps,
+        restSeconds: exercise.restSeconds,
+        weightKg: exercise.weightKg,
+        notes: exercise.notes,
+        load: exercise.load,
+        measure: exercise.measure,
+        durationSeconds: exercise.durationSeconds ?? null,
+      })),
+    })),
+  };
+}

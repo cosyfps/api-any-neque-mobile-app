@@ -54,3 +54,25 @@ function desfase(instante: number, timeZone: string): number {
   );
   return local - (instante - (instante % 1000));
 }
+
+/** Dia (`yyyy-MM-dd`) y hora (`HH:mm`) locales de un instante en la zona. */
+export function zonedParts(
+  iso: string,
+  timeZone = APP_TIME_ZONE,
+): { readonly day: string; readonly time: string } {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(new Date(iso));
+  const valor = (tipo: Intl.DateTimeFormatPartTypes): string =>
+    partes.find(parte => parte.type === tipo)?.value ?? '00';
+  return {
+    day: `${valor('year')}-${valor('month')}-${valor('day')}`,
+    time: `${valor('hour')}:${valor('minute')}`,
+  };
+}

@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   LucideBell,
+  LucideCalendarDays,
   LucideCheck,
   LucideCircleCheck,
   LucideDumbbell,
@@ -35,6 +36,7 @@ const ACCION: Record<PendingKind, string> = {
     PageStateComponent,
     SheetTrapDirective,
     LucideBell,
+    LucideCalendarDays,
     LucideCheck,
     LucideCircleCheck,
     LucideDumbbell,
@@ -138,17 +140,28 @@ const ACCION: Record<PendingKind, string> = {
 
           <section class="nq-section nq-ani nq-d2">
             <div class="nq-section-header">
-              <h2 class="nq-section-title">Hoy</h2>
-              @if (facade.today().length > 0) {
-                <span class="section-count">{{ sesionesHoy() }}</span>
-              }
+              <h2 class="nq-section-title">
+                Hoy
+                @if (facade.today().length > 0) {
+                  <span class="section-count">· {{ sesionesHoy() }}</span>
+                }
+              </h2>
+              <button class="nq-section-action" type="button" (click)="goToAgenda()">
+                <svg lucideCalendarDays [size]="14" [strokeWidth]="2"></svg>
+                Agenda
+              </button>
             </div>
             @if (facade.today().length > 0) {
               <ul class="timeline" role="list">
                 @for (sesion of facade.today(); track sesion.id) {
                   <li>
                     <button class="slot" type="button" (click)="openStudent(sesion.studentId)">
-                      <span class="slot-time">{{ hora(sesion.scheduledFor) }}</span>
+                      @if (sesion.hasStartTime) {
+                        <span class="slot-time">{{ hora(sesion.scheduledFor) }}</span>
+                      } @else {
+                        <!-- Sin hora en la rutina: el 09:00 del BFF solo fija el dia. -->
+                        <span class="slot-time no-time">Sin hora</span>
+                      }
                       <span class="avatar" aria-hidden="true">{{ sesion.initials }}</span>
                       <span class="slot-body">
                         <span class="slot-name">{{ sesion.studentName }}</span>
@@ -362,6 +375,10 @@ export class TrainerHomePage {
 
   openStudent(studentId: string): void {
     void this.router.navigate(['/trainer/students', studentId]);
+  }
+
+  goToAgenda(): void {
+    void this.router.navigate(['/trainer/agenda']);
   }
 
   /** Cada pendiente abre directo lo que lo resuelve. */

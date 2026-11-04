@@ -1,6 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, map, switchMap, throwError } from 'rxjs';
 
+import { Message } from '@app/domain/messages/model/message.model';
+import { MessagesPort } from '@app/domain/messages/port/messages.port';
 import { AppNotification } from '@app/domain/notifications/model/notification.model';
 import { NotificationsPort } from '@app/domain/notifications/port/notifications.port';
 import { ProgressPhoto } from '@app/domain/progress/model/progress-photo.model';
@@ -68,6 +70,20 @@ export class ScheduleHttpAdapter implements SchedulePort {
     return this.api.post<ScheduledSession>(`/students/${studentId}/schedule`, body);
   }
 
+  listByTrainer(trainerId: Id, range: DateRange): Observable<ScheduledSession[]> {
+    return this.api.get<ScheduledSession[]>(`/trainers/${trainerId}/schedule`, {
+      from: range.from,
+      to: range.to,
+    });
+  }
+
+  reschedule(
+    sessionId: Id,
+    changes: Omit<ScheduledSessionInput, 'studentId'>,
+  ): Observable<ScheduledSession> {
+    return this.api.put<ScheduledSession>(`/schedule/${sessionId}`, changes);
+  }
+
   confirm(sessionId: Id): Observable<ScheduledSession> {
     return this.api.post<ScheduledSession>(`/schedule/${sessionId}/confirm`);
   }
@@ -92,5 +108,19 @@ export class NotificationsHttpAdapter implements NotificationsPort {
 
   markAllRead(_userId: Id): Observable<void> {
     return this.api.post<null>('/me/notifications/read-all').pipe(toVoid);
+  }
+}
+
+/** Conversacion alumno-entrenador; el BFF sabe quien escribe por el token. */
+@Injectable()
+export class MessagesHttpAdapter implements MessagesPort {
+  private readonly api = inject(ApiClient);
+
+  list(studentId: Id): Observable<Message[]> {
+    return this.api.get<Message[]>(`/students/${studentId}/messages`);
+  }
+
+  send(studentId: Id, body: string): Observable<Message> {
+    return this.api.post<Message>(`/students/${studentId}/messages`, { body });
   }
 }

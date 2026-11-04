@@ -3,8 +3,10 @@ import { Injectable, Signal, computed, inject, signal } from '@angular/core';
 import { SessionFacade } from '@app/application/auth/session.facade';
 import { Routine, RoutineDay, dayForWeekday } from '@app/domain/routines/model/routine.model';
 import { ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
+import { DomainError, toDomainError } from '@app/domain/shared/model/app-error';
 import { Weekday, isWithinRange, isoWeekday, weekRange } from '@app/domain/shared/model/date';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
+import { localDay, rescheduleOptions } from '@app/domain/workouts/model/reschedule-rules';
 import {
   WorkoutSession,
   sessionProgress,
@@ -104,6 +106,53 @@ export class StudentRoutineFacade {
 
   selectDay(weekday: Weekday): void {
     this._selectedWeekday.set(weekday);
+  }
+
+  /**
+   * Dias (`yyyy-MM-dd`) a los que se puede mover la sesion seleccionada: el
+   * resto de su semana desde hoy. Vacio si ya empezo o no hay sesion (A-3).
+   */
+  readonly moveOptions: Signal<string[]> = computed(() => {
+    const session = this.selectedSession();
+    if (session === null || session.status !== 'scheduled' || session.startedAt !== null) {
+      return [];
+    }
+    const dia = localDay(new Date(session.scheduledFor));
+    return rescheduleOptions(dia, dia, localDay(this.clock.now()));
+  });
+
+  /** Dia en que quedo la sesion si se movio fuera de su dia de rutina. */
+  readonly movedTo: Signal<Date | null> = computed(() => {
+    const session = this.selectedSession();
+    if (session === null) {
+      return null;
+    }
+    const fecha = new Date(session.scheduledFor);
+    return isoWeekday(fecha) === this._selectedWeekday() ? null : fecha;
+  });
+
+  private readonly _moveError = signal<DomainError | null>(null);
+  readonly moveError: Signal<DomainError | null> = this._moveError.asReadonly();
+
+  /** Mueve la sesion seleccionada a otro dia de su semana. */
+  moveSelectedSession(day: string): Promise<boolean> {
+    const session = this.selectedSession();
+    if (session === null) {
+      return Promise.resolve(false);
+    }
+    this._moveError.set(null);
+    return new Promise(resolve => {
+      this.workouts.reschedule(session.id, day).subscribe({
+        next: updated => {
+          this.replace(updated);
+          resolve(true);
+        },
+        error: (cause: unknown) => {
+          this._moveError.set(toDomainError(cause));
+          resolve(false);
+        },
+      });
+    });
   }
 
   /** Marca o desmarca un ejercicio de la sesion del dia seleccionado. */

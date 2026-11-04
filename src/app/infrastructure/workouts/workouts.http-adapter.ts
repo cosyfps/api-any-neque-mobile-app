@@ -27,6 +27,10 @@ export class WorkoutsHttpAdapter implements WorkoutsPort {
     );
   }
 
+  reschedule(sessionId: Id, day: string): Observable<WorkoutSession> {
+    return this.api.put<WorkoutSession>(`/workouts/${sessionId}/date`, { date: day });
+  }
+
   getById(sessionId: Id): Observable<WorkoutSession> {
     return this.api.get<WorkoutSession>(`/workouts/${sessionId}`);
   }

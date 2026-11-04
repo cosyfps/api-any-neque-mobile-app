@@ -317,3 +317,97 @@
   background: var(--nq-surface-2);
   border-radius: var(--nq-radius-md);
 }
+
+// ── Cambiar de dia (A-3) ──
+.moved-note {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--nq-text-secondary);
+  text-align: center;
+}
+
+.move-btn {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 4px;
+  font-family: var(--nq-font-family);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--nq-primary-strong);
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-radius: var(--nq-radius-md);
+
+  &:focus-visible {
+    outline: 2px solid var(--nq-primary-strong);
+    outline-offset: 2px;
+  }
+}
+
+.move-sheet .nq-sheet-title {
+  margin-bottom: 4px;
+}
+
+.move-hint {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--nq-text-secondary);
+}
+
+.move-options {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+  border-top: 1px solid var(--nq-border);
+}
+
+.move-option {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 4px;
+  font-family: var(--nq-font-family);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--nq-text);
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--nq-border);
+
+  &:active {
+    background: var(--nq-surface);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--nq-primary-strong);
+    outline-offset: -2px;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+  }
+}
+
+.move-cancel {
+  width: 100%;
+  min-height: 48px;
+  font-family: var(--nq-font-family);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--nq-text-secondary);
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-radius: var(--nq-radius-md);
+
+  &:focus-visible {
+    outline: 2px solid var(--nq-primary-strong);
+    outline-offset: 2px;
+  }
+}

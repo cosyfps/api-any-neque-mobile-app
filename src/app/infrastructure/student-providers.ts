@@ -6,6 +6,7 @@ import { StudentRoutineFacade } from '@app/application/routines/student-routine.
 import { ScheduleFacade } from '@app/application/schedule/schedule.facade';
 import { StudentProfileFacade } from '@app/application/students/student-profile.facade';
 import { WorkoutFacade } from '@app/application/workouts/workout.facade';
+import { MESSAGES_PORT } from '@app/domain/messages/port/messages.port';
 import { NOTIFICATIONS_PORT } from '@app/domain/notifications/port/notifications.port';
 import { PROGRESS_PHOTOS_PORT } from '@app/domain/progress/port/progress-photos.port';
 import { EXERCISE_CATALOG_PORT, ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
@@ -16,6 +17,7 @@ import { TRAINERS_PORT } from '@app/domain/trainers/port/trainers.port';
 import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
 
 import {
+  MessagesHttpAdapter,
   NotificationsHttpAdapter,
   ProgressPhotosHttpAdapter,
   ScheduleHttpAdapter,
@@ -53,5 +55,6 @@ export function provideStudentData(): Provider[] {
     { provide: PROGRESS_PHOTOS_PORT, useClass: ProgressPhotosHttpAdapter },
     { provide: SCHEDULE_PORT, useClass: ScheduleHttpAdapter },
     { provide: NOTIFICATIONS_PORT, useClass: NotificationsHttpAdapter },
+    { provide: MESSAGES_PORT, useClass: MessagesHttpAdapter },
   ];
 }

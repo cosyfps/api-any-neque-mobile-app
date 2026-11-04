@@ -143,7 +143,7 @@ describe('StudentHomePage', () => {
         },
         {
           provide: ROUTINES_PORT,
-          useValue: { getActiveForStudent: () => of({ id: 'rtn-001' }) },
+          useValue: { getActiveForStudent: () => of({ id: 'rtn-001', days: [] }) },
         },
         {
           provide: WORKOUTS_PORT,
@@ -273,6 +273,12 @@ describe('StudentHomePage', () => {
     it('describe una proxima sesion con fecha capitalizada', () => {
       const meta = page.upcomingMeta(SESSIONS[2] as WorkoutSession);
       expect(meta.charAt(0)).toBe(meta.charAt(0).toUpperCase());
+    });
+
+    // Sin hora en la rutina, la proxima sesion se anuncia solo con el dia.
+    it('sin hora en la rutina, la proxima sesion muestra solo el dia', () => {
+      const meta = page.upcomingMeta(SESSIONS[2] as WorkoutSession);
+      expect(meta).not.toContain(':');
     });
 
     it('calcula el avance de una sesion', () => {

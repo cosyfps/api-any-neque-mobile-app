@@ -5,15 +5,16 @@ import {
   LucideBell,
   LucideCalendarDays,
   LucideChevronRight,
-  LucideFlame,
-  LucideImage,
   LucideCompass,
   LucideDumbbell,
-  LucideMail,
-  LucidePhone,
-  LucidePalette,
+  LucideFlame,
+  LucideImage,
   LucideKeyRound,
   LucideLogOut,
+  LucideMail,
+  LucideMessageCircle,
+  LucidePalette,
+  LucidePhone,
   LucideUserPen,
 } from '@lucide/angular';
 
@@ -54,6 +55,7 @@ const DATE_FORMAT = new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'num
     LucideBell,
     LucideCalendarDays,
     LucideChevronRight,
+    LucideMessageCircle,
     LucideFlame,
     LucideImage,
     LucideCompass,
@@ -131,6 +133,11 @@ const DATE_FORMAT = new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'num
                 <button class="nq-list-item" type="button" (click)="go('/student/schedule')">
                   <svg lucideCalendarDays [size]="19" [strokeWidth]="1.8"></svg>
                   <span class="nq-menu-label">Mi agenda</span>
+                  <svg lucideChevronRight [size]="18" [strokeWidth]="2"></svg>
+                </button>
+                <button class="nq-list-item" type="button" (click)="go('/student/messages')">
+                  <svg lucideMessageCircle [size]="19" [strokeWidth]="1.8"></svg>
+                  <span class="nq-menu-label">Mensajes con tu entrenador</span>
                   <svg lucideChevronRight [size]="18" [strokeWidth]="2"></svg>
                 </button>
                 <button class="nq-list-item" type="button" (click)="go('/student/notifications')">

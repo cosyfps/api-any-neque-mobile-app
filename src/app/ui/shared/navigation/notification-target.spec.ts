@@ -22,6 +22,16 @@ describe('notificationRoute()', () => {
     expect(notificationRoute('session', null)).toBeNull();
   });
 
+  // A-4: un mensaje abre la conversacion en cada rol.
+  it('un mensaje abre los mensajes del alumno', () => {
+    expect(notificationRoute('message', 'std-002')).toEqual(['/student/messages']);
+    expect(notificationRoute('message', 'std-002', 'trainer')).toEqual([
+      '/trainer/students',
+      'std-002',
+      'messages',
+    ]);
+  });
+
   describe('entrenador', () => {
     it('lleva un alumno a su ficha', () => {
       expect(notificationRoute('student', 'std-002', 'trainer')).toEqual([

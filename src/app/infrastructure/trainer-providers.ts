@@ -2,6 +2,7 @@ import { Provider } from '@angular/core';
 
 import { NotificationsFacade } from '@app/application/notifications/notifications.facade';
 import { INVITATION_PORT } from '@app/domain/auth/port/invitation.port';
+import { MESSAGES_PORT } from '@app/domain/messages/port/messages.port';
 import { NOTIFICATIONS_PORT } from '@app/domain/notifications/port/notifications.port';
 import { EXERCISE_CATALOG_PORT, ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
 import { SCHEDULE_PORT } from '@app/domain/schedule/port/schedule.port';
@@ -12,7 +13,11 @@ import { TRAINERS_PORT } from '@app/domain/trainers/port/trainers.port';
 import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
 
 import { InvitationHttpAdapter } from './auth/auth.http-adapter';
-import { NotificationsHttpAdapter, ScheduleHttpAdapter } from './engagement.http-adapters';
+import {
+  MessagesHttpAdapter,
+  NotificationsHttpAdapter,
+  ScheduleHttpAdapter,
+} from './engagement.http-adapters';
 import { ExerciseCatalogHttpAdapter, RoutinesHttpAdapter } from './routines/routines.http-adapter';
 import {
   AnamnesisHttpAdapter,
@@ -42,5 +47,6 @@ export function provideTrainerData(): Provider[] {
     { provide: WORKOUTS_PORT, useClass: WorkoutsHttpAdapter },
     { provide: SCHEDULE_PORT, useClass: ScheduleHttpAdapter },
     { provide: NOTIFICATIONS_PORT, useClass: NotificationsHttpAdapter },
+    { provide: MESSAGES_PORT, useClass: MessagesHttpAdapter },
   ];
 }

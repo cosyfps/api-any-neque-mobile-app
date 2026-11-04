@@ -51,6 +51,12 @@ export const STUDENT_ROUTES: Routes = [
               ),
           },
           {
+            // Mensajes con el entrenador (A-4): se llega desde el Perfil.
+            path: 'messages',
+            loadComponent: () =>
+              import('./messages/student-messages.page').then(m => m.StudentMessagesPage),
+          },
+          {
             path: 'schedule',
             loadComponent: () =>
               import('./schedule/student-schedule.page').then(m => m.StudentSchedulePage),

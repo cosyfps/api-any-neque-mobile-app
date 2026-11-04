@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { Routine } from '@app/domain/routines/model/routine.model';
 import { ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
 import {
+  CancelReason,
   ScheduledSession,
   ScheduledSessionInput,
 } from '@app/domain/schedule/model/scheduled-session.model';
@@ -17,6 +18,9 @@ import { Student, fullName, initials } from '@app/domain/students/model/student.
 import { ANAMNESIS_PORT } from '@app/domain/students/port/anamnesis.port';
 import { ASSESSMENTS_PORT } from '@app/domain/students/port/assessments.port';
 import { STUDENTS_PORT, StudentEditableFields } from '@app/domain/students/port/students.port';
+import { trainedSessions } from '@app/domain/workouts/model/set-summary';
+import { WorkoutSession } from '@app/domain/workouts/model/workout-session.model';
+import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
 
 import { AsyncState, ViewState, asyncState } from '../shared/async-state';
 
@@ -35,6 +39,7 @@ export class TrainerStudentDetailFacade {
   private readonly assessmentsPort = inject(ASSESSMENTS_PORT);
   private readonly routines = inject(ROUTINES_PORT);
   private readonly schedulePort = inject(SCHEDULE_PORT);
+  private readonly workoutsPort = inject(WORKOUTS_PORT);
   private readonly clock = inject(CLOCK);
 
   private readonly _studentId = signal<string | null>(null);
@@ -50,6 +55,16 @@ export class TrainerStudentDetailFacade {
   readonly routine: AsyncState<Routine | null> = asyncState<Routine | null>({
     isEmpty: () => false,
   });
+  /** Sesiones del alumno; de ellas sale el historial de entrenamientos. */
+  readonly workouts: AsyncState<WorkoutSession[]> = asyncState<WorkoutSession[]>({
+    isEmpty: () => false,
+  });
+
+  /** Entrenamientos con algo registrado, del mas reciente al mas antiguo (T-3). */
+  readonly trainingHistory: Signal<WorkoutSession[]> = computed(() =>
+    trainedSessions(this.workouts.data() ?? []),
+  );
+
   /** Citas de hoy en adelante (90 dias), de la mas cercana a la mas lejana. */
   readonly appointments: AsyncState<ScheduledSession[]> = asyncState<ScheduledSession[]>({
     isEmpty: () => false,
@@ -90,6 +105,7 @@ export class TrainerStudentDetailFacade {
     this.assessments.load(() => this.assessmentsPort.listByStudent(studentId));
     this.routine.load(() => this.routines.getActiveForStudent(studentId));
     this.appointments.load(() => this.schedulePort.listByStudent(studentId, this.proximos()));
+    this.workouts.load(() => this.workoutsPort.listByStudent(studentId));
   }
 
   reload(): void {
@@ -98,6 +114,7 @@ export class TrainerStudentDetailFacade {
     this.assessments.reload();
     this.routine.reload();
     this.appointments.reload();
+    this.workouts.reload();
   }
 
   /** Corrige los datos de la ficha. Devuelve si el puerto acepto. */
@@ -188,6 +205,28 @@ export class TrainerStudentDetailFacade {
     });
   }
 
+  /** Limpia el error de la ultima accion al abrir otro formulario. */
+  clearActionError(): void {
+    this._actionError.set(null);
+  }
+
+  /** Mueve una cita; el alumno recibe aviso y la vuelve a confirmar. */
+  rescheduleAppointment(
+    appointmentId: string,
+    input: Omit<ScheduledSessionInput, 'studentId'>,
+  ): Promise<boolean> {
+    return this.cambiarCita(() => this.schedulePort.reschedule(appointmentId, input));
+  }
+
+  /** Cancela una cita con su motivo; el alumno recibe aviso. */
+  cancelAppointment(
+    appointmentId: string,
+    reason: CancelReason,
+    note: string | null,
+  ): Promise<boolean> {
+    return this.cambiarCita(() => this.schedulePort.cancel(appointmentId, reason, note));
+  }
+
   /**
    * Suspende o reactiva la cuenta.
    *
@@ -202,6 +241,33 @@ export class TrainerStudentDetailFacade {
     }
     const next = current.status === 'active' ? 'suspended' : 'active';
     return this.run(() => this.students.setStatus(studentId, next));
+  }
+
+  /** Aplica un cambio a una cita y la reemplaza en la lista, ordenada por fecha. */
+  private cambiarCita(action: () => Observable<ScheduledSession>): Promise<boolean> {
+    if (this._studentId() === null || this._busy()) {
+      return Promise.resolve(false);
+    }
+    this._busy.set(true);
+    this._actionError.set(null);
+
+    return new Promise(resolve => {
+      action().subscribe({
+        next: value => {
+          const lista = (this.appointments.data() ?? []).map(item =>
+            item.id === value.id ? value : item,
+          );
+          this.appointments.set(lista.sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
+          this._busy.set(false);
+          resolve(true);
+        },
+        error: (cause: unknown) => {
+          this._actionError.set(toDomainError(cause));
+          this._busy.set(false);
+          resolve(false);
+        },
+      });
+    });
   }
 
   /** Desde ahora hasta 90 dias: lo que el entrenador tiene que ver venir. */

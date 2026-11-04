@@ -1,6 +1,12 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { LucideCheck, LucidePartyPopper, LucidePlay, LucideTimer } from '@lucide/angular';
+import {
+  LucideCalendarSync,
+  LucideCheck,
+  LucidePartyPopper,
+  LucidePlay,
+  LucideTimer,
+} from '@lucide/angular';
 
 import { StudentRoutineFacade } from '@app/application/routines/student-routine.facade';
 import { formatDuration, loadOf, measureOf } from '@app/domain/routines/model/prescription';
@@ -10,6 +16,12 @@ import { SKIP_REASON_LABEL } from '@app/domain/workouts/model/workout-set.model'
 
 import { PageStateComponent } from '@shared/components/page-state.component';
 import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
+
+const DIA_LARGO = new Intl.DateTimeFormat('es-CL', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
 
 const WEEKDAYS: readonly { value: Weekday; label: string }[] = [
   { value: 1, label: 'Lun' },
@@ -27,6 +39,7 @@ const WEEKDAYS: readonly { value: Weekday; label: string }[] = [
   imports: [
     PageStateComponent,
     SheetTrapDirective,
+    LucideCalendarSync,
     LucideCheck,
     LucidePartyPopper,
     LucidePlay,
@@ -113,6 +126,15 @@ const WEEKDAYS: readonly { value: Weekday; label: string }[] = [
                 <svg lucidePlay [size]="18" [strokeWidth]="2"></svg>
                 Comenzar entrenamiento
               </button>
+              @if (facade.movedTo(); as fecha) {
+                <p class="moved-note nq-ani" role="status">Lo moviste al {{ diaLargo(fecha) }}.</p>
+              }
+              @if (facade.moveOptions().length > 0) {
+                <button class="move-btn" type="button" (click)="openMove()">
+                  <svg lucideCalendarSync [size]="16" [strokeWidth]="2"></svg>
+                  Cambiar de día
+                </button>
+              }
             } @else {
               <div class="day-done nq-ani" role="status">
                 <span class="day-done-icon">
@@ -178,6 +200,34 @@ const WEEKDAYS: readonly { value: Weekday; label: string }[] = [
     <!-- Celebracion discreta: check y texto, sin confeti. El overlay vive
          siempre en el DOM y solo conmuta la clase open, que es como el
          design system lo anima: sin ella queda invisible y sin eventos. -->
+    <!-- Mover el entrenamiento a otro dia de la semana (A-3). -->
+    <div class="nq-overlay" [class.open]="moving()" (click)="closeMove()">
+      <div
+        class="nq-sheet move-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mover-title"
+        [nqSheetTrap]="moving()"
+        (dismissed)="closeMove()"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="nq-sheet-handle"></div>
+        <h2 class="nq-sheet-title" id="mover-title">¿A qué día lo mueves?</h2>
+        <p class="move-hint">Puedes moverlo a otro día de esta semana, desde hoy.</p>
+        <div class="move-options">
+          @for (dia of facade.moveOptions(); track dia) {
+            <button class="move-option" type="button" [disabled]="movingBusy()" (click)="move(dia)">
+              {{ etiquetaDia(dia) }}
+            </button>
+          }
+        </div>
+        @if (facade.moveError(); as error) {
+          <p class="nq-field-error" role="alert">{{ error.message }}</p>
+        }
+        <button class="move-cancel" type="button" (click)="closeMove()">Cancelar</button>
+      </div>
+    </div>
+
     <div class="nq-overlay" [class.open]="showCelebration()" (click)="dismissCelebration()">
       <div
         class="nq-sheet celebration"
@@ -222,6 +272,41 @@ export class StudentRoutinePage {
   });
 
   readonly reload = (): void => this.facade.reload();
+
+  /** Sheet para mover el entrenamiento (A-3). */
+  readonly moving = signal(false);
+  readonly movingBusy = signal(false);
+
+  openMove(): void {
+    this.moving.set(true);
+  }
+
+  closeMove(): void {
+    this.moving.set(false);
+  }
+
+  async move(dia: string): Promise<void> {
+    if (this.movingBusy()) {
+      return;
+    }
+    this.movingBusy.set(true);
+    const movido = await this.facade.moveSelectedSession(dia);
+    this.movingBusy.set(false);
+    if (movido) {
+      this.moving.set(false);
+    }
+  }
+
+  /** "Jueves 5 de noviembre" desde `yyyy-MM-dd`. */
+  etiquetaDia(dia: string): string {
+    const [anio = 0, mes = 1, numero = 1] = dia.split('-').map(Number);
+    return this.diaLargo(new Date(anio, mes - 1, numero), true);
+  }
+
+  diaLargo(fecha: Date, mayuscula = false): string {
+    const texto = DIA_LARGO.format(fecha);
+    return mayuscula ? `${texto.charAt(0).toUpperCase()}${texto.slice(1)}` : texto;
+  }
 
   constructor() {
     this.facade.load();

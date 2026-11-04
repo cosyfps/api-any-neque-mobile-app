@@ -1,11 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
 import { StudentRoutineFacade } from '@app/application/routines/student-routine.facade';
 import { Routine, RoutineExercise } from '@app/domain/routines/model/routine.model';
 import { ROUTINES_PORT, RoutinesPort } from '@app/domain/routines/port/routines.port';
+import { domainError } from '@app/domain/shared/model/app-error';
 import { toIsoDate } from '@app/domain/shared/model/date';
 import { CLOCK } from '@app/domain/shared/port/clock.port';
 import { WorkoutSession } from '@app/domain/workouts/model/workout-session.model';
@@ -79,6 +80,8 @@ const sessionWith = (
   ],
 });
 
+let moverResultado: ReturnType<WorkoutsPort['reschedule']> | null = null;
+
 describe('StudentRoutinePage', () => {
   let page: StudentRoutinePage;
   let router: Router;
@@ -107,6 +110,9 @@ describe('StudentRoutinePage', () => {
             listByStudent: () => of([session]),
             markExercise,
             complete,
+            reschedule: (_id: string, dia: string) =>
+              moverResultado ??
+              of({ ...session, scheduledFor: new Date(`${dia}T21:00:00.000Z`).toISOString() }),
             getById: fn<WorkoutsPort['getById']>(),
             start: fn<WorkoutsPort['start']>(),
             logSet: fn<WorkoutsPort['logSet']>(),
@@ -326,6 +332,50 @@ describe('StudentRoutinePage', () => {
       page.startWorkout();
 
       expect(router.navigate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('cambiar de dia (A-3)', () => {
+    afterEach(() => (moverResultado = null));
+
+    it('abre y cierra el selector de dias', () => {
+      page.openMove();
+      expect(page.moving()).toBe(true);
+
+      page.closeMove();
+      expect(page.moving()).toBe(false);
+    });
+
+    it('mover cierra el selector', async () => {
+      page.openMove();
+
+      await page.move('2026-09-19');
+
+      expect(page.moving()).toBe(false);
+      expect(page.movingBusy()).toBe(false);
+    });
+
+    it('un rechazo deja el selector abierto', async () => {
+      moverResultado = throwError(() => domainError('validation', 'No se puede.'));
+      page.openMove();
+
+      await page.move('2026-09-19');
+
+      expect(page.moving()).toBe(true);
+    });
+
+    it('ignora un segundo toque mientras mueve', async () => {
+      page.movingBusy.set(true);
+      page.openMove();
+
+      await page.move('2026-09-19');
+
+      expect(page.moving()).toBe(true);
+    });
+
+    it('nombra el dia en espanol', () => {
+      expect(page.etiquetaDia('2026-09-19')).toBe('Sábado, 19 de septiembre');
+      expect(page.diaLargo(new Date(2026, 8, 19))).toBe('sábado, 19 de septiembre');
     });
   });
 

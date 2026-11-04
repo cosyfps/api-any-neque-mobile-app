@@ -65,7 +65,7 @@ const sesion = (
     exercises: [],
   }) as WorkoutSession;
 
-const RUTINA = { id: 'rtn-001', name: 'Hipertrofia' } as Routine;
+const RUTINA = { id: 'rtn-001', name: 'Hipertrofia', days: [] } as unknown as Routine;
 const EVALUACION = { id: 'asm-001' } as Assessment;
 const ANAMNESIS = { id: 'anm-001' } as Anamnesis;
 
@@ -244,6 +244,21 @@ describe('TrainerHomePage', () => {
         estimatedMinutes: 50,
       });
       expect(page.sesionesHoy()).toBe('1 sesión');
+    });
+
+    // Sin hora en el dia de rutina, la pagina muestra "Sin hora" y no el 09:00 del BFF.
+    it('marca si el dia de rutina tiene hora de inicio', () => {
+      page = createPage({ sesiones: [sesion('wks-001', 'std-001', AHORA)] });
+      expect(page.facade.today()[0]?.hasStartTime).toBe(false);
+
+      page = createPage({
+        sesiones: [sesion('wks-001', 'std-001', AHORA)],
+        rutina: {
+          ...RUTINA,
+          days: [{ id: 'day-001', startTime: '18:30' }],
+        } as unknown as Routine,
+      });
+      expect(page.facade.today()[0]?.hasStartTime).toBe(true);
     });
 
     it('deja fuera las de otro dia', () => {
@@ -517,6 +532,14 @@ describe('TrainerHomePage', () => {
       page.goToRoutines();
 
       expect(router.navigate).toHaveBeenCalledWith(['/trainer/routines']);
+    });
+  });
+
+  describe('goToAgenda()', () => {
+    it('abre la agenda global', () => {
+      page.goToAgenda();
+
+      expect(router.navigate).toHaveBeenCalledWith(['/trainer/agenda']);
     });
   });
 

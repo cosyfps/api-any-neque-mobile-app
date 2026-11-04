@@ -79,6 +79,15 @@ export class WorkoutFacade {
 
   readonly viewState: Signal<ViewState> = this.sessions.viewState;
 
+  /**
+   * True si el dia de rutina de la sesion tiene hora de inicio. Sin ella, el
+   * BFF agenda a mediodia UTC solo para fijar el dia: esa hora no se muestra.
+   */
+  hasStartTime(session: WorkoutSession): boolean {
+    const day = this.activeRoutine.data()?.days.find(item => item.id === session.routineDayId);
+    return Boolean(day?.startTime);
+  }
+
   load(): void {
     const studentId = this.session.profileId();
     if (studentId === null) {

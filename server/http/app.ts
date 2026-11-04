@@ -7,6 +7,7 @@ import { isPasswordValid } from '@app/ui/shared/validators/password-rules';
 
 import * as auth from '../application/auth';
 import * as engagement from '../application/engagement';
+import * as messages from '../application/messages';
 import * as notifications from '../application/notifications';
 import * as people from '../application/people';
 import * as training from '../application/training';
@@ -119,6 +120,14 @@ const exerciseInput = z.object({
   ownerTrainerId: z.string().nullable().optional(),
   defaultLoad: exerciseLoad.optional(),
   defaultMeasure: exerciseMeasure.optional(),
+});
+/** Cita de la agenda: la misma forma al crearla y al reagendarla. */
+const appointmentInput = z.object({
+  title: text(120).min(1),
+  startsAt: z.string().datetime({ offset: true }),
+  endsAt: z.string().datetime({ offset: true }),
+  location: optionalText(120),
+  kind: z.enum(['training', 'assessment', 'checkin']),
 });
 const routineInput = z.object({
   name: text(120).min(1),
@@ -384,6 +393,13 @@ export function createApp(): Hono<AppEnv> {
   app.get('/trainers/:id/exercises', requireRole('trainer'), async c =>
     c.json(await training.listExercisesForTrainer(c.get('actor'), idParam(c, 'id'))),
   );
+  app.get('/trainers/:id/schedule', requireRole('trainer'), async c => {
+    const range = rangeQuery(c.req.query('from'), c.req.query('to'));
+    if (range === null) {
+      throw new ApiError('validation', 'Falta el rango de fechas.');
+    }
+    return c.json(await engagement.listTrainerSchedule(c.get('actor'), idParam(c, 'id'), range));
+  });
   app.get('/trainers/:id/routines', requireRole('trainer'), async c =>
     c.json(await training.listRoutines(c.get('actor'), idParam(c, 'id'))),
   );
@@ -455,6 +471,10 @@ export function createApp(): Hono<AppEnv> {
   app.get('/workouts/:id', async c =>
     c.json(await training.getWorkout(c.get('actor'), idParam(c, 'id'))),
   );
+  app.put('/workouts/:id/date', requireRole('student'), async c => {
+    const body = await parseBody(c, z.object({ date: z.string().date() }));
+    return c.json(await training.rescheduleWorkout(c.get('actor'), idParam(c, 'id'), body.date));
+  });
   app.post('/workouts/:id/start', requireRole('student'), async c =>
     c.json(await training.mutateWorkout(c.get('actor'), idParam(c, 'id'), rules.startSession)),
   );
@@ -501,6 +521,15 @@ export function createApp(): Hono<AppEnv> {
   });
 
   // Fotos
+  // Mensajes (A-4)
+  app.get('/students/:id/messages', async c =>
+    c.json(await messages.listMessages(c.get('actor'), idParam(c, 'id'))),
+  );
+  app.post('/students/:id/messages', async c => {
+    const body = await parseBody(c, z.object({ body: text(1000).min(1) }));
+    return c.json(await messages.sendMessage(c.get('actor'), idParam(c, 'id'), body.body), 201);
+  });
+
   app.get('/students/:id/photos', async c =>
     c.json(await engagement.listPhotos(c.get('actor'), idParam(c, 'id'))),
   );
@@ -528,16 +557,7 @@ export function createApp(): Hono<AppEnv> {
     return c.json(await engagement.listSchedule(c.get('actor'), idParam(c, 'id'), range));
   });
   app.post('/students/:id/schedule', requireRole('trainer'), async c => {
-    const body = await parseBody(
-      c,
-      z.object({
-        title: text(120).min(1),
-        startsAt: z.string().datetime({ offset: true }),
-        endsAt: z.string().datetime({ offset: true }),
-        location: optionalText(120),
-        kind: z.enum(['training', 'assessment', 'checkin']),
-      }),
-    );
+    const body = await parseBody(c, appointmentInput);
     return c.json(
       await engagement.createAppointment(c.get('actor'), {
         ...body,
@@ -545,6 +565,10 @@ export function createApp(): Hono<AppEnv> {
       }),
       201,
     );
+  });
+  app.put('/schedule/:id', requireRole('trainer'), async c => {
+    const body = await parseBody(c, appointmentInput);
+    return c.json(await engagement.rescheduleAppointment(c.get('actor'), idParam(c, 'id'), body));
   });
   app.post('/schedule/:id/confirm', requireRole('student'), async c =>
     c.json(await engagement.confirmAppointment(c.get('actor'), idParam(c, 'id'))),

@@ -1,11 +1,12 @@
 import { Exercise, ExerciseInput } from '@app/domain/routines/model/exercise.model';
 import { Routine, RoutineAssignment, RoutineInput } from '@app/domain/routines/model/routine.model';
 import { DateRange } from '@app/domain/shared/model/date-range';
+import { rescheduleError } from '@app/domain/workouts/model/reschedule-rules';
 import { WorkoutSession } from '@app/domain/workouts/model/workout-session.model';
 
 import { fail } from '../domain/api-error';
 import { DateWindow, staleSessionWindow } from '../domain/assignment-rules';
-import { sessionInstant } from '../domain/zoned-time';
+import { sessionInstant, zonedParts } from '../domain/zoned-time';
 import { Actor } from '../http/context';
 import {
   ExerciseRow,
@@ -532,6 +533,46 @@ export async function loadWorkout(sessionId: string): Promise<WorkoutSession> {
     db().from('workout_sessions').select(WORKOUT_SELECT).eq('id', sessionId).maybeSingle(),
   );
   return toWorkoutSession(row);
+}
+
+/**
+ * El alumno mueve un entrenamiento a otro dia de su semana (A-3).
+ *
+ * Solo cambia `scheduled_for` (lo que la app muestra). `scheduled_date`
+ * conserva el dia original: es la clave del indice unico con que se generan
+ * las sesiones, y asi el dia que quedo libre no se vuelve a llenar. La hora
+ * del dia se mantiene.
+ */
+export async function rescheduleWorkout(
+  actor: Actor,
+  sessionId: string,
+  newDay: string,
+): Promise<WorkoutSession> {
+  if (actor.role !== 'student') {
+    return fail('forbidden');
+  }
+  const actual = await getWorkout(actor, sessionId);
+  const fila = await must<{ scheduled_date: string }>(
+    db().from('workout_sessions').select('scheduled_date').eq('id', sessionId).single(),
+  );
+  const ahora = zonedParts(actual.scheduledFor);
+  const error = rescheduleError(
+    actual,
+    fila.scheduled_date,
+    ahora.day,
+    newDay,
+    zonedParts(new Date().toISOString()).day,
+  );
+  if (error !== null) {
+    return fail('validation', error);
+  }
+  await maybe(
+    db()
+      .from('workout_sessions')
+      .update({ scheduled_for: sessionInstant(newDay, ahora.time) })
+      .eq('id', sessionId),
+  );
+  return loadWorkout(sessionId);
 }
 
 export async function getWorkout(actor: Actor, sessionId: string): Promise<WorkoutSession> {

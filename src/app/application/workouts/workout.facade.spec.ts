@@ -48,7 +48,7 @@ describe('WorkoutFacade', () => {
   let listByStudent: MockOf<WorkoutsPort['listByStudent']>;
   let complete: MockOf<WorkoutsPort['complete']>;
   let profileId: string | null;
-  let activeRoutine: { id: string } | null;
+  let activeRoutine: { id: string; days: { id: string; startTime: string | null }[] } | null;
 
   const build = (): WorkoutFacade => {
     TestBed.configureTestingModule({
@@ -77,7 +77,7 @@ describe('WorkoutFacade', () => {
     listByStudent = fn<WorkoutsPort['listByStudent']>().mockReturnValue(of(SESSIONS));
     complete = fn<WorkoutsPort['complete']>();
     profileId = 'std-001';
-    activeRoutine = { id: 'rtn-001' };
+    activeRoutine = { id: 'rtn-001', days: [{ id: 'day-001', startTime: null }] };
   });
 
   describe('load()', () => {
@@ -106,6 +106,23 @@ describe('WorkoutFacade', () => {
       facade.load();
 
       expect(facade.viewState()).toBe('error');
+    });
+  });
+
+  describe('hasStartTime()', () => {
+    it('es falso si el dia de rutina no tiene hora', () => {
+      const facade = build();
+      facade.load();
+
+      expect(facade.hasStartTime(SESSIONS[0] as WorkoutSession)).toBe(false);
+    });
+
+    it('es verdadero si el dia de rutina tiene hora', () => {
+      activeRoutine = { id: 'rtn-001', days: [{ id: 'day-001', startTime: '18:30' }] };
+      const facade = build();
+      facade.load();
+
+      expect(facade.hasStartTime(SESSIONS[0] as WorkoutSession)).toBe(true);
     });
   });
 

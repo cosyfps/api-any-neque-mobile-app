@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import {
   SESSION_KIND_LABEL,
+  ScheduledSession,
   ScheduledSessionInput,
   SessionKind,
   appointmentError,
@@ -129,7 +130,7 @@ export type AppointmentFormValue = Omit<ScheduledSessionInput, 'studentId'>;
           Cancelar
         </button>
         <button class="nq-btn nq-btn-primary" type="submit" [disabled]="busy()">
-          {{ busy() ? 'Agendando…' : 'Agendar cita' }}
+          {{ busy() ? 'Guardando…' : submitLabel() }}
         </button>
       </div>
     </form>
@@ -139,6 +140,7 @@ export type AppointmentFormValue = Omit<ScheduledSessionInput, 'studentId'>;
 export class AppointmentFormComponent {
   readonly busy = input(false);
   readonly errorMessage = input<string | null>(null);
+  readonly submitLabel = input('Agendar cita');
 
   readonly submitted = output<AppointmentFormValue>();
   readonly cancelled = output<void>();
@@ -186,15 +188,33 @@ export class AppointmentFormComponent {
     return `${this.uid}-${campo}`;
   }
 
-  reset(): void {
+  /** Vacio para agendar; con una cita, precargado para reagendarla. */
+  reset(cita: ScheduledSession | null = null): void {
     this.intentado.set(false);
+    if (cita === null) {
+      this.form.reset({
+        kind: 'training',
+        title: '',
+        date: '',
+        time: '',
+        minutes: 60,
+        location: '',
+      });
+      return;
+    }
+    const inicio = new Date(cita.startsAt);
+    const minutos = Math.round((new Date(cita.endsAt).getTime() - inicio.getTime()) / 60_000);
+    const dos = (n: number): string => String(n).padStart(2, '0');
     this.form.reset({
-      kind: 'training',
-      title: '',
-      date: '',
-      time: '',
-      minutes: 60,
-      location: '',
+      kind: cita.kind,
+      title: cita.title,
+      date: localIsoDay(inicio),
+      time: `${dos(inicio.getHours())}:${dos(inicio.getMinutes())}`,
+      // Una duracion que no esta en la lista queda en la mas cercana.
+      minutes: DURACIONES.reduce((mejor, opcion) =>
+        Math.abs(opcion - minutos) < Math.abs(mejor - minutos) ? opcion : mejor,
+      ),
+      location: cita.location ?? '',
     });
   }
 
