@@ -23,6 +23,11 @@ const EXTRA_REST_SECONDS = 15;
  *
  * El temporizador se limpia en `DestroyRef.onDestroy`, el mismo patron que
  * ya usa `forgot-password.page.ts` para su countdown.
+ *
+ * Los tres relojes (sesion, descanso y serie por tiempo) guardan la HORA en
+ * que empiezan o terminan y calculan lo que queda contra `CLOCK`. El
+ * intervalo solo refresca la vista: si iOS congela la app (otra app, pantalla
+ * apagada) el descanso sigue corriendo y al volver se ve el tiempo real.
  */
 @Injectable()
 export class WorkoutRunnerFacade {
@@ -38,6 +43,10 @@ export class WorkoutRunnerFacade {
   private readonly _elapsedSeconds = signal(0);
   private readonly _workRemaining = signal<number | null>(null);
   private readonly _workRunning = signal(false);
+
+  /** Instantes (ms) en que terminan el descanso y la serie por tiempo. */
+  private restEndsAt: number | null = null;
+  private workEndsAt: number | null = null;
 
   private restTimer: ReturnType<typeof setInterval> | null = null;
   private elapsedTimer: ReturnType<typeof setInterval> | null = null;
@@ -99,6 +108,16 @@ export class WorkoutRunnerFacade {
 
   reload(): void {
     this.session.reload();
+  }
+
+  /**
+   * Recalcula los relojes contra la hora actual. La pagina lo llama al volver
+   * a primer plano para no esperar el siguiente tic.
+   */
+  resync(): void {
+    this.syncElapsed();
+    this.syncRest();
+    this.syncWork();
   }
 
   /** Arranca la ejecucion desde el primer ejercicio no completado. */
@@ -210,16 +229,11 @@ export class WorkoutRunnerFacade {
       return;
     }
     const pendiente = this._workRemaining();
-    this._workRemaining.set(pendiente === null || pendiente <= 0 ? seconds : pendiente);
+    const desde = pendiente === null || pendiente <= 0 ? seconds : pendiente;
+    this._workRemaining.set(desde);
     this._workRunning.set(true);
-
-    this.workTimer = setInterval(() => {
-      const next = (this._workRemaining() ?? 0) - 1;
-      this._workRemaining.set(Math.max(0, next));
-      if (next <= 0) {
-        this.pauseWork();
-      }
-    }, TICK_MS);
+    this.workEndsAt = this.now() + desde * 1000;
+    this.workTimer = setInterval(() => this.syncWork(), TICK_MS);
   }
 
   /** Vuelve la cuenta regresiva al inicio, detenida. */
@@ -231,6 +245,9 @@ export class WorkoutRunnerFacade {
   addRest(): void {
     if (this._phase() !== 'rest') {
       return;
+    }
+    if (this.restEndsAt !== null) {
+      this.restEndsAt += EXTRA_REST_SECONDS * 1000;
     }
     this._restRemaining.update(value => value + EXTRA_REST_SECONDS);
   }
@@ -347,7 +364,12 @@ export class WorkoutRunnerFacade {
     this._phase.set('exercise');
   }
 
+  /** Detiene la cuenta dejando congelado lo que faltaba. */
   private pauseWork(): void {
+    if (this.workEndsAt !== null) {
+      this._workRemaining.set(this.secondsUntil(this.workEndsAt));
+      this.workEndsAt = null;
+    }
     if (this.workTimer !== null) {
       clearInterval(this.workTimer);
       this.workTimer = null;
@@ -376,27 +398,59 @@ export class WorkoutRunnerFacade {
     this.clearRestTimer();
     this._restRemaining.set(seconds);
     this._phase.set('rest');
-
-    this.restTimer = setInterval(() => {
-      const next = this._restRemaining() - 1;
-      this._restRemaining.set(Math.max(0, next));
-      if (next <= 0) {
-        this.clearRestTimer();
-        this._phase.set('exercise');
-      }
-    }, TICK_MS);
+    this.restEndsAt = this.now() + seconds * 1000;
+    this.restTimer = setInterval(() => this.syncRest(), TICK_MS);
   }
 
   private startElapsedTimer(): void {
     this.clearElapsedTimer();
     this._elapsedSeconds.set(0);
+    this.elapsedTimer = setInterval(() => this.syncElapsed(), TICK_MS);
+  }
 
-    this.elapsedTimer = setInterval(() => {
-      this._elapsedSeconds.update(value => value + 1);
-    }, TICK_MS);
+  private syncElapsed(): void {
+    const inicio = this._startedAt();
+    if (inicio === null || this.elapsedTimer === null) {
+      return;
+    }
+    this._elapsedSeconds.set(Math.max(0, Math.floor((this.now() - inicio) / 1000)));
+  }
+
+  /** Al llegar a cero el descanso termina solo, aunque haya sido en segundo plano. */
+  private syncRest(): void {
+    if (this.restEndsAt === null) {
+      return;
+    }
+    const quedan = this.secondsUntil(this.restEndsAt);
+    this._restRemaining.set(quedan);
+    if (quedan <= 0) {
+      this.clearRestTimer();
+      this._phase.set('exercise');
+    }
+  }
+
+  private syncWork(): void {
+    if (this.workEndsAt === null) {
+      return;
+    }
+    const quedan = this.secondsUntil(this.workEndsAt);
+    this._workRemaining.set(quedan);
+    if (quedan <= 0) {
+      this.pauseWork();
+    }
+  }
+
+  private now(): number {
+    return this.clock.now().getTime();
+  }
+
+  /** Segundos enteros que faltan; redondea hacia arriba para no mostrar 0 antes de tiempo. */
+  private secondsUntil(instant: number): number {
+    return Math.max(0, Math.ceil((instant - this.now()) / 1000));
   }
 
   private clearRestTimer(): void {
+    this.restEndsAt = null;
     if (this.restTimer !== null) {
       clearInterval(this.restTimer);
       this.restTimer = null;

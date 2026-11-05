@@ -19,6 +19,7 @@ import { RingProgressComponent } from '@shared/components/chart/ring-progress.co
 import { PageStateComponent } from '@shared/components/page-state.component';
 import { StepperComponent } from '@shared/components/stepper.component';
 import { SheetTrapDirective } from '@shared/directives/sheet-trap.directive';
+import { useScreenAwake } from '@shared/navigation/screen-awake';
 
 /** Que se esta por saltar; null con la hoja cerrada. */
 type SkipTarget = 'set' | 'exercise';
@@ -489,8 +490,17 @@ export class WorkoutRunnerPage {
 
   readonly reload = (): void => this.facade.reload();
 
+  /** Con la sesion en marcha la pantalla no se apaga sola: se mira de reojo el descanso. */
+  readonly training = computed(() => {
+    const phase = this.facade.phase();
+    return phase === 'exercise' || phase === 'rest';
+  });
+
   constructor() {
     this.facade.open(this.route.snapshot.paramMap.get('sessionId') ?? '');
+    // Al volver de otra app o de la pantalla bloqueada, los relojes muestran
+    // de inmediato el tiempo real (siguieron corriendo).
+    useScreenAwake(this.training, () => this.facade.resync());
   }
 
   /** Cierra la serie con lo corregido y vuelve a lo prescrito para la siguiente. */

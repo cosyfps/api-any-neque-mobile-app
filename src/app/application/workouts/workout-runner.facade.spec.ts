@@ -57,7 +57,8 @@ describe('WorkoutRunnerFacade', () => {
     TestBed.configureTestingModule({
       providers: [
         WorkoutRunnerFacade,
-        { provide: CLOCK, useValue: { now: () => NOW } },
+        // Reloj que avanza con los fake timers: los relojes del runner miden contra el.
+        { provide: CLOCK, useValue: { now: () => new Date(Date.now()) } },
         {
           provide: WORKOUTS_PORT,
           useValue: {
@@ -90,7 +91,7 @@ describe('WorkoutRunnerFacade', () => {
   };
 
   beforeEach(() => {
-    jest.useFakeTimers();
+    jest.useFakeTimers({ now: NOW });
     current = TWO_EXERCISES;
     getById = fn<WorkoutsPort['getById']>().mockImplementation(() => of(current));
     start = fn<WorkoutsPort['start']>().mockImplementation(() =>
@@ -393,6 +394,18 @@ describe('WorkoutRunnerFacade', () => {
       expect(facade.workRunning()).toBe(false);
     });
 
+    it('sigue corriendo en segundo plano', () => {
+      const facade = opened();
+      facade.start();
+      facade.toggleWork(45);
+
+      jest.setSystemTime(Date.now() + 30_000);
+      facade.resync();
+
+      expect(facade.workRemaining()).toBe(15);
+      expect(facade.elapsedSeconds()).toBe(30);
+    });
+
     it('resetWork() la vuelve al inicio, detenida', () => {
       const facade = opened();
       facade.start();
@@ -439,6 +452,37 @@ describe('WorkoutRunnerFacade', () => {
 
       expect(facade.restRemaining()).toBe(0);
       expect(facade.phase()).toBe('exercise');
+    });
+
+    // Con la app en segundo plano iOS no ejecuta los ticks: solo pasa el reloj.
+    it('sigue corriendo en segundo plano y resync() muestra lo real', () => {
+      const facade = resting();
+
+      jest.setSystemTime(Date.now() + 40_000);
+      facade.resync();
+
+      expect(facade.restRemaining()).toBe(20);
+      expect(facade.phase()).toBe('rest');
+    });
+
+    it('si termino en segundo plano, al volver ya esta en ejercicio', () => {
+      const facade = resting();
+
+      jest.setSystemTime(Date.now() + 90_000);
+      facade.resync();
+
+      expect(facade.restRemaining()).toBe(0);
+      expect(facade.phase()).toBe('exercise');
+    });
+
+    it('addRest() mueve tambien el fin del descanso', () => {
+      const facade = resting();
+      facade.addRest();
+
+      jest.setSystemTime(Date.now() + 70_000);
+      facade.resync();
+
+      expect(facade.restRemaining()).toBe(5);
     });
 
     it('addRest() suma quince segundos', () => {

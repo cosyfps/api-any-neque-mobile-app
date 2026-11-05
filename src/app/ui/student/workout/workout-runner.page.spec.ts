@@ -58,6 +58,13 @@ const SESSION: WorkoutSession = {
 
 const [DOMINADAS, REMO] = SESSION.exercises as [WorkoutExerciseLog, WorkoutExerciseLog];
 
+jest.mock('@capacitor-community/keep-awake', () => ({
+  KeepAwake: {
+    keepAwake: jest.fn<Promise<void>, []>(() => Promise.resolve()),
+    allowSleep: jest.fn<Promise<void>, []>(() => Promise.resolve()),
+  },
+}));
+
 describe('WorkoutRunnerPage', () => {
   let page: WorkoutRunnerPage;
   let router: Router;
@@ -70,7 +77,7 @@ describe('WorkoutRunnerPage', () => {
         provideRouter([]),
         // La pagina la declara en sus `providers`; aqui hay que darla a mano.
         WorkoutRunnerFacade,
-        { provide: CLOCK, useValue: { now: () => NOW } },
+        { provide: CLOCK, useValue: { now: () => new Date(Date.now()) } },
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: { get: () => 'wks-001' } } },
@@ -95,7 +102,7 @@ describe('WorkoutRunnerPage', () => {
   };
 
   beforeEach(() => {
-    jest.useFakeTimers();
+    jest.useFakeTimers({ now: NOW });
     complete = fn<WorkoutsPort['complete']>().mockReturnValue(
       of({ ...SESSION, status: 'completed' as const }),
     );
@@ -112,6 +119,20 @@ describe('WorkoutRunnerPage', () => {
 
     it('arranca en idle', () => {
       expect(page.facade.phase()).toBe('idle');
+    });
+  });
+
+  describe('training()', () => {
+    it('solo es true con la sesion en marcha', () => {
+      page = createPage();
+      expect(page.training()).toBe(false);
+
+      page.facade.start();
+      expect(page.training()).toBe(true);
+
+      page.completeSet();
+      expect(page.facade.phase()).toBe('rest');
+      expect(page.training()).toBe(true);
     });
   });
 
