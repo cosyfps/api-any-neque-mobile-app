@@ -23,8 +23,8 @@
     background: var(--nq-surface);
 
     // Instalada como PWA, iOS dibuja la barra de estado encima con un
-    // fundido translucido: un respiro minimo separa el saludo de el. En
-    // prueba en el iPhone; 54px y 64px dejaban demasiado espacio vacio.
+    // fundido translucido: 15px separan el saludo y la campana de el.
+    // Ajustado en el iPhone; 54px y 64px dejaban demasiado espacio vacio.
     @media (display-mode: standalone) {
       padding-top: calc(env(safe-area-inset-top, 0px) + 15px);
     }

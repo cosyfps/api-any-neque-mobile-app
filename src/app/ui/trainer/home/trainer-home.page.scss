@@ -5,7 +5,8 @@
 .head {
   display: flex;
   gap: 12px;
-  align-items: flex-start;
+  // Saludo y nombre como un solo bloque, centrado con la campana.
+  align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
 }
@@ -67,7 +68,9 @@
 }
 
 .greeting {
+  display: block;
   font-size: 14px;
+  line-height: 1.2;
   color: var(--nq-text-secondary);
 }
 
@@ -75,7 +78,7 @@
   margin: 2px 0 0;
   font-size: 26px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.15;
   color: var(--nq-text);
 }
 
