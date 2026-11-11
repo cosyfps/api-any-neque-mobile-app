@@ -23,11 +23,10 @@
     background: var(--nq-surface);
 
     // Instalada como PWA, iOS dibuja la barra de estado encima con un
-    // fundido translucido, pero informa un area segura de 0: el saludo y la
-    // campana del Inicio quedaban opacos bajo el. Solo se reserva el alto de
-    // la barra (54px con Dynamic Island), sin aire extra.
+    // fundido translucido: un respiro minimo separa el saludo de el. En
+    // prueba en el iPhone; 54px y 64px dejaban demasiado espacio vacio.
     @media (display-mode: standalone) {
-      padding-top: max(env(safe-area-inset-top, 0px), 54px);
+      padding-top: calc(env(safe-area-inset-top, 0px) + 3px);
     }
   }
 
