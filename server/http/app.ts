@@ -172,7 +172,10 @@ const assignmentsInput = z.object({
     )
     .max(200),
 });
+/** Hora en que el alumno lo hizo, si llega tarde desde la cola sin conexion. */
+const at = z.string().datetime({ offset: true }).optional();
 const setInput = z.object({
+  at,
   setNumber: z.number().int().min(1).max(50),
   reps: z.number().int().min(0).max(500).nullable(),
   weightKg: z.number().min(0).max(1000).nullable(),
@@ -475,40 +478,65 @@ export function createApp(): Hono<AppEnv> {
     const body = await parseBody(c, z.object({ date: z.string().date() }));
     return c.json(await training.rescheduleWorkout(c.get('actor'), idParam(c, 'id'), body.date));
   });
-  app.post('/workouts/:id/start', requireRole('student'), async c =>
-    c.json(await training.mutateWorkout(c.get('actor'), idParam(c, 'id'), rules.startSession)),
-  );
+  app.post('/workouts/:id/start', requireRole('student'), async c => {
+    const body = await parseBody(c, z.object({ at }));
+    return c.json(
+      await training.mutateWorkout(
+        c.get('actor'),
+        idParam(c, 'id'),
+        rules.startSession,
+        null,
+        body.at,
+      ),
+    );
+  });
   app.put('/workouts/:id/exercises/:exerciseId/done', requireRole('student'), async c => {
-    const body = await parseBody(c, z.object({ done: z.boolean() }));
+    const body = await parseBody(c, z.object({ done: z.boolean(), at }));
     const exerciseId = idParam(c, 'exerciseId');
     return c.json(
-      await training.mutateWorkout(c.get('actor'), idParam(c, 'id'), (s, now) =>
-        rules.markExercise(s, exerciseId, body.done, now),
+      await training.mutateWorkout(
+        c.get('actor'),
+        idParam(c, 'id'),
+        (s, now) => rules.markExercise(s, exerciseId, body.done, now),
+        null,
+        body.at,
       ),
     );
   });
   app.post('/workouts/:id/exercises/:exerciseId/sets', requireRole('student'), async c => {
-    const body = await parseBody(c, setInput);
+    const { at: hecho, ...set } = await parseBody(c, setInput);
     const exerciseId = idParam(c, 'exerciseId');
     return c.json(
-      await training.mutateWorkout(c.get('actor'), idParam(c, 'id'), (s, now) =>
-        rules.logSet(s, exerciseId, body, now),
+      await training.mutateWorkout(
+        c.get('actor'),
+        idParam(c, 'id'),
+        (s, now) => rules.logSet(s, exerciseId, set, now),
+        null,
+        hecho,
       ),
     );
   });
   app.post('/workouts/:id/exercises/:exerciseId/skip', requireRole('student'), async c => {
-    const body = await parseBody(c, z.object({ reason: skipReason.nullable() }));
+    const body = await parseBody(c, z.object({ reason: skipReason.nullable(), at }));
     const exerciseId = idParam(c, 'exerciseId');
     return c.json(
-      await training.mutateWorkout(c.get('actor'), idParam(c, 'id'), (s, now) =>
-        rules.skipExercise(s, exerciseId, body.reason, now),
+      await training.mutateWorkout(
+        c.get('actor'),
+        idParam(c, 'id'),
+        (s, now) => rules.skipExercise(s, exerciseId, body.reason, now),
+        null,
+        body.at,
       ),
     );
   });
   app.post('/workouts/:id/complete', requireRole('student'), async c => {
     const body = await parseBody(
       c,
-      z.object({ durationMinutes: z.number().int().min(0).max(600), note: optionalText(1000) }),
+      z.object({
+        durationMinutes: z.number().int().min(0).max(600),
+        note: optionalText(1000),
+        at,
+      }),
     );
     return c.json(
       await training.mutateWorkout(
@@ -516,6 +544,7 @@ export function createApp(): Hono<AppEnv> {
         idParam(c, 'id'),
         (s, now) => rules.completeSession(s, body, now),
         body.note,
+        body.at,
       ),
     );
   });

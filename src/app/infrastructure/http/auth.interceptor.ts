@@ -91,13 +91,20 @@ function refreshAndRetry(
   base: string,
   session: StoredSession,
 ) {
-  if (session.refreshToken === undefined) {
+  // Otra peticion ya renovo el token mientras esta estaba en vuelo: se
+  // reintenta con el nuevo. Refrescar con el refresh token viejo (ya rotado
+  // por Supabase) revocaria la sesion completa.
+  const current = (storage.read() as StoredSession | null) ?? session;
+  if (refreshing === null && current.token !== session.token) {
+    return retryWith(req, next, storage, current);
+  }
+  if (current.refreshToken === undefined) {
     return expire(storage, req);
   }
   if (refreshing === null) {
     refreshing = next(
       new HttpRequest<{ refreshToken: string }>('POST', `${base}/auth/refresh`, {
-        refreshToken: session.refreshToken,
+        refreshToken: current.refreshToken,
       }),
     ).pipe(
       // `next` emite eventos; solo interesa la respuesta final.
@@ -119,15 +126,24 @@ function refreshAndRetry(
     ),
     switchMap(renewed => {
       storage.write(renewed);
-      return next(withToken(req, renewed.token)).pipe(
-        // Un 401 con el token recien renovado si es una sesion invalida.
-        catchError((error: unknown) =>
-          error instanceof HttpErrorResponse && error.status === 401
-            ? expire(storage, req, isSessionReplaced(error) ? 'session_replaced' : 'unauthorized')
-            : throwError(() => error),
-        ),
-      );
+      return retryWith(req, next, storage, renewed);
     }),
+  );
+}
+
+/** Reintenta con un token ya renovado; un 401 con el si es una sesion invalida. */
+function retryWith(
+  req: HttpRequest<unknown>,
+  next: HttpHandlerFn,
+  storage: SessionStoragePort,
+  renewed: StoredSession,
+) {
+  return next(withToken(req, renewed.token)).pipe(
+    catchError((error: unknown) =>
+      error instanceof HttpErrorResponse && error.status === 401
+        ? expire(storage, req, isSessionReplaced(error) ? 'session_replaced' : 'unauthorized')
+        : throwError(() => error),
+    ),
   );
 }
 

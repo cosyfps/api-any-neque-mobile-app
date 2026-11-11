@@ -80,6 +80,13 @@ writeFileSync(
       version: 3,
       routes: [
         { src: '/(.*)', headers: securityHeaders, continue: true },
+        // El service worker y su manifiesto deben revalidarse siempre: si
+        // quedaran en cache, la PWA instalada nunca veria una version nueva.
+        {
+          src: '^/(ngsw-worker\\.js|ngsw\\.json|manifest\\.webmanifest)$',
+          headers: { 'Cache-Control': 'no-cache' },
+          continue: true,
+        },
         { src: '^/api/(.*)$', dest: '/api' },
         { handle: 'filesystem' },
         { src: '/(.*)', dest: '/index.html' },

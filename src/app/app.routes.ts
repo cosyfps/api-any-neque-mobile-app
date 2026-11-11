@@ -2,6 +2,9 @@ import { Routes } from '@angular/router';
 
 import { authGuard, publicOnlyGuard, roleGuard } from '@app/ui/shared/guards/auth.guard';
 
+const privacy = (): Promise<typeof import('./ui/shared/pages/privacy.page').PrivacyPage> =>
+  import('./ui/shared/pages/privacy.page').then(m => m.PrivacyPage);
+
 export const routes: Routes = [
   {
     path: '',
@@ -15,6 +18,8 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./ui/auth/forgot-password/forgot-password.page').then(m => m.ForgotPasswordPage),
   },
+  // Publica con o sin sesion: la enlazan el login, el Perfil y el correo.
+  { path: 'privacidad', loadComponent: privacy },
   // Forma corta del enlace de invitacion, la que se comparte y va en el QR.
   { path: 'i/:token', redirectTo: 'invite/:token' },
   {
@@ -45,10 +50,12 @@ const mobileOnly = (): Promise<
 > => import('./ui/shared/pages/mobile-only.page').then(m => m.MobileOnlyPage);
 
 /**
- * Rutas del navegador en produccion: todas llevan a la pantalla "solo app".
+ * Rutas del navegador en produccion: todas llevan a la pantalla "solo app",
+ * salvo la politica de privacidad, que debe leerse desde cualquier parte.
  * Las de invitacion conservan el token para ofrecer abrirla en la app.
  */
 export const MOBILE_ONLY_ROUTES: Routes = [
+  { path: 'privacidad', loadComponent: privacy },
   { path: 'i/:token', loadComponent: mobileOnly },
   { path: 'invite/:token', loadComponent: mobileOnly },
   { path: '**', loadComponent: mobileOnly },

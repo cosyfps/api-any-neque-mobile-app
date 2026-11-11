@@ -11,6 +11,7 @@ import { WorkoutSession, sessionProgress } from '@app/domain/workouts/model/work
 
 import { BarChartComponent } from '@shared/components/chart/bar-chart.component';
 import { BarInput } from '@shared/components/chart/chart-math';
+import { InstallHintComponent } from '@shared/components/install-hint.component';
 import { PageStateComponent } from '@shared/components/page-state.component';
 import { WorkoutCardComponent } from '@shared/components/workout-card.component';
 
@@ -34,6 +35,7 @@ const TIME_FORMAT = new Intl.DateTimeFormat('es-CL', {
     PageStateComponent,
     WorkoutCardComponent,
     BarChartComponent,
+    InstallHintComponent,
     LucideBell,
     LucideCalendarDays,
     LucideFlame,
@@ -69,6 +71,9 @@ const TIME_FORMAT = new Intl.DateTimeFormat('es-CL', {
           }
         </button>
       </header>
+
+      <!-- Solo en el navegador: Ñeque se instala como PWA, no esta en tiendas. -->
+      <nq-install-hint />
 
       @switch (profile.viewState()) {
         @case ('loading') {

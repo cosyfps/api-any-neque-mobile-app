@@ -5,6 +5,7 @@ import { LucideChartLine, LucideClipboardList, LucideHouse, LucideUser } from '@
 import { filter, map, scan } from 'rxjs/operators';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
+import { WorkoutSyncFacade } from '@app/application/workouts/workout-sync.facade';
 
 import { STUDENT_TOUR } from '@shared/tour/tour-steps';
 import { TourComponent } from '@shared/tour/tour.component';
@@ -45,6 +46,13 @@ function tabFor(url: string): string {
       <div class="layout-content" [attr.inert]="tour.active() ? '' : null">
         <router-outlet />
       </div>
+
+      <!-- Lo entrenado sin conexion espera aqui hasta volver la red. -->
+      <p class="sync-banner" role="status" aria-live="polite">
+        @if (sync.hasPending()) {
+          Sin conexión · tu entrenamiento se guardó en el teléfono y se enviará solo.
+        }
+      </p>
 
       <nav
         class="tab-bar"
@@ -89,6 +97,7 @@ function tabFor(url: string): string {
 export class StudentLayoutPage {
   readonly tabs = TABS;
   readonly tour = inject(TourService);
+  readonly sync = inject(WorkoutSyncFacade);
 
   private readonly router = inject(Router);
 

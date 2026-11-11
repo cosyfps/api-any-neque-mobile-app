@@ -519,6 +519,41 @@ describe('adapters HTTP', () => {
       expect(storage.value?.token).toBe('nuevo');
     });
 
+    // Un 401 que llega despues de que otra peticion ya renovo el token no
+    // debe refrescar con el refresh token viejo (Supabase lo rota).
+    it('un 401 tardio reintenta con el token ya renovado sin otro refresh', async () => {
+      storage.value = session('viejo');
+      const first = firstValueFrom(TestBed.inject(TrainersHttpAdapter).getById('t1'));
+      const second = firstValueFrom(TestBed.inject(TrainersHttpAdapter).getById('t2'));
+      const late = http.expectOne(`${BASE}/trainers/t2`);
+      http
+        .expectOne(`${BASE}/trainers/t1`)
+        .flush(null, { status: 401, statusText: 'Unauthorized' });
+      http.expectOne(`${BASE}/auth/refresh`).flush(session('nuevo', 'r2'));
+      http.expectOne(`${BASE}/trainers/t1`).flush({ id: 't1' });
+      await first;
+
+      late.flush(null, { status: 401, statusText: 'Unauthorized' });
+      http.expectNone(`${BASE}/auth/refresh`);
+      const retry = http.expectOne(`${BASE}/trainers/t2`);
+      expect(retry.request.headers.get('Authorization')).toBe('Bearer nuevo');
+      retry.flush({ id: 't2' });
+      await expect(second).resolves.toEqual({ id: 't2' });
+    });
+
+    it('renueva con el refresh token guardado, no con el capturado', async () => {
+      storage.value = session('viejo', 'r1');
+      const result = firstValueFrom(TestBed.inject(TrainersHttpAdapter).getById('t1'));
+      const req = http.expectOne(`${BASE}/trainers/t1`);
+      storage.value = session('viejo', 'r9');
+      req.flush(null, { status: 401, statusText: 'Unauthorized' });
+      const refresh = http.expectOne(`${BASE}/auth/refresh`);
+      expect(refresh.request.body).toEqual({ refreshToken: 'r9' });
+      refresh.flush(session('nuevo', 'r10'));
+      http.expectOne(`${BASE}/trainers/t1`).flush({ id: 't1' });
+      await expect(result).resolves.toEqual({ id: 't1' });
+    });
+
     it('si el refresh falla, cierra la sesion', async () => {
       const expired = fn<() => void>();
       setSessionExpiredHandler(expired);

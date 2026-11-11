@@ -1,6 +1,7 @@
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
-import { ApplicationConfig } from '@angular/core';
+import { ApplicationConfig, isDevMode } from '@angular/core';
 import { provideRouter } from '@angular/router';
+import { provideServiceWorker } from '@angular/service-worker';
 import { Capacitor } from '@capacitor/core';
 
 import { authInterceptor } from '@app/infrastructure/http/auth.interceptor';
@@ -26,5 +27,11 @@ export const appConfig: ApplicationConfig = {
     ),
     provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
     provideInfrastructure(environment.publicAppUrl),
+    // PWA: deja la app instalable y abrible sin conexion. En la app nativa
+    // el bundle ya vive en el telefono y el worker sobra.
+    provideServiceWorker('ngsw-worker.js', {
+      enabled: !isDevMode() && !Capacitor.isNativePlatform(),
+      registrationStrategy: 'registerWhenStable:30000',
+    }),
   ],
 };

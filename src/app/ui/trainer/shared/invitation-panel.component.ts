@@ -35,6 +35,17 @@ const ESTADO: Record<string, string> = {
           }
         </div>
 
+        <p class="email-notice" role="status" [class.failed]="facade.emailStatus() === 'failed'">
+          @switch (facade.emailStatus()) {
+            @case ('sent') {
+              Le enviamos la invitación a {{ invitation.email }}.
+            }
+            @case ('failed') {
+              No pudimos enviar el correo; comparte el enlace.
+            }
+          }
+        </p>
+
         <p class="link" aria-label="Enlace de invitación">{{ facade.link() }}</p>
 
         <div class="actions">

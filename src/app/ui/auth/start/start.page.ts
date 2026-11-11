@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import {
   LucideCheck,
   LucideCircleAlert,
@@ -32,6 +32,7 @@ import { isPasswordValid, passwordRules } from '@app/ui/shared/validators/passwo
   standalone: true,
   imports: [
     ReactiveFormsModule,
+    RouterLink,
     LucideCheck,
     LucideCircleAlert,
     LucideEye,
@@ -108,6 +109,10 @@ import { isPasswordValid, passwordRules } from '@app/ui/shared/validators/passwo
           <div class="action-group">
             <button #loginButton class="btn-login" (click)="openLogin()">Ingresar</button>
             <p class="help-text">¿No tienes acceso? Habla con tu entrenador.</p>
+            <p class="legal">
+              <a class="legal-link" routerLink="/privacidad">Privacidad y seguridad</a>
+              <span class="legal-laws">Ley 21.719 · Ley 21.663 · ISO/IEC 27001</span>
+            </p>
           </div>
         </div>
       </div>
@@ -325,6 +330,10 @@ import { isPasswordValid, passwordRules } from '@app/ui/shared/validators/passwo
             <p class="form-help-text">
               El acceso es solo por invitación.<br />
               Si necesitas ayuda, habla con tu entrenador.
+            </p>
+            <p class="legal">
+              <a class="legal-link" routerLink="/privacidad">Privacidad y seguridad</a>
+              <span class="legal-laws">Ley 21.719 · Ley 21.663 · ISO/IEC 27001</span>
             </p>
           </form>
         </div>

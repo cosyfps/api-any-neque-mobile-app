@@ -6,6 +6,7 @@ import { WorkoutSession } from '@app/domain/workouts/model/workout-session.model
 
 import { fail } from '../domain/api-error';
 import { DateWindow, staleSessionWindow } from '../domain/assignment-rules';
+import { eventTime } from '../domain/event-time';
 import { sessionInstant, zonedParts } from '../domain/zoned-time';
 import { Actor } from '../http/context';
 import {
@@ -612,12 +613,13 @@ export async function mutateWorkout(
   sessionId: string,
   change: (session: WorkoutSession, now: string) => WorkoutSession,
   note: string | null = null,
+  at?: string,
 ): Promise<WorkoutSession> {
   const actual = await loadWorkout(sessionId);
   if (actor.role !== 'student' || actual.studentId !== actor.profileId) {
     return fail('not_found');
   }
-  const siguiente = change(actual, new Date().toISOString());
+  const siguiente = change(actual, eventTime(at, new Date()));
   await maybe(db().rpc('save_workout_session', { p_session: siguiente, p_note: note }));
   return loadWorkout(sessionId);
 }

@@ -28,6 +28,11 @@ export interface InvitationDetails {
   readonly trainerName: string;
   readonly expiresAt: IsoDateString;
   readonly status: InvitationStatus;
+  /**
+   * Solo al emitirla: si el correo con el enlace salio. Ausente cuando el
+   * envio no esta configurado o la invitacion solo se consulta.
+   */
+  readonly emailSent?: boolean;
 }
 
 export interface InvitationPort {

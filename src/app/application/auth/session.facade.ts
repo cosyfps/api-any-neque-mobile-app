@@ -11,7 +11,6 @@ import { AUTH_PORT } from '@app/domain/auth/port/auth.port';
 import { SESSION_STORAGE_PORT } from '@app/domain/auth/port/session-storage.port';
 import { DomainError, toDomainError } from '@app/domain/shared/model/app-error';
 import { parseIsoDate } from '@app/domain/shared/model/date';
-import { CLOCK } from '@app/domain/shared/port/clock.port';
 
 /** Estado del formulario de ingreso. */
 export type LoginStatus = 'idle' | 'submitting' | 'error';
@@ -26,7 +25,6 @@ export type LoginStatus = 'idle' | 'submitting' | 'error';
 export class SessionFacade {
   private readonly auth = inject(AUTH_PORT);
   private readonly storage = inject(SESSION_STORAGE_PORT);
-  private readonly clock = inject(CLOCK);
 
   private readonly _session = signal<AuthSession | null>(null);
   private readonly _status = signal<LoginStatus>('idle');
@@ -46,6 +44,10 @@ export class SessionFacade {
   /**
    * Rehidrata la sesion persistida. La llama el guard antes de resolver
    * cualquier ruta protegida, por eso es sincrona.
+   *
+   * Un access token vencido NO cierra la sesion: el refresh token sigue
+   * valido y el interceptor lo renueva en el primer 401. Antes se borraba
+   * todo al reabrir la app pasada la hora de vida del token.
    */
   restore(): void {
     if (this._session() !== null) {
@@ -55,7 +57,7 @@ export class SessionFacade {
     if (stored === null) {
       return;
     }
-    if (this.isExpired(stored)) {
+    if (parseIsoDate(stored.expiresAt) === null) {
       this.storage.clear();
       return;
     }
@@ -122,13 +124,5 @@ export class SessionFacade {
     this._error.set(null);
     this._status.set('idle');
     this.storage.clear();
-  }
-
-  private isExpired(session: AuthSession): boolean {
-    const expiresAt = parseIsoDate(session.expiresAt);
-    if (expiresAt === null) {
-      return true;
-    }
-    return expiresAt.getTime() <= this.clock.now().getTime();
   }
 }

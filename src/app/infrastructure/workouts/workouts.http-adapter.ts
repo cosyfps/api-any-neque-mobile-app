@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { DateRange } from '@app/domain/shared/model/date-range';
-import { Id } from '@app/domain/shared/model/ids';
+import { Id, IsoDateString } from '@app/domain/shared/model/ids';
 import {
   WorkoutCompletion,
   WorkoutSession,
@@ -35,21 +35,31 @@ export class WorkoutsHttpAdapter implements WorkoutsPort {
     return this.api.get<WorkoutSession>(`/workouts/${sessionId}`);
   }
 
-  start(sessionId: Id): Observable<WorkoutSession> {
-    return this.api.post<WorkoutSession>(`/workouts/${sessionId}/start`);
+  start(sessionId: Id, at?: IsoDateString): Observable<WorkoutSession> {
+    return this.api.post<WorkoutSession>(`/workouts/${sessionId}/start`, withAt({}, at));
   }
 
-  markExercise(sessionId: Id, routineExerciseId: Id, done: boolean): Observable<WorkoutSession> {
+  markExercise(
+    sessionId: Id,
+    routineExerciseId: Id,
+    done: boolean,
+    at?: IsoDateString,
+  ): Observable<WorkoutSession> {
     return this.api.put<WorkoutSession>(
       `/workouts/${sessionId}/exercises/${routineExerciseId}/done`,
-      { done },
+      withAt({ done }, at),
     );
   }
 
-  logSet(sessionId: Id, routineExerciseId: Id, set: WorkoutSetInput): Observable<WorkoutSession> {
+  logSet(
+    sessionId: Id,
+    routineExerciseId: Id,
+    set: WorkoutSetInput,
+    at?: IsoDateString,
+  ): Observable<WorkoutSession> {
     return this.api.post<WorkoutSession>(
       `/workouts/${sessionId}/exercises/${routineExerciseId}/sets`,
-      set,
+      withAt(set, at),
     );
   }
 
@@ -57,14 +67,27 @@ export class WorkoutsHttpAdapter implements WorkoutsPort {
     sessionId: Id,
     routineExerciseId: Id,
     reason: SkipReason | null,
+    at?: IsoDateString,
   ): Observable<WorkoutSession> {
     return this.api.post<WorkoutSession>(
       `/workouts/${sessionId}/exercises/${routineExerciseId}/skip`,
-      { reason },
+      withAt({ reason }, at),
     );
   }
 
-  complete(sessionId: Id, completion: WorkoutCompletion): Observable<WorkoutSession> {
-    return this.api.post<WorkoutSession>(`/workouts/${sessionId}/complete`, completion);
+  complete(
+    sessionId: Id,
+    completion: WorkoutCompletion,
+    at?: IsoDateString,
+  ): Observable<WorkoutSession> {
+    return this.api.post<WorkoutSession>(`/workouts/${sessionId}/complete`, withAt(completion, at));
   }
+}
+
+/**
+ * `at` es la hora en que el alumno lo hizo, cuando la operacion llega tarde
+ * desde la cola sin conexion. En linea se omite y el BFF usa su reloj.
+ */
+function withAt<T extends object>(body: T, at: IsoDateString | undefined): T {
+  return at === undefined ? body : { ...body, at };
 }

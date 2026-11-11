@@ -1,3 +1,25 @@
 @use '../shared/theme/shell' as *;
 
 @include nq-shell;
+
+// Aviso de sincronizacion pendiente: flota sobre el tab bar y no tapa el contenido.
+.sync-banner {
+  position: absolute;
+  left: var(--nq-page-px);
+  right: var(--nq-page-px);
+  bottom: calc(var(--nq-safe-bottom) + 8px);
+  z-index: 10;
+  margin: 0;
+  pointer-events: none;
+
+  &:not(:empty) {
+    padding: 10px 14px;
+    border-radius: var(--nq-radius-md);
+    background: var(--nq-text);
+    color: var(--nq-bg);
+    font-size: 13px;
+    line-height: 1.4;
+    text-align: center;
+    box-shadow: var(--nq-shadow);
+  }
+}

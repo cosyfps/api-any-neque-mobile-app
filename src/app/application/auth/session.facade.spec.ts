@@ -93,14 +93,15 @@ describe('SessionFacade', () => {
       expect(facade.profileId()).toBe('trn-001');
     });
 
-    it('descarta y limpia una sesion expirada', () => {
+    // El access token vencido se renueva con el refresh token en el primer 401.
+    it('conserva una sesion con el access token vencido', () => {
       storage.read.mockReturnValue(EXPIRED);
       const facade = build();
 
       facade.restore();
 
-      expect(facade.isAuthenticated()).toBe(false);
-      expect(storage.clear).toHaveBeenCalledTimes(1);
+      expect(facade.isAuthenticated()).toBe(true);
+      expect(storage.clear).not.toHaveBeenCalled();
     });
 
     it('descarta una sesion con fecha no parseable', () => {

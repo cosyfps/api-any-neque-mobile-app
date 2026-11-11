@@ -122,6 +122,30 @@ describe('TrainerInvitationFacade', () => {
       expect(port.create).toHaveBeenCalledWith('std-009');
       expect(facade.invitation()?.token).toBe('inv-abc');
     });
+
+    it.each([
+      [true, 'sent'],
+      [false, 'failed'],
+      [undefined, null],
+    ] as const)('con emailSent %s informa %s', (emailSent, esperado) => {
+      port.create.mockReturnValue(of({ ...invitacion(48), emailSent }));
+
+      facade.issue('std-009');
+
+      expect(facade.emailStatus()).toBe(esperado);
+    });
+
+    it('cargar o revocar limpia el aviso del correo', () => {
+      port.create.mockReturnValue(of({ ...invitacion(48), emailSent: true }));
+      facade.issue('std-009');
+
+      facade.revoke();
+      expect(facade.emailStatus()).toBeNull();
+
+      facade.issue('std-009');
+      facade.load('std-009');
+      expect(facade.emailStatus()).toBeNull();
+    });
   });
 
   describe('revoke()', () => {

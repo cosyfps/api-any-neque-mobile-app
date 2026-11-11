@@ -12,8 +12,11 @@ import type {
 import { Trainer } from '@app/domain/trainers/model/trainer.model';
 import type { TrainerEditableFields } from '@app/domain/trainers/port/trainers.port';
 
+import { env } from '../config/env';
 import { ApiError, fail } from '../domain/api-error';
+import { invitationEmail } from '../domain/invitation-email';
 import { Actor } from '../http/context';
+import { MailResult, sendMail } from '../infrastructure/mailer';
 import {
   AnamnesisRow,
   AssessmentRow,
@@ -437,7 +440,25 @@ export async function issueInvitation(actor: Actor, studentId: string): Promise<
       .select(INVITATION_SELECT)
       .single(),
   );
-  return toInvitation(row);
+  const invitation = toInvitation(row);
+  const mail = await sendInvitationEmail(invitation);
+  return mail === 'disabled' ? invitation : { ...invitation, emailSent: mail === 'sent' };
+}
+
+/**
+ * Envia el enlace al correo del alumno. Cada emision lo reenvia, asi que
+ * reemitir tambien sirve para "volver a mandar el correo".
+ */
+function sendInvitationEmail(invitation: InvitationDetails): Promise<MailResult> {
+  const base = env().PUBLIC_APP_URL.replace(/\/+$/, '');
+  const content = invitationEmail({
+    studentName: invitation.studentName,
+    trainerName: invitation.trainerName,
+    link: `${base}/i/${invitation.token}`,
+    expiresAt: invitation.expiresAt,
+    privacyUrl: `${base}/privacidad`,
+  });
+  return sendMail({ to: invitation.email, toName: invitation.studentName, ...content });
 }
 
 export async function revokeInvitation(actor: Actor, token: string): Promise<void> {

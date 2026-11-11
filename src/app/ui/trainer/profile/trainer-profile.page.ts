@@ -10,6 +10,7 @@ import {
   LucideMail,
   LucidePhone,
   LucideQuote,
+  LucideShieldCheck,
   LucideUserPen,
 } from '@lucide/angular';
 
@@ -47,6 +48,7 @@ import { PHONE_PATTERN } from '@shared/validators/field-rules';
     LucideMail,
     LucidePhone,
     LucideQuote,
+    LucideShieldCheck,
     LucideUserPen,
   ],
   providers: [TrainerProfileFacade],
@@ -167,6 +169,11 @@ import { PHONE_PATTERN } from '@shared/validators/field-rules';
                 <button class="nq-list-item" type="button" (click)="openPassword()">
                   <svg lucideKeyRound [size]="19" [strokeWidth]="1.8"></svg>
                   <span class="nq-menu-label">Cambiar contraseña</span>
+                  <svg lucideChevronRight [size]="18" [strokeWidth]="2"></svg>
+                </button>
+                <button class="nq-list-item" type="button" (click)="openPrivacy()">
+                  <svg lucideShieldCheck [size]="19" [strokeWidth]="1.8"></svg>
+                  <span class="nq-menu-label">Privacidad y seguridad</span>
                   <svg lucideChevronRight [size]="18" [strokeWidth]="2"></svg>
                 </button>
               </div>
@@ -558,5 +565,10 @@ export class TrainerProfilePage {
       clearTimeout(this.toastTimer);
     }
     this.toastTimer = setTimeout(() => this.toast.set(null), 2500);
+  }
+
+  /** Politica de privacidad: Ley 21.719, Ley 21.663 e ISO/IEC 27001. */
+  openPrivacy(): void {
+    this.router.navigate(['/privacidad']);
   }
 }

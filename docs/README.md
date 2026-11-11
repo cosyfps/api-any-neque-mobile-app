@@ -37,6 +37,9 @@ Leer en orden: cada documento asume el anterior.
 | 2026-11-03 | [Cambios de la auditoría (resumen)](auditoria/2026-11-03-cambios-auditoria.md)           |
 | 2026-11-03 | [Interrogación de producto y pendientes](auditoria/2026-11-03-interrogacion-producto.md) |
 | 2026-11-04 | [Plan de trabajo](auditoria/2026-11-04-plan-de-trabajo.md)                               |
+| 2026-11-04 | [Auditoría completa: qué falta](auditoria/2026-11-04-auditoria-completa.md)              |
+| 2026-11-04 | [Runbook: claves y respaldos](runbooks/claves-y-respaldos.md)                            |
+| 2026-11-10 | [Runbook: correo con Brevo y PWA](runbooks/correo-brevo.md)                              |
 
 ## Planes
 

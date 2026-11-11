@@ -112,3 +112,20 @@
   font-size: 14px;
   color: var(--nq-text-secondary);
 }
+
+// Resultado del correo con la invitacion; vacio no ocupa espacio.
+.email-notice {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--nq-success);
+  overflow-wrap: anywhere;
+
+  &:empty {
+    display: none;
+  }
+
+  &.failed {
+    color: var(--nq-warning);
+  }
+}

@@ -205,6 +205,14 @@ describe('StudentProfilePage', () => {
     });
   });
 
+  describe('privacidad', () => {
+    it('abre la politica de privacidad y seguridad', () => {
+      page.openPrivacy();
+
+      expect(router.navigate).toHaveBeenCalledWith(['/privacidad']);
+    });
+  });
+
   describe('editar mis datos', () => {
     it('openEdit() precarga los datos actuales', () => {
       page.openEdit();

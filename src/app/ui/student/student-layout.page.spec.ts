@@ -3,6 +3,7 @@ import { NavigationEnd, Router, provideRouter } from '@angular/router';
 import { Subject } from 'rxjs';
 
 import { SessionFacade } from '@app/application/auth/session.facade';
+import { WorkoutSyncFacade } from '@app/application/workouts/workout-sync.facade';
 
 import { fn } from '@testing/typed-mock';
 
@@ -30,6 +31,7 @@ describe('StudentLayoutPage', () => {
         provideRouter([]),
         { provide: Router, useValue: routerStub },
         { provide: SessionFacade, useValue: { user: () => ({ id: 'u1' }) } },
+        { provide: WorkoutSyncFacade, useValue: { hasPending: () => false } },
       ],
     });
     router = TestBed.inject(Router);
@@ -102,6 +104,7 @@ describe('StudentLayoutPage › tutorial', () => {
       providers: [
         provideRouter([]),
         { provide: SessionFacade, useValue: { user: () => ({ id: 'u9' }) } },
+        { provide: WorkoutSyncFacade, useValue: { hasPending: () => false } },
       ],
     });
     return TestBed.runInInjectionContext(() => new StudentLayoutPage());

@@ -77,6 +77,32 @@ describe('InvitationPanelComponent', () => {
 
   beforeEach(() => crear());
 
+  describe('aviso del correo', () => {
+    const aviso = (): string =>
+      (fixture.nativeElement as HTMLElement).querySelector('.email-notice')?.textContent?.trim() ??
+      '';
+
+    it('al emitir avisa a que correo se envio', () => {
+      create.mockReturnValue(of({ ...invitacion(), emailSent: true }));
+      panel.facade.issue('std-009');
+      fixture.detectChanges();
+
+      expect(aviso()).toBe('Le enviamos la invitación a alejandra@neque.cl.');
+    });
+
+    it('si el correo no salio, pide compartir el enlace', () => {
+      create.mockReturnValue(of({ ...invitacion(), emailSent: false }));
+      panel.facade.issue('std-009');
+      fixture.detectChanges();
+
+      expect(aviso()).toBe('No pudimos enviar el correo; comparte el enlace.');
+    });
+
+    it('al solo consultar la invitacion no muestra aviso', () => {
+      expect(aviso()).toBe('');
+    });
+  });
+
   describe('con invitacion vigente', () => {
     it('muestra el enlace', () => {
       const texto = (fixture.nativeElement as HTMLElement).textContent ?? '';

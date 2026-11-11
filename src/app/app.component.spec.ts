@@ -57,8 +57,9 @@ describe('routesFor', () => {
     expect(routesFor(false, false)).toBe(routes);
   });
 
-  it('las rutas web conservan el token de invitacion', () => {
+  it('las rutas web conservan el token de invitacion y la politica de privacidad', () => {
     expect(MOBILE_ONLY_ROUTES.map(route => route.path)).toEqual([
+      'privacidad',
       'i/:token',
       'invite/:token',
       '**',

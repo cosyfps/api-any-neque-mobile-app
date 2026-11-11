@@ -5,8 +5,8 @@
 | Campo        | Valor                                        |
 | ------------ | -------------------------------------------- |
 | **Producto** | Ñeque (`com.duocuc.neque`)                   |
-| **Versión**  | 2.0.0                                        |
-| **Fecha**    | 24 de septiembre de 2026                     |
+| **Versión**  | 2.1.0                                        |
+| **Fecha**    | 4 de noviembre de 2026                       |
 | **Autor**    | Kelvin A. Moreno                             |
 | **Profesor** | _[por definir]_                              |
 | **Curso**    | PY71461 · Portafolio de Título — Duoc UC     |
@@ -16,6 +16,12 @@
 > **Nota sobre este documento.** Sustituye por completo al PRD de FitConnect v1.0. El
 > nombre FitConnect queda descartado. Los estados de la sección 6 no son estimaciones:
 > están verificados contra el código de la rama de trabajo a la fecha del documento.
+>
+> **v2.1.0 (4 de noviembre de 2026).** El BFF y Supabase están en producción: todo lo
+> marcado como hecho persiste. Se agregan las funcionalidades construidas en noviembre
+> (citas, agenda global, mensajes cifrados, cargas, reprogramar, hora por día, duplicar
+> rutinas) y se re-verifican §6, §7 y §13. Brechas y orden de trabajo en
+> `docs/auditoria/2026-11-04-auditoria-completa.md`.
 
 ---
 
@@ -209,16 +215,17 @@ implementado, con tests y comprobado en navegador a 375×812 y 320×568.
 
 ### M1 · Acceso
 
-| Funcionalidad                                          | Rol     | Prioridad   | Estado             |
-| ------------------------------------------------------ | ------- | ----------- | ------------------ |
-| Login único que redirige según el rol                  | Ambos   | `Must Have` | ✅ Hecho           |
-| Invitación de alumno por enlace, con vigencia de 48 h  | Trainer | `Must Have` | ✅ Hecho           |
-| Compartir la invitación por la hoja nativa del sistema | Trainer | `Must Have` | ✅ Hecho           |
-| Código QR de la invitación                             | Trainer | `Must Have` | ✅ Hecho           |
-| Reemitir y revocar la invitación                       | Trainer | `Must Have` | ✅ Hecho           |
-| El alumno crea su contraseña al aceptar la invitación  | Student | `Must Have` | ✅ Hecho           |
-| Recuperación de contraseña en tres pasos               | Ambos   | `Must Have` | ✅ Hecho           |
-| Alta de entrenador por el administrador                | Admin   | `Must Have` | ⬜ Manual, sin app |
+| Funcionalidad                                            | Rol     | Prioridad     | Estado                                    |
+| -------------------------------------------------------- | ------- | ------------- | ----------------------------------------- |
+| Login único que redirige según el rol                    | Ambos   | `Must Have`   | ✅ Hecho                                  |
+| Invitación de alumno por enlace, con vigencia de 48 h    | Trainer | `Must Have`   | ✅ Hecho                                  |
+| Compartir la invitación por la hoja nativa del sistema   | Trainer | `Must Have`   | ✅ Hecho                                  |
+| Código QR de la invitación                               | Trainer | `Must Have`   | ✅ Hecho                                  |
+| Reemitir y revocar la invitación                         | Trainer | `Must Have`   | ✅ Hecho                                  |
+| El alumno crea su contraseña al aceptar la invitación    | Student | `Must Have`   | ✅ Hecho                                  |
+| Recuperación de contraseña en tres pasos                 | Ambos   | `Must Have`   | ✅ Hecho                                  |
+| Alta de entrenador por el administrador                  | Admin   | `Must Have`   | 🟡 Por script (`create:trainer`), sin app |
+| Sesión única por cuenta (cierra la del otro dispositivo) | Ambos   | `Should Have` | ✅ Hecho                                  |
 
 ### M2 · Gestión de alumnos
 
@@ -233,20 +240,25 @@ implementado, con tests y comprobado en navegador a 375×812 y 320×568.
 | Aviso de antecedentes clínicos antes de prescribir            | Trainer | `Must Have`   | ✅ Hecho     |
 | Suspender y reactivar sin perder ficha ni historial           | Trainer | `Must Have`   | ✅ Hecho     |
 | **Notas privadas del entrenador sobre el alumno**             | Trainer | `Must Have`   | ⬜ Por hacer |
+| Mensajes con el alumno, cifrados en la base                   | Ambos   | `Should Have` | ✅ Hecho     |
+| Entrenamientos realizados del alumno, serie por serie         | Trainer | `Must Have`   | ✅ Hecho     |
 
 ### M3 · Rutinas y ejercicios
 
-| Funcionalidad                                                           | Rol     | Prioridad   | Estado       |
-| ----------------------------------------------------------------------- | ------- | ----------- | ------------ |
-| Catálogo de ejercicios con grupo muscular, equipamiento e instrucciones | Trainer | `Must Have` | ✅ Hecho     |
-| Ejercicios propios, privados de cada entrenador                         | Trainer | `Must Have` | ✅ Hecho     |
-| Constructor: días, ejercicios, series × reps × carga × descanso         | Trainer | `Must Have` | ✅ Hecho     |
-| Asignar una rutina, archivando automáticamente la anterior              | Trainer | `Must Have` | ✅ Hecho     |
-| Biblioteca con rutinas asignadas y sin asignar                          | Trainer | `Must Have` | ✅ Hecho     |
-| Vista de la rutina para el alumno                                       | Student | `Must Have` | ✅ Hecho     |
-| Ejecución guiada serie por serie, con descanso                          | Student | `Must Have` | ✅ Hecho     |
-| Registro de la carga y repeticiones realmente levantadas                | Student | `Must Have` | ✅ Hecho     |
-| **Plantillas de rutinas reutilizables**                                 | Trainer | `Must Have` | ⬜ Por hacer |
+| Funcionalidad                                                           | Rol     | Prioridad     | Estado   |
+| ----------------------------------------------------------------------- | ------- | ------------- | -------- |
+| Catálogo de ejercicios con grupo muscular, equipamiento e instrucciones | Trainer | `Must Have`   | ✅ Hecho |
+| Ejercicios propios, privados de cada entrenador                         | Trainer | `Must Have`   | ✅ Hecho |
+| Constructor: días, ejercicios, series × reps × carga × descanso         | Trainer | `Must Have`   | ✅ Hecho |
+| Asignar una rutina, archivando automáticamente la anterior              | Trainer | `Must Have`   | ✅ Hecho |
+| Biblioteca con rutinas asignadas y sin asignar                          | Trainer | `Must Have`   | ✅ Hecho |
+| Vista de la rutina para el alumno                                       | Student | `Must Have`   | ✅ Hecho |
+| Ejecución guiada serie por serie, con descanso                          | Student | `Must Have`   | ✅ Hecho |
+| Registro de la carga y repeticiones realmente levantadas                | Student | `Must Have`   | ✅ Hecho |
+| Plantillas de rutinas reutilizables (biblioteca + duplicar)             | Trainer | `Must Have`   | ✅ Hecho |
+| Editar y eliminar ejercicios propios                                    | Trainer | `Should Have` | ✅ Hecho |
+| Hora de inicio por día de rutina                                        | Trainer | `Should Have` | ✅ Hecho |
+| Mover un entrenamiento a otro día libre de la semana                    | Student | `Should Have` | ✅ Hecho |
 
 > **Sobre el registro de carga real.** El alumno confirma cada serie con los valores
 > prescritos ya precargados: si levantó lo previsto, cerrar la serie cuesta un solo toque,
@@ -255,36 +267,55 @@ implementado, con tests y comprobado en navegador a 375×812 y 320×568.
 
 ### M4 · Progreso
 
-| Funcionalidad                                                | Rol     | Prioridad      | Estado       |
-| ------------------------------------------------------------ | ------- | -------------- | ------------ |
-| Evaluaciones físicas: peso, estatura, % grasa, masa, medidas | Trainer | `Must Have`    | ✅ Hecho     |
-| Historial de evaluaciones y gráfico de evolución de peso     | Ambos   | `Must Have`    | ✅ Hecho     |
-| IMC derivado de la última evaluación                         | Student | `Must Have`    | ✅ Hecho     |
-| Progreso semanal de adherencia                               | Student | `Must Have`    | ✅ Hecho     |
-| Fotos de progreso con comparador antes/después               | Student | `Should Have`  | ✅ Hecho     |
-| **Tomar la foto con la cámara del dispositivo**              | Student | `Must Have`    | ⬜ Por hacer |
-| Reporte PDF de progreso                                      | Trainer | `Nice to Have` | ⬜ Por hacer |
+| Funcionalidad                                                | Rol     | Prioridad      | Estado                                                                    |
+| ------------------------------------------------------------ | ------- | -------------- | ------------------------------------------------------------------------- |
+| Evaluaciones físicas: peso, estatura, % grasa, masa, medidas | Trainer | `Must Have`    | ✅ Hecho                                                                  |
+| Historial de evaluaciones y gráfico de evolución de peso     | Ambos   | `Must Have`    | ✅ Hecho                                                                  |
+| IMC derivado de la última evaluación                         | Student | `Must Have`    | ✅ Hecho                                                                  |
+| Progreso semanal de adherencia                               | Student | `Must Have`    | ✅ Hecho                                                                  |
+| Fotos de progreso con comparador antes/después               | Student | `Should Have`  | ✅ Hecho                                                                  |
+| **Tomar la foto con la cámara del dispositivo**              | Student | `Must Have`    | 🟡 Parcial: el selector de iOS ofrece cámara; `@capacitor/camera` sin uso |
+| Historial de cargas por ejercicio                            | Student | `Should Have`  | ✅ Hecho                                                                  |
+| Progresión de carga visible en la ficha                      | Trainer | `Must Have`    | 🟡 Sesión por sesión; falta el gráfico                                    |
+| Reporte PDF de progreso                                      | Trainer | `Nice to Have` | ⬜ Por hacer                                                              |
 
 ### M5 · Agenda y notificaciones
 
-| Funcionalidad                                               | Rol     | Prioridad   | Estado       |
-| ----------------------------------------------------------- | ------- | ----------- | ------------ |
-| Agenda mensual de sesiones con confirmación                 | Student | `Must Have` | ✅ Hecho     |
-| Cancelación con motivo predefinido y nota libre             | Ambos   | `Must Have` | ✅ Hecho     |
-| Bandeja de notificaciones con navegación a su destino       | Student | `Must Have` | ✅ Hecho     |
-| Inicio del entrenador: sesiones de hoy y alumnos pendientes | Trainer | `Must Have` | ✅ Hecho     |
-| **Notificaciones push nativas**                             | Ambos   | `Must Have` | ⬜ Por hacer |
+| Funcionalidad                                               | Rol     | Prioridad     | Estado                               |
+| ----------------------------------------------------------- | ------- | ------------- | ------------------------------------ |
+| Agenda mensual de sesiones con confirmación                 | Student | `Must Have`   | ✅ Hecho                             |
+| Cancelación con motivo predefinido y nota libre             | Ambos   | `Must Have`   | ✅ Hecho                             |
+| Bandeja de notificaciones con navegación a su destino       | Student | `Must Have`   | ✅ Hecho                             |
+| Inicio del entrenador: sesiones de hoy y alumnos pendientes | Trainer | `Must Have`   | ✅ Hecho                             |
+| El entrenador agenda, reagenda y cancela citas              | Trainer | `Must Have`   | ✅ Hecho                             |
+| Agenda global del entrenador (citas y entrenamientos)       | Trainer | `Should Have` | ✅ Hecho                             |
+| Días de entrenamiento de la rutina en la agenda del alumno  | Student | `Must Have`   | ✅ Hecho                             |
+| **Notificaciones push nativas**                             | Ambos   | `Must Have`   | ⛔ Bloqueado: la IPA no está firmada |
 
 ### 6.1 Resumen de estado
 
-| Módulo        | Hechas | Pendientes |
-| ------------- | -----: | ---------: |
-| M1 · Acceso   |      7 |          1 |
-| M2 · Alumnos  |      8 |          1 |
-| M3 · Rutinas  |      8 |          1 |
-| M4 · Progreso |      5 |          2 |
-| M5 · Agenda   |      4 |          1 |
-| **Total**     | **32** |      **6** |
+| Módulo        | Hechas | Parciales | Pendientes |
+| ------------- | -----: | --------: | ---------: |
+| M1 · Acceso   |      8 |         1 |          0 |
+| M2 · Alumnos  |     10 |         0 |          1 |
+| M3 · Rutinas  |     12 |         0 |          0 |
+| M4 · Progreso |      6 |         2 |          1 |
+| M5 · Agenda   |      7 |         0 |          1 |
+| **Total**     | **43** |     **3** |      **3** |
+
+Pendientes: **notas privadas** (`Must`), **push** (`Must`, bloqueado por la firma de la IPA)
+y el reporte PDF (`Nice`). Parciales: alta de entrenador por script, cámara nativa y
+progresión de carga en la ficha.
+
+**Todo lo marcado como hecho persiste en Supabase a través del BFF.**
+
+------------- | -----: | ---------: |
+| M1 · Acceso | 7 | 1 |
+| M2 · Alumnos | 8 | 1 |
+| M3 · Rutinas | 8 | 1 |
+| M4 · Progreso | 5 | 2 |
+| M5 · Agenda | 4 | 1 |
+| **Total** | **32** | **6** |
 
 De las 6 pendientes, **5 son `Must Have` del MVP**: notas privadas, plantillas de rutinas,
 cámara, push y el alta manual de entrenadores. La sexta (PDF) es `Nice to Have`.
@@ -298,23 +329,23 @@ funcionalidad persiste entre sesiones todavía: eso llega con el BFF.
 
 Los umbrales marcados con ✅ ya se cumplen y están medidos en la app móvil.
 
-| Categoría      | Requisito                  | Criterio                                                                  | Estado                    |
-| -------------- | -------------------------- | ------------------------------------------------------------------------- | ------------------------- |
-| Accesibilidad  | Contraste WCAG AA          | 4.5:1 en todo texto; 3:1 en texto grande                                  | ✅ Verificado por barrido |
-| Accesibilidad  | Área táctil mínima         | 44 × 44 px en todo control interactivo                                    | ✅ Verificado por barrido |
-| Accesibilidad  | Nombre accesible           | Todo control tiene nombre; estados anunciados con `aria-live`             | ✅ Verificado por barrido |
-| Accesibilidad  | Movimiento reducido        | `prefers-reduced-motion` respetado globalmente                            | ✅                        |
-| Mantenibilidad | Cobertura de tests         | ≥95 % en líneas y ≥85 % en ramas                                          | ✅ 98,09 % / 88,85 %      |
-| Rendimiento    | Tamaño del bundle inicial  | ≤300 kB                                                                   | ✅ 259,32 kB              |
-| Rendimiento    | Arranque en frío           | <3 s en dispositivo de gama media                                         | ⬜ Sin medir en físico    |
-| Rendimiento    | Latencia del BFF           | p95 <200 ms en los endpoints de rutinas y alumnos                         | ⬜ Requiere BFF           |
-| Seguridad      | JWT firmado                | RS256 verificado en cada petición; nunca Base64 sin firma                 | ⬜ Requiere BFF           |
-| Seguridad      | Row Level Security         | Un entrenador no puede leer datos de alumnos de otro bajo ningún caso     | ⬜ Requiere Supabase      |
-| Seguridad      | Secretos                   | Cero credenciales en el repositorio                                       | ✅                        |
-| Privacidad     | Datos de salud             | Anamnesis, medidas y fotos bajo RLS; nunca compartidos sin consentimiento | ⬜ Requiere Supabase      |
-| Disponibilidad | Uptime del BFF             | ≥99 % entre 07:00 y 22:00 CLT                                             | ⬜ Requiere BFF           |
-| Escalabilidad  | Capacidad del MVP          | 100 entrenadores × 20 alumnos sin degradación                             | ⬜ Requiere BFF           |
-| Resiliencia    | **Ejecución sin conexión** | Ver §7.1                                                                  | ⬜ Por hacer              |
+| Categoría      | Requisito                  | Criterio                                                                  | Estado                            |
+| -------------- | -------------------------- | ------------------------------------------------------------------------- | --------------------------------- |
+| Accesibilidad  | Contraste WCAG AA          | 4.5:1 en todo texto; 3:1 en texto grande                                  | ✅ Verificado por barrido         |
+| Accesibilidad  | Área táctil mínima         | 44 × 44 px en todo control interactivo                                    | ✅ Verificado por barrido         |
+| Accesibilidad  | Nombre accesible           | Todo control tiene nombre; estados anunciados con `aria-live`             | ✅ Verificado por barrido         |
+| Accesibilidad  | Movimiento reducido        | `prefers-reduced-motion` respetado globalmente                            | ✅                                |
+| Mantenibilidad | Cobertura de tests         | ≥95 % en líneas y ≥85 % en ramas                                          | ✅ 97,46 % / 85,30 %              |
+| Rendimiento    | Tamaño del bundle inicial  | ≤300 kB                                                                   | 🟡 303,24 kB (sobre meta)         |
+| Rendimiento    | Arranque en frío           | <3 s en dispositivo de gama media                                         | ⬜ Sin medir en físico            |
+| Rendimiento    | Latencia del BFF           | p95 <200 ms en los endpoints de rutinas y alumnos                         | ⬜ Requiere BFF                   |
+| Seguridad      | JWT firmado                | RS256 verificado en cada petición; nunca Base64 sin firma                 | ✅ JWKS con `jose`                |
+| Seguridad      | Row Level Security         | Un entrenador no puede leer datos de alumnos de otro bajo ningún caso     | 🟡 RLS cerrado + BFF; sin test    |
+| Seguridad      | Secretos                   | Cero credenciales en el repositorio                                       | ✅                                |
+| Privacidad     | Datos de salud             | Anamnesis, medidas y fotos bajo RLS; nunca compartidos sin consentimiento | 🟡 Bajo RLS; falta consentimiento |
+| Disponibilidad | Uptime del BFF             | ≥99 % entre 07:00 y 22:00 CLT                                             | ⬜ Requiere BFF                   |
+| Escalabilidad  | Capacidad del MVP          | 100 entrenadores × 20 alumnos sin degradación                             | ⬜ Requiere BFF                   |
+| Resiliencia    | **Ejecución sin conexión** | Ver §7.1                                                                  | ⬜ Por hacer                      |
 
 > **Sobre los umbrales de cobertura.** El PRD anterior pedía ≥60 %. Exigir 60 % a un
 > proyecto que rinde 98 % no comunica nada, así que el umbral se fija en el nivel real
@@ -483,20 +514,19 @@ Toda funcionalidad nueva cumple, sin excepción:
 
 El MVP está completo cuando se cumplen **todos**:
 
-| #   | Criterio                                                                                                 | Depende de       |
-| --- | -------------------------------------------------------------------------------------------------------- | ---------------- |
-| CA1 | Un entrenador dado de alta inicia sesión y ve su Inicio con datos reales en <30 s en dispositivo físico  | BFF              |
-| CA2 | El entrenador invita a un alumno; este acepta **en otro dispositivo**, crea su contraseña y ve su rutina | BFF              |
-| CA3 | El entrenador construye y asigna una rutina de 5 ejercicios en ≤3 minutos sin errores de interfaz        | ✅ Ya se cumple  |
-| CA4 | El alumno ejecuta una sesión registrando carga real, y el entrenador ve esa progresión en la ficha       | BFF              |
-| CA5 | El alumno entrena **sin conexión** y sus series aparecen en el servidor al recuperar red                 | Offline + BFF    |
-| CA6 | El gráfico de evolución de peso muestra correctamente tres evaluaciones consecutivas                     | ✅ Ya se cumple  |
-| CA7 | RLS verificado: el entrenador A no accede a los alumnos del entrenador B bajo ninguna circunstancia      | Supabase         |
-| CA8 | La app está publicada o en revisión en Play Store y App Store, con ficha en español                      | Publicación      |
-| CA9 | **2 entrenadores reales** usan Ñeque con alumnos propios durante al menos dos semanas                    | Todo lo anterior |
+| #   | Criterio                                                                                                 | Depende de                                    |
+| --- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| CA1 | Un entrenador dado de alta inicia sesión y ve su Inicio con datos reales en <30 s en dispositivo físico  | ✅ Cumplido                                   |
+| CA2 | El entrenador invita a un alumno; este acepta **en otro dispositivo**, crea su contraseña y ve su rutina | ✅ Cumplido                                   |
+| CA3 | El entrenador construye y asigna una rutina de 5 ejercicios en ≤3 minutos sin errores de interfaz        | ✅ Cumplido                                   |
+| CA4 | El alumno ejecuta una sesión registrando carga real, y el entrenador ve esa progresión en la ficha       | 🟡 Falta el gráfico de progresión en la ficha |
+| CA5 | El alumno entrena **sin conexión** y sus series aparecen en el servidor al recuperar red                 | ⬜ Por hacer                                  |
+| CA6 | El gráfico de evolución de peso muestra correctamente tres evaluaciones consecutivas                     | ✅ Cumplido                                   |
+| CA7 | RLS verificado: el entrenador A no accede a los alumnos del entrenador B bajo ninguna circunstancia      | 🟡 Implementado, sin test de matriz           |
+| CA8 | La app está publicada o en revisión en Play Store y App Store, con ficha en español                      | ⬜ IPA sin firma, sin Android                 |
+| CA9 | **2 entrenadores reales** usan Ñeque con alumnos propios durante al menos dos semanas                    | ⬜ Después de lo anterior                     |
 
-**Estado a la fecha: 2 de 9 cumplidos.** Los siete restantes dependen, directa o
-indirectamente, de que exista el backend.
+**Estado al 4 de noviembre de 2026: 4 de 9 cumplidos y 2 parciales.**
 
 ---
 

@@ -1,0 +1,93 @@
+@use '../theme/mixins' as *;
+
+:host {
+  display: block;
+}
+
+.wrap {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) var(--nq-page-px) 40px;
+  color: var(--nq-text);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.back {
+  @include nq-nav-back;
+  flex-shrink: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.lead {
+  margin: 0 0 20px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--nq-text-secondary);
+}
+
+.block {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: var(--nq-bg);
+  border: 1px solid var(--nq-border-solid);
+  border-radius: var(--nq-radius-md);
+
+  h2 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--nq-primary-strong);
+  }
+
+  p,
+  li {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  p {
+    margin: 0 0 8px;
+  }
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+
+  ul {
+    margin: 0 0 8px;
+    padding-left: 20px;
+  }
+
+  li + li {
+    margin-top: 4px;
+  }
+
+  strong {
+    font-weight: 600;
+  }
+
+  a {
+    color: var(--nq-primary-strong);
+    overflow-wrap: anywhere;
+  }
+}
+
+.note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--nq-text-muted);
+}

@@ -14,6 +14,16 @@ const schema = z.object({
    * no se leen ni se guardan (ver `message-cipher.ts`).
    */
   MESSAGES_KEY: z.string().optional(),
+  /**
+   * Clave de la API de Brevo para enviar la invitacion por correo. Opcional:
+   * sin ella la invitacion se emite igual y el entrenador comparte el enlace.
+   */
+  BREVO_API_KEY: z.string().optional(),
+  /** Remitente verificado en Brevo (un Gmail mientras no haya dominio propio). */
+  MAIL_FROM: z.string().email().optional(),
+  MAIL_FROM_NAME: z.string().default('Ñeque'),
+  /** Origen publico de la app: arma los enlaces de los correos. */
+  PUBLIC_APP_URL: z.string().url().default('https://neque-ten.vercel.app'),
 });
 
 export type Env = z.infer<typeof schema>;

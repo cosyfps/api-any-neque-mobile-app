@@ -167,8 +167,10 @@ export async function verifyOtp(email: string, code: string): Promise<PasswordRe
     throw new ApiError('invalid_credentials', 'El código no es válido.');
   }
   // La sesion que abre Supabase se descarta: el cambio va por el ticket.
+  // 'local' cierra solo esa sesion; el scope global por defecto revocaba
+  // tambien la del telefono del usuario.
   if (data.session !== null) {
-    await adminClient().auth.admin.signOut(data.session.access_token);
+    await adminClient().auth.admin.signOut(data.session.access_token, 'local');
   }
   const token = randomBytes(32).toString('base64url');
   await must(

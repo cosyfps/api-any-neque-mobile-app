@@ -46,12 +46,18 @@
             "tsConfig": "tsconfig.app.json",
             "allowedCommonJsDependencies": ["qrcode", "dijkstrajs"],
             "inlineStyleLanguage": "scss",
-            "assets": ["src/favicon.ico", "src/robots.txt", "src/assets"],
+            "assets": [
+              "src/favicon.ico",
+              "src/robots.txt",
+              "src/manifest.webmanifest",
+              "src/assets"
+            ],
             "styles": ["src/styles.scss"],
             "scripts": []
           },
           "configurations": {
             "production": {
+              "serviceWorker": "ngsw-config.json",
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",

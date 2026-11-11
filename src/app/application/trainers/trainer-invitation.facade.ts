@@ -8,6 +8,9 @@ import { PUBLIC_APP_URL } from '@app/domain/shared/port/public-url.port';
 
 const MS_POR_HORA = 60 * 60 * 1000;
 
+/** Resultado del correo de la ultima invitacion emitida. */
+export type InvitationEmailStatus = 'sent' | 'failed' | null;
+
 /**
  * Invitacion vigente de un alumno, desde la vista del entrenador.
  *
@@ -25,10 +28,12 @@ export class TrainerInvitationFacade {
   private readonly _invitation = signal<InvitationDetails | null>(null);
   private readonly _busy = signal(false);
   private readonly _error = signal<DomainError | null>(null);
+  private readonly _emailStatus = signal<InvitationEmailStatus>(null);
 
   readonly invitation: Signal<InvitationDetails | null> = this._invitation.asReadonly();
   readonly busy: Signal<boolean> = this._busy.asReadonly();
   readonly error: Signal<DomainError | null> = this._error.asReadonly();
+  readonly emailStatus: Signal<InvitationEmailStatus> = this._emailStatus.asReadonly();
 
   /**
    * Enlace que el entrenador comparte. Null si no hay invitacion vigente.
@@ -57,12 +62,22 @@ export class TrainerInvitationFacade {
   });
 
   load(studentId: string): void {
+    this._emailStatus.set(null);
     this.run(this.port.getForStudent(studentId), value => this._invitation.set(value));
   }
 
-  /** Emite una invitacion. Si habia una pendiente, queda revocada. */
+  /**
+   * Emite una invitacion y el BFF la envia por correo al alumno. Si habia
+   * una pendiente, queda revocada.
+   */
   issue(studentId: string): void {
-    this.run(this.port.create(studentId), value => this._invitation.set(value));
+    this._emailStatus.set(null);
+    this.run(this.port.create(studentId), value => {
+      this._invitation.set(value);
+      this._emailStatus.set(
+        value.emailSent === undefined ? null : value.emailSent ? 'sent' : 'failed',
+      );
+    });
   }
 
   revoke(): void {
@@ -70,6 +85,7 @@ export class TrainerInvitationFacade {
     if (value === null) {
       return;
     }
+    this._emailStatus.set(null);
     this.run(this.port.revoke(value.token), () => this._invitation.set(null));
   }
 

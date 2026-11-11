@@ -308,3 +308,27 @@
     }
   }
 }
+
+// Politica de privacidad bajo el aviso de "solo por invitacion".
+.legal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 12px 0 0;
+  text-align: center;
+}
+
+.legal-link {
+  @include nq-tap-halo;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nq-primary-strong);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legal-laws {
+  font-size: 11px;
+  color: var(--nq-text-muted);
+}

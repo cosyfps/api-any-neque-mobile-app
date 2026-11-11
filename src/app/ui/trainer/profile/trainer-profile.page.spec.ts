@@ -127,6 +127,14 @@ describe('TrainerProfilePage', () => {
     page = createPage();
   });
 
+  describe('privacidad', () => {
+    it('abre la politica de privacidad y seguridad', () => {
+      page.openPrivacy();
+
+      expect(router.navigate).toHaveBeenCalledWith(['/privacidad']);
+    });
+  });
+
   describe('metricas y etiquetas', () => {
     it('cuenta las rutinas y promedia la adherencia de los alumnos activos', () => {
       expect(page.facade.routinesCount.data()).toBe(1);

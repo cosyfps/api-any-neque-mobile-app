@@ -3,6 +3,8 @@ import { Injectable } from '@angular/core';
 import { AuthSession } from '@app/domain/auth/model/auth-user.model';
 import { SessionStoragePort } from '@app/domain/auth/port/session-storage.port';
 
+import { clearCache } from '../offline/offline-cache';
+
 const STORAGE_KEY = 'neque.session';
 
 /**
@@ -34,11 +36,13 @@ export class LocalStorageSessionAdapter implements SessionStoragePort {
     }
   }
 
+  /** Cierra la sesion y borra la cache sin conexion, que tiene datos de salud. */
   clear(): void {
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {
       // Ver comentario de write().
     }
+    clearCache();
   }
 }

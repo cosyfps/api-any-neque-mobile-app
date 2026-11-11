@@ -2,10 +2,12 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
+import { SESSION_STORAGE_PORT } from '@app/domain/auth/port/session-storage.port';
 import { NOTIFICATIONS_PORT } from '@app/domain/notifications/port/notifications.port';
 import { PROGRESS_PHOTOS_PORT } from '@app/domain/progress/port/progress-photos.port';
 import { EXERCISE_CATALOG_PORT, ROUTINES_PORT } from '@app/domain/routines/port/routines.port';
 import { SCHEDULE_PORT } from '@app/domain/schedule/port/schedule.port';
+import { CLOCK } from '@app/domain/shared/port/clock.port';
 import { ASSESSMENTS_PORT } from '@app/domain/students/port/assessments.port';
 import { STUDENTS_PORT } from '@app/domain/students/port/students.port';
 import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
@@ -24,6 +26,8 @@ describe.each([
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: API_BASE_URL, useValue: '/api/v1' },
+        { provide: SESSION_STORAGE_PORT, useValue: { read: () => null } },
+        { provide: CLOCK, useValue: { now: () => new Date() } },
         ...provide(),
       ],
     });

@@ -5,6 +5,7 @@ import { ProgressFacade } from '@app/application/progress/progress.facade';
 import { StudentRoutineFacade } from '@app/application/routines/student-routine.facade';
 import { ScheduleFacade } from '@app/application/schedule/schedule.facade';
 import { StudentProfileFacade } from '@app/application/students/student-profile.facade';
+import { WorkoutSyncFacade } from '@app/application/workouts/workout-sync.facade';
 import { WorkoutFacade } from '@app/application/workouts/workout.facade';
 import { MESSAGES_PORT } from '@app/domain/messages/port/messages.port';
 import { NOTIFICATIONS_PORT } from '@app/domain/notifications/port/notifications.port';
@@ -14,21 +15,23 @@ import { SCHEDULE_PORT } from '@app/domain/schedule/port/schedule.port';
 import { ASSESSMENTS_PORT } from '@app/domain/students/port/assessments.port';
 import { STUDENTS_PORT } from '@app/domain/students/port/students.port';
 import { TRAINERS_PORT } from '@app/domain/trainers/port/trainers.port';
+import { WORKOUT_SYNC_PORT } from '@app/domain/workouts/port/workout-sync.port';
 import { WORKOUTS_PORT } from '@app/domain/workouts/port/workouts.port';
 
 import {
   MessagesHttpAdapter,
   NotificationsHttpAdapter,
   ProgressPhotosHttpAdapter,
-  ScheduleHttpAdapter,
 } from './engagement.http-adapters';
-import { ExerciseCatalogHttpAdapter, RoutinesHttpAdapter } from './routines/routines.http-adapter';
 import {
-  AssessmentsHttpAdapter,
-  StudentsHttpAdapter,
-  TrainersHttpAdapter,
-} from './students/students.http-adapter';
-import { WorkoutsHttpAdapter } from './workouts/workouts.http-adapter';
+  OfflineAssessmentsAdapter,
+  OfflineRoutinesAdapter,
+  OfflineScheduleAdapter,
+  OfflineStudentsAdapter,
+  OfflineTrainersAdapter,
+} from './offline/offline-read.adapters';
+import { OfflineWorkoutsAdapter } from './offline/offline-workouts.adapter';
+import { ExerciseCatalogHttpAdapter } from './routines/routines.http-adapter';
 
 /**
  * Puertos del shell del alumno contra el BFF.
@@ -36,6 +39,8 @@ import { WorkoutsHttpAdapter } from './workouts/workouts.http-adapter';
  * Se registran en `providers` de la ruta `/student` para que viajen en ese
  * chunk lazy. Las facades viven en este injector y no en el raiz: dependen
  * de los puertos de abajo, que solo existen dentro de /student.
+ *
+ * Las lecturas y el runner usan los adapters sin conexion (PRD §7.1).
  */
 export function provideStudentData(): Provider[] {
   return [
@@ -45,15 +50,18 @@ export function provideStudentData(): Provider[] {
     ProgressFacade,
     ScheduleFacade,
     NotificationsFacade,
+    WorkoutSyncFacade,
 
-    { provide: STUDENTS_PORT, useClass: StudentsHttpAdapter },
-    { provide: TRAINERS_PORT, useClass: TrainersHttpAdapter },
-    { provide: ASSESSMENTS_PORT, useClass: AssessmentsHttpAdapter },
-    { provide: ROUTINES_PORT, useClass: RoutinesHttpAdapter },
+    { provide: STUDENTS_PORT, useClass: OfflineStudentsAdapter },
+    { provide: TRAINERS_PORT, useClass: OfflineTrainersAdapter },
+    { provide: ASSESSMENTS_PORT, useClass: OfflineAssessmentsAdapter },
+    { provide: ROUTINES_PORT, useClass: OfflineRoutinesAdapter },
     { provide: EXERCISE_CATALOG_PORT, useClass: ExerciseCatalogHttpAdapter },
-    { provide: WORKOUTS_PORT, useClass: WorkoutsHttpAdapter },
+    OfflineWorkoutsAdapter,
+    { provide: WORKOUTS_PORT, useExisting: OfflineWorkoutsAdapter },
+    { provide: WORKOUT_SYNC_PORT, useExisting: OfflineWorkoutsAdapter },
     { provide: PROGRESS_PHOTOS_PORT, useClass: ProgressPhotosHttpAdapter },
-    { provide: SCHEDULE_PORT, useClass: ScheduleHttpAdapter },
+    { provide: SCHEDULE_PORT, useClass: OfflineScheduleAdapter },
     { provide: NOTIFICATIONS_PORT, useClass: NotificationsHttpAdapter },
     { provide: MESSAGES_PORT, useClass: MessagesHttpAdapter },
   ];

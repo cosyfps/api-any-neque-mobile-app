@@ -36,13 +36,13 @@ import { APP_SCHEME } from '@app/ui/shared/navigation/deep-link';
             </span>
             <a class="nq-btn nq-btn-primary open-btn" [href]="appLink">Abrir en la app</a>
             <span class="nq-state-desc hint">
-              ¿No tienes la app instalada? Pídele a tu entrenador cómo instalarla y vuelve a abrir
-              este enlace desde tu teléfono.
+              ¿No tienes la app? Abre este enlace desde tu teléfono: ahí crearás tu contraseña y
+              podrás agregar Ñeque a tu pantalla de inicio.
             </span>
           } @else {
             <span class="nq-state-desc">
-              Ñeque se usa desde la app instalada en tu teléfono. Si no la tienes, pídele a tu
-              entrenador cómo instalarla.
+              Abre Ñeque desde tu teléfono. En iPhone, en Safari toca Compartir → Agregar a inicio;
+              en Android, en Chrome abre el menú ⋮ → Instalar app.
             </span>
           }
         </div>

@@ -15,6 +15,7 @@ import {
   LucideMessageCircle,
   LucidePalette,
   LucidePhone,
+  LucideShieldCheck,
   LucideUserPen,
 } from '@lucide/angular';
 
@@ -65,6 +66,7 @@ const DATE_FORMAT = new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'num
     LucidePalette,
     LucideKeyRound,
     LucideLogOut,
+    LucideShieldCheck,
     LucideUserPen,
   ],
   template: `
@@ -188,6 +190,11 @@ const DATE_FORMAT = new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'num
                 <button class="nq-list-item" type="button" (click)="openPassword()">
                   <svg lucideKeyRound [size]="19" [strokeWidth]="1.8"></svg>
                   <span class="nq-menu-label">Cambiar contraseña</span>
+                  <svg lucideChevronRight [size]="18" [strokeWidth]="2"></svg>
+                </button>
+                <button class="nq-list-item" type="button" (click)="openPrivacy()">
+                  <svg lucideShieldCheck [size]="19" [strokeWidth]="1.8"></svg>
+                  <span class="nq-menu-label">Privacidad y seguridad</span>
                   <svg lucideChevronRight [size]="18" [strokeWidth]="2"></svg>
                 </button>
               </div>
@@ -512,6 +519,11 @@ export class StudentProfilePage {
 
   formatDate(iso: string): string {
     return DATE_FORMAT.format(new Date(iso));
+  }
+
+  /** Politica de privacidad: Ley 21.719, Ley 21.663 e ISO/IEC 27001. */
+  openPrivacy(): void {
+    this.router.navigate(['/privacidad']);
   }
 
   go(path: string): void {
