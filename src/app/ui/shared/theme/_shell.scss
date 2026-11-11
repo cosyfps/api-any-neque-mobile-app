@@ -26,7 +26,7 @@
     // fundido translucido: un respiro minimo separa el saludo de el. En
     // prueba en el iPhone; 54px y 64px dejaban demasiado espacio vacio.
     @media (display-mode: standalone) {
-      padding-top: calc(env(safe-area-inset-top, 0px) + 3px);
+      padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
     }
   }
 
