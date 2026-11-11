@@ -21,6 +21,13 @@
     // en un dispositivo con notch.
     padding-top: env(safe-area-inset-top, 0px);
     background: var(--nq-surface);
+
+    // Instalada como PWA, iOS dibuja la barra de estado encima con un
+    // fundido translucido que pasa del area segura: el saludo y la campana
+    // del Inicio quedaban opacos bajo el. Aire extra solo en ese modo.
+    @media (display-mode: standalone) {
+      padding-top: max(calc(env(safe-area-inset-top, 0px) + 16px), 64px);
+    }
   }
 
   .layout-content {

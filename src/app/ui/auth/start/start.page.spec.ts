@@ -255,7 +255,7 @@ describe('StartPage', () => {
 
       await page.onLogin();
 
-      expect(navigate).toHaveBeenCalledWith(['/student/home']);
+      expect(navigate).toHaveBeenCalledWith(['/student/home'], { replaceUrl: true });
       expect(page.isSubmitting()).toBe(false);
     });
 

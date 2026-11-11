@@ -697,7 +697,7 @@ export class ForgotPasswordPage implements AfterViewInit {
       .subscribe({
         next: session => {
           this.isSaving.set(false);
-          this.router.navigate([this.session.adopt(session)]);
+          this.router.navigate([this.session.adopt(session)], { replaceUrl: true });
         },
         error: (cause: unknown) => {
           this.isSaving.set(false);

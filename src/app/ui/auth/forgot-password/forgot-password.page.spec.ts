@@ -432,7 +432,7 @@ describe('ForgotPasswordPage', () => {
 
       expect(resetPassword).toHaveBeenCalledWith(TICKET, 'Abcdefg1!');
       expect(page.isSaving()).toBe(false);
-      expect(router.navigate).toHaveBeenCalledWith(['/student/home']);
+      expect(router.navigate).toHaveBeenCalledWith(['/student/home'], { replaceUrl: true });
     });
 
     it('ignora el segundo envio mientras guarda', () => {

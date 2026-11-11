@@ -228,7 +228,7 @@ describe('InvitePage', () => {
       await page.onSubmit();
 
       expect(accept).toHaveBeenCalledWith('inv-valida', 'Alumno1234!');
-      expect(router.navigate).toHaveBeenCalledWith(['/student/home']);
+      expect(router.navigate).toHaveBeenCalledWith(['/student/home'], { replaceUrl: true });
     });
 
     it('expone el error del backend sin navegar', async () => {

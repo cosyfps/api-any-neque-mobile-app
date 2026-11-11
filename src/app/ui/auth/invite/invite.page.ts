@@ -236,7 +236,8 @@ export class InvitePage {
     const route = await this.facade.accept(this.form.controls.password.value);
 
     if (route !== null) {
-      await this.router.navigate([route]);
+      // Reemplaza la invitacion en el historial: ya fue usada.
+      await this.router.navigate([route], { replaceUrl: true });
     }
   }
 }

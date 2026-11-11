@@ -539,7 +539,8 @@ export class StartPage {
     this.isSubmitting.set(false);
 
     if (route !== null) {
-      await this.router.navigate([route]);
+      // Reemplaza el login en el historial: volver no debe regresar a el.
+      await this.router.navigate([route], { replaceUrl: true });
       return;
     }
 

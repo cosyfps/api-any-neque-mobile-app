@@ -100,10 +100,10 @@ describe('TrainerLayoutPage', () => {
   });
 
   describe('navigate()', () => {
-    it('delega en el router', () => {
+    it('reemplaza el historial para que el gesto de volver no cambie de pestana', () => {
       page.navigate('/trainer/profile');
 
-      expect(router.navigate).toHaveBeenCalledWith(['/trainer/profile']);
+      expect(router.navigate).toHaveBeenCalledWith(['/trainer/profile'], { replaceUrl: true });
     });
   });
 });

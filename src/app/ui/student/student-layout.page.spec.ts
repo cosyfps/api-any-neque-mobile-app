@@ -86,10 +86,10 @@ describe('StudentLayoutPage', () => {
   });
 
   describe('navigate()', () => {
-    it('delega en el router', () => {
+    it('reemplaza el historial para que el gesto de volver no cambie de pestana', () => {
       page.navigate('/student/profile');
 
-      expect(router.navigate).toHaveBeenCalledWith(['/student/profile']);
+      expect(router.navigate).toHaveBeenCalledWith(['/student/profile'], { replaceUrl: true });
     });
   });
 });

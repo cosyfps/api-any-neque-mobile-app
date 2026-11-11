@@ -133,7 +133,12 @@ export class StudentLayoutPage {
     return this.activeTab() === path;
   }
 
+  /**
+   * Cambiar de pestana reemplaza la entrada del historial en vez de apilarla:
+   * asi el gesto de volver del navegador (deslizar desde el borde en Safari)
+   * no salta entre pestanas. Se navega solo con el tab bar.
+   */
   navigate(path: string): void {
-    this.router.navigate([path]);
+    this.router.navigate([path], { replaceUrl: true });
   }
 }
