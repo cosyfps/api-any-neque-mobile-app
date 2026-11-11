@@ -107,13 +107,27 @@ import { PageStateComponent } from '@shared/components/page-state.component';
                   <input
                     id="invite-confirm"
                     formControlName="confirm"
-                    [type]="showPassword() ? 'text' : 'password'"
+                    [type]="showConfirm() ? 'text' : 'password'"
                     autocomplete="new-password"
                     enterkeyhint="done"
                     placeholder="Confírmala"
                     [attr.aria-describedby]="confirmError() ? 'invite-confirm-error' : null"
                     (blur)="markConfirmTouched()"
                   />
+                  <button
+                    class="toggle-visibility"
+                    type="button"
+                    [attr.aria-label]="
+                      showConfirm() ? 'Ocultar la confirmación' : 'Mostrar la confirmación'
+                    "
+                    (click)="toggleConfirm()"
+                  >
+                    @if (showConfirm()) {
+                      <svg lucideEyeOff [size]="18" [strokeWidth]="1.8"></svg>
+                    } @else {
+                      <svg lucideEye [size]="18" [strokeWidth]="1.8"></svg>
+                    }
+                  </button>
                 </div>
                 @if (confirmError(); as error) {
                   <span class="nq-field-error" id="invite-confirm-error">{{ error }}</span>
@@ -160,6 +174,8 @@ export class InvitePage {
   });
 
   readonly showPassword = signal(false);
+  /** Cada campo tiene su ojo: mostrar uno no revela el otro. */
+  readonly showConfirm = signal(false);
   readonly confirmTouched = signal(false);
 
   private readonly _password = signal('');
@@ -198,6 +214,10 @@ export class InvitePage {
 
   togglePassword(): void {
     this.showPassword.update(value => !value);
+  }
+
+  toggleConfirm(): void {
+    this.showConfirm.update(value => !value);
   }
 
   markConfirmTouched(): void {

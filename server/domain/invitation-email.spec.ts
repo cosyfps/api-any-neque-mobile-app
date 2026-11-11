@@ -25,6 +25,18 @@ describe('invitationEmail', () => {
     expect(html).toContain('Agrega Ñeque a tu inicio');
   });
 
+  it('mantiene los colores de marca en el modo oscuro del celular', () => {
+    const { html } = invitationEmail(INPUT);
+
+    expect(html).toContain('<meta name="color-scheme" content="light only" />');
+    expect(html).toContain('<body class="body"');
+    // Gmail invierte background-color pero no la imagen de fondo.
+    expect(html).toContain('background-image:linear-gradient(#0f766e,#0f766e)');
+    // Texto blanco del banner y del boton protegido por las capas de mezcla.
+    expect(html.match(/class="gmail-screen"><div class="gmail-difference">/g)).toHaveLength(2);
+    expect(html).toContain('u + .body .gmail-difference');
+  });
+
   it('muestra el vencimiento en hora de Chile y 24 h', () => {
     const { html, text } = invitationEmail(INPUT);
 

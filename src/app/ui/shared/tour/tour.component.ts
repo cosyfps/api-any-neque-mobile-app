@@ -182,8 +182,16 @@ export class TourComponent {
     });
   }
 
+  /**
+   * Lleva el foco al boton principal para que el lector de pantalla y el
+   * teclado sigan el paso. Sin anillo de foco: se mueve solo, el usuario no
+   * llego ahi con Tab, y el anillo sobre el borde se veia como un doble trazo.
+   */
   private focusPrimary(): void {
-    setTimeout(() => this.primary()?.nativeElement.focus(), 0);
+    setTimeout(
+      () => this.primary()?.nativeElement.focus({ focusVisible: false } as FocusOptions),
+      0,
+    );
   }
 
   private stopSearch(): void {

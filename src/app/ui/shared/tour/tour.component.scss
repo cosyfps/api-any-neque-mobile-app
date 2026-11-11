@@ -107,16 +107,18 @@ $z: 300;
   border: none;
 }
 
+// Relleno y no contorno: con el anillo de foco encima, el borde de 2px se
+// leia como un doble trazo.
 .next {
-  color: var(--nq-primary-strong);
-  background: var(--nq-bg);
-  border: 2px solid var(--nq-primary-strong);
+  color: var(--nq-text-inverse);
+  background: var(--nq-primary-strong);
+  border: none;
 }
 
 .skip:focus-visible,
 .next:focus-visible {
   outline: 2px solid var(--nq-primary-strong);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
 @media (prefers-reduced-motion: reduce) {

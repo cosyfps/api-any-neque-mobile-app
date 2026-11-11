@@ -61,7 +61,6 @@ function tabFor(url: string): string {
       @if (fab.action(); as action) {
         <button
           class="nq-fab"
-          [class.extended]="action.icon === 'message'"
           data-tour="fab"
           [attr.inert]="tour.active() ? '' : null"
           type="button"
@@ -69,9 +68,8 @@ function tabFor(url: string): string {
           (click)="action.run()"
         >
           @if (action.icon === 'message') {
-            <!-- Con texto: un globo solo no dice a quien ni que hace. -->
-            <svg lucideMessageCircle [size]="20" [strokeWidth]="2"></svg>
-            <span class="fab-text">Mensaje</span>
+            <!-- Solo el globo: a quien le escribe lo dice su aria-label. -->
+            <svg lucideMessageCircle [size]="24" [strokeWidth]="2"></svg>
           } @else {
             <svg lucidePlus [size]="24" [strokeWidth]="2"></svg>
           }

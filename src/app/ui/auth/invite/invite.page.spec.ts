@@ -197,6 +197,17 @@ describe('InvitePage', () => {
 
       expect(page.showPassword()).toBe(true);
     });
+
+    it('cada campo tiene su propio ojo: mostrar uno no revela el otro', () => {
+      page.togglePassword();
+      expect(page.showPassword()).toBe(true);
+      expect(page.showConfirm()).toBe(false);
+
+      page.toggleConfirm();
+      page.togglePassword();
+      expect(page.showPassword()).toBe(false);
+      expect(page.showConfirm()).toBe(true);
+    });
   });
 
   describe('onSubmit()', () => {

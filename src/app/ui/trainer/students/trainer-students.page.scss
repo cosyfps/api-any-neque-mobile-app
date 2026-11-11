@@ -46,14 +46,13 @@
     color: var(--nq-text-muted);
   }
 
-  &:focus {
-    border-color: var(--nq-primary-strong);
-    outline: none;
-  }
-
+  // Un solo indicador, como `.nq-field-input`: borde de marca y halo. El
+  // anillo global encima del borde se veia como un doble trazo.
+  &:focus,
   &:focus-visible {
-    outline: 2px solid var(--nq-primary-strong);
-    outline-offset: 2px;
+    outline: none;
+    border-color: var(--nq-primary-strong);
+    box-shadow: 0 0 0 3px rgba(var(--nq-primary-strong-rgb), 0.25);
   }
 
   // La X nativa de Safari duplica el boton de limpiar.

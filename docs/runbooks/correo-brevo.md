@@ -62,49 +62,93 @@ llega a los alumnos, así que se configura el SMTP de Brevo:
 4. Probar: «¿Olvidaste tu contraseña?» con un correo de alumno de prueba.
 
 ```html
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f5;">
-  <tr>
-    <td align="center" style="padding:24px 12px;">
-      <table
-        role="presentation"
-        width="100%"
-        cellpadding="0"
-        cellspacing="0"
-        style="max-width:480px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #dfe5e3;font-family:Inter,Arial,Helvetica,sans-serif;"
-      >
-        <tr>
-          <td style="background:#0f766e;padding:22px 20px;color:#ffffff;">
-            <div style="font-size:13px;font-weight:600;">Ñeque</div>
-            <div style="font-size:20px;font-weight:600;padding-top:10px;">
-              Recupera tu contraseña
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:20px;font-size:14px;line-height:1.6;color:#3e4a48;">
-            <p style="margin:0 0 12px;">
-              Ingresa este código en la app para crear una contraseña nueva:
-            </p>
-            <p
-              style="margin:0 0 16px;font-size:28px;font-weight:700;letter-spacing:6px;color:#0f766e;"
-            >
-              {{ .Token }}
-            </p>
-            <p style="margin:0;font-size:12px;color:#6b7674;">
-              Si no lo pediste, ignora este correo: tu contraseña no cambia.
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="border-top:1px solid #e6ebea;padding:12px 20px;font-size:11px;color:#6b7674;">
-            Ñeque · App por invitación · Ley 21.719 · Ley 21.663 · ISO/IEC 27001
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="color-scheme" content="light only" />
+    <meta name="supported-color-schemes" content="light only" />
+    <style>
+      :root {
+        color-scheme: light only;
+        supported-color-schemes: light only;
+      }
+      u + .body .gmail-screen {
+        background: #000;
+        mix-blend-mode: screen;
+      }
+      u + .body .gmail-difference {
+        background: #000;
+        mix-blend-mode: difference;
+      }
+    </style>
+  </head>
+  <body class="body" style="margin:0;padding:0;background:#f4f6f5;">
+    <table
+      role="presentation"
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      style="background:#f4f6f5;"
+    >
+      <tr>
+        <td align="center" style="padding:24px 12px;">
+          <table
+            role="presentation"
+            width="100%"
+            cellpadding="0"
+            cellspacing="0"
+            style="max-width:480px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #dfe5e3;font-family:Inter,Arial,Helvetica,sans-serif;"
+          >
+            <tr>
+              <td
+                style="background-color:#0f766e;background-image:linear-gradient(#0f766e,#0f766e);padding:22px 20px;color:#ffffff;"
+              >
+                <div class="gmail-screen">
+                  <div class="gmail-difference">
+                    <div style="font-size:13px;font-weight:600;color:#ffffff;">Ñeque</div>
+                    <div style="font-size:20px;font-weight:600;padding-top:10px;color:#ffffff;">
+                      Recupera tu contraseña
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px;font-size:14px;line-height:1.6;color:#3e4a48;">
+                <p style="margin:0 0 12px;">
+                  Ingresa este código en la app para crear una contraseña nueva:
+                </p>
+                <p
+                  style="margin:0 0 16px;font-size:28px;font-weight:700;letter-spacing:6px;color:#0f766e;"
+                >
+                  {{ .Token }}
+                </p>
+                <p style="margin:0;font-size:12px;color:#6b7674;">
+                  Si no lo pediste, ignora este correo: tu contraseña no cambia.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td
+                style="border-top:1px solid #e6ebea;padding:12px 20px;font-size:11px;color:#6b7674;"
+              >
+                Ñeque · App por invitación · Ley 21.719 · Ley 21.663 · ISO/IEC 27001
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
 ```
+
+> **Modo oscuro.** Gmail en el celular recolorea los correos cuando el
+> teléfono está en tema oscuro. El degradado de un solo color en el banner y
+> las capas `gmail-screen` / `gmail-difference` mantienen el teal y el texto
+> blanco; `color-scheme: light only` hace lo mismo en Mail de iOS. El cuerpo
+> blanco sí puede oscurecerse: es lo que hace legible el texto en tema oscuro.
 
 ## 4. Instalar la PWA (lo que hace el alumno)
 

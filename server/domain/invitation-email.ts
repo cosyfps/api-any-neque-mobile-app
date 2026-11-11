@@ -19,6 +19,31 @@ const TIME_ZONE = 'America/Santiago';
 const BRAND = '#0f766e';
 const BRAND_TINT = '#e0f2ef';
 
+/**
+ * Fondo de marca que sobrevive al modo oscuro: Gmail en el celular invierte
+ * `background-color`, pero no una imagen de fondo. El degradado de un solo
+ * color es esa imagen.
+ */
+const BRAND_FILL = `background-color:${BRAND};background-image:linear-gradient(${BRAND},${BRAND});`;
+const TINT_FILL = `background-color:${BRAND_TINT};background-image:linear-gradient(${BRAND_TINT},${BRAND_TINT});`;
+
+/**
+ * Texto blanco sobre la marca que Gmail en modo oscuro no oscurece: las dos
+ * capas de mezcla deshacen su inversion. Solo aplica en Gmail (`u + .body`).
+ */
+function onBrand(html: string): string {
+  return `<div class="gmail-screen"><div class="gmail-difference">${html}</div></div>`;
+}
+
+/** Estilos de cabecera: modo claro fijo y el arreglo del texto para Gmail. */
+const HEAD_STYLES = `<meta name="color-scheme" content="light only" />
+<meta name="supported-color-schemes" content="light only" />
+<style>
+  :root { color-scheme: light only; supported-color-schemes: light only; }
+  u + .body .gmail-screen { background: #000; mix-blend-mode: screen; }
+  u + .body .gmail-difference { background: #000; mix-blend-mode: difference; }
+</style>`;
+
 const STEPS: readonly (readonly [string, string])[] = [
   ['Abre tu invitación', 'Con el botón de abajo, desde tu teléfono.'],
   ['Crea tu contraseña', 'Solo tú la conoces; tu entrenador no.'],
@@ -75,7 +100,7 @@ export function invitationEmail(input: InvitationEmailInput): EmailContent {
     ([title, detail], index) => `
           <tr>
             <td width="36" valign="top" style="padding:0 0 12px 0;">
-              <div style="width:24px;height:24px;line-height:24px;border-radius:12px;background:${BRAND_TINT};color:${BRAND};font-size:12px;font-weight:600;text-align:center;">${index + 1}</div>
+              <div style="width:24px;height:24px;line-height:24px;border-radius:12px;${TINT_FILL}color:${BRAND};font-size:12px;font-weight:600;text-align:center;">${index + 1}</div>
             </td>
             <td valign="top" style="padding:0 0 12px 0;font-size:14px;line-height:1.45;color:#1f2a28;">
               <strong style="font-weight:600;">${title}</strong><br />
@@ -86,15 +111,15 @@ export function invitationEmail(input: InvitationEmailInput): EmailContent {
 
   const html = `<!doctype html>
 <html lang="es">
-<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${escapeHtml(subject)}</title></head>
-<body style="margin:0;padding:0;background:#f4f6f5;">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />${HEAD_STYLES}<title>${escapeHtml(subject)}</title></head>
+<body class="body" style="margin:0;padding:0;background:#f4f6f5;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f5;">
     <tr><td align="center" style="padding:24px 12px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #dfe5e3;font-family:Inter,Arial,Helvetica,sans-serif;">
-        <tr><td style="background:${BRAND};padding:22px 20px 20px;color:#ffffff;">
-          <div style="font-size:13px;font-weight:600;letter-spacing:.3px;">Ñeque</div>
-          <div style="font-size:20px;font-weight:600;line-height:1.3;padding-top:10px;">Tu entrenador te espera</div>
-          <div style="font-size:13px;padding-top:6px;">Invitación personal · vence en 48 horas</div>
+        <tr><td style="${BRAND_FILL}padding:22px 20px 20px;color:#ffffff;">${onBrand(`
+          <div style="font-size:13px;font-weight:600;letter-spacing:.3px;color:#ffffff;">Ñeque</div>
+          <div style="font-size:20px;font-weight:600;line-height:1.3;padding-top:10px;color:#ffffff;">Tu entrenador te espera</div>
+          <div style="font-size:13px;padding-top:6px;color:#ffffff;">Invitación personal · vence en 48 horas</div>`)}
         </td></tr>
         <tr><td style="padding:20px;">
           <p style="margin:0 0 6px;font-size:15px;font-weight:600;color:#1f2a28;">Hola, ${name}</p>
@@ -102,8 +127,8 @@ export function invitationEmail(input: InvitationEmailInput): EmailContent {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${steps}
           </table>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">
-            <tr><td align="center" style="background:${BRAND};border-radius:12px;">
-              <a href="${link}" style="display:block;padding:14px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">Crear mi acceso</a>
+            <tr><td align="center" style="${BRAND_FILL}border-radius:12px;">
+              <a href="${link}" style="display:block;padding:14px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">${onBrand('<span style="color:#ffffff;">Crear mi acceso</span>')}</a>
             </td></tr>
           </table>
           <p style="margin:16px 0 4px;font-size:12px;color:#5d6967;">¿El botón no funciona? Copia este enlace en tu navegador:</p>

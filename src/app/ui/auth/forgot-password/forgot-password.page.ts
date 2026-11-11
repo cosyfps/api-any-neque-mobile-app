@@ -353,7 +353,7 @@ const OTP_LENGTH = 6;
                   <input
                     id="fp-confirm"
                     formControlName="confirm"
-                    [type]="showPassword() ? 'text' : 'password'"
+                    [type]="showConfirm() ? 'text' : 'password'"
                     autocomplete="new-password"
                     autocapitalize="none"
                     spellcheck="false"
@@ -363,6 +363,20 @@ const OTP_LENGTH = 6;
                     [attr.aria-describedby]="confirmError() ? 'fp-confirm-error' : null"
                     (blur)="markConfirmTouched()"
                   />
+                  <button
+                    class="toggle-visibility"
+                    type="button"
+                    [attr.aria-label]="
+                      showConfirm() ? 'Ocultar la confirmación' : 'Mostrar la confirmación'
+                    "
+                    (click)="toggleConfirm()"
+                  >
+                    @if (showConfirm()) {
+                      <svg lucideEyeOff [size]="18" [strokeWidth]="1.8"></svg>
+                    } @else {
+                      <svg lucideEye [size]="18" [strokeWidth]="1.8"></svg>
+                    }
+                  </button>
                 </div>
                 @if (confirmError(); as error) {
                   <span class="nq-field-error" id="fp-confirm-error">{{ error }}</span>
@@ -413,6 +427,8 @@ export class ForgotPasswordPage implements AfterViewInit {
   readonly canResend = signal(false);
   readonly isSaving = signal(false);
   readonly showPassword = signal(false);
+  /** Cada campo tiene su ojo: mostrar uno no revela el otro. */
+  readonly showConfirm = signal(false);
   readonly confirmTouched = signal(false);
   readonly resendCountdown = signal(60);
   readonly otpValues = signal<string[]>(Array(OTP_LENGTH).fill(''));
@@ -583,6 +599,10 @@ export class ForgotPasswordPage implements AfterViewInit {
 
   togglePassword(): void {
     this.showPassword.update(value => !value);
+  }
+
+  toggleConfirm(): void {
+    this.showConfirm.update(value => !value);
   }
 
   markConfirmTouched(): void {
